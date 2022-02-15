@@ -33,7 +33,7 @@ contract ETH2Staking is IETH2Staking, ReentrancyGuard, Pausable, Ownable {
 
         // fields after validator has spinned up
         mapping(address=>uint256) rewardDebts;
-        uint256 accEthPerShare;
+        uint256 accEthers;
     }
 
     address nextValidator; // still waiting for ether deposits
@@ -77,8 +77,8 @@ contract ETH2Staking is IETH2Staking, ReentrancyGuard, Pausable, Ownable {
         uint256 fee = msg.value.mul(managerFeeMilli).div(1000);
 
         payable(managerAccount).sendValue(fee);
-        uint256 share = msg.value.sub(fee);
-        nodes[msg.sender].accEthPerShare = nodes[msg.sender].accEthPerShare.add(share);
+        uint256 r = msg.value.sub(fee);
+        nodes[msg.sender].accEthers = nodes[msg.sender].accEthers.add(r);
 
         emit RevenueReceived(msg.value);
     }
@@ -91,6 +91,14 @@ contract ETH2Staking is IETH2Staking, ReentrancyGuard, Pausable, Ownable {
         return validators[validatorId].accountList;
     }
     */
+    function checkReward(address account, address validator) external view returns (uint256) {
+        Validator storage node = nodes[validator];
+        uint256 amount = node.accounts[account];
+        uint256 rewardDebt = node.rewardDebts[account];
+
+        uint256 revenue = amount.mul(node.accEthers).div(NODE_ETH_LIMIT).sub(rewardDebt);
+        return revenue;
+    }
  
     function deposit() external 
         payable 
