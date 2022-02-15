@@ -1041,105 +1041,6 @@ interface IPancakeRouter02 is IPancakeRouter01 {
     ) external;
 }
 
-
-
-interface IOGSToken is IERC20 {
-    function mint(address account, uint256 amount) external;
-    function burn(uint256 amount) external;
-    function setMintable(address account, bool allow) external;
-}
-
-interface IOUROToken is IERC20 {
-    function mint(address account, uint256 amount) external;
-    function burn(uint256 amount) external;
-    function setMintable(address account, bool allow) external;
-}
-
-interface IOUROReserve {
-    function getPrice() external view returns(uint256);
-    function getAssetBalance(address token) external view returns(uint256);
-    function getAssetPrice(AggregatorV3Interface feed) external view returns(uint256);
-
-    function getCollateral(address token) external view returns (
-        address vTokenAddress,
-        uint256 assetUnit, // usually 1e18
-        uint256 lastPrice, // record latest collateral price
-        AggregatorV3Interface priceFeed // asset price feed for xxx/USDT
-    );
-
-    function getOuroIn(uint256 amount, address token) external view returns(uint256);
-    function getAssetsIn(uint256 amountOURO, address token) external view returns(uint256);
-    
-    function deposit(address token, uint256 amountAsset, uint256 minAmountOuro) external payable returns (uint256 OUROMinted);
-    function withdraw(address token, uint256 amountAsset, uint256 maxAmountOuro) external returns(uint256 OUROTaken);
-}
-
-interface IOURODist {
-    function isDist() external view returns (bool);
-    function revenueArrival(address token, uint256 assetAmount) external;
-    function resetAllowance(address token) external;
-}
-
-interface IVenusDistribution {
-    function oracle() external view returns (address);
-
-    function enterMarkets(address[] memory _vtokens) external;
-    function exitMarket(address _vtoken) external;
-    function getAssetsIn(address account) external view returns (address[] memory);
-
-    function markets(address vTokenAddress) external view returns (bool, uint, bool);
-    function getAccountLiquidity(address account) external view returns (uint, uint, uint);
-
-    function claimVenus(address holder, address[] memory vTokens) external;
-    function venusSpeeds(address) external view returns (uint);
-}
-
-interface IWBNB is IERC20 {
-    function deposit() external payable;
-
-    function withdraw(uint256 wad) external;
-}
-
-interface IVBNB {
-    function totalSupply() external view returns (uint);
-
-    function mint() external payable;
-    function redeem(uint redeemTokens) external returns (uint);
-    function redeemUnderlying(uint redeemAmount) external returns (uint);
-    function borrow(uint borrowAmount) external returns (uint);
-    function repayBorrow() external payable;
-
-    function balanceOfUnderlying(address owner) external returns (uint);
-    function borrowBalanceCurrent(address account) external returns (uint);
-    function totalBorrowsCurrent() external returns (uint);
-
-    function exchangeRateCurrent() external returns (uint);
-    function exchangeRateStored() external view returns (uint);
-
-    function supplyRatePerBlock() external view returns (uint);
-    function borrowRatePerBlock() external view returns (uint);
-}
-
-interface IVToken is IERC20 {
-    function underlying() external returns (address);
-
-    function mint(uint mintAmount) external returns (uint);
-    function redeem(uint redeemTokens) external returns (uint);
-    function redeemUnderlying(uint redeemAmount) external returns (uint);
-    function borrow(uint borrowAmount) external returns (uint);
-    function repayBorrow(uint repayAmount) external returns (uint);
-
-    function balanceOfUnderlying(address owner) external returns (uint);
-    function borrowBalanceCurrent(address account) external returns (uint);
-    function totalBorrowsCurrent() external returns (uint);
-
-    function exchangeRateCurrent() external returns (uint);
-    function exchangeRateStored() external view returns (uint);
-
-    function supplyRatePerBlock() external view returns (uint);
-    function borrowRatePerBlock() external view returns (uint);
-}
-
 abstract contract ReentrancyGuard {
     uint256 private constant _NOT_ENTERED = 1;
     uint256 private constant _ENTERED = 2;
@@ -1248,4 +1149,8 @@ abstract contract Pausable is Context {
         _paused = false;
         emit Unpaused(_msgSender());
     }
+}
+
+interface IETH2Staking {
+    function revenueRecevied() external payable;
 }
