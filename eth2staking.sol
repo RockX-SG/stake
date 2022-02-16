@@ -162,11 +162,11 @@ contract ETH2Staking is IETH2Staking, ReentrancyGuard, Pausable, Ownable {
         numValidators = validators.length;
     }
 
-    // withdraw 32 ethers
+    // withdraw ethers in a node
     function withdraw(address validator) external nonReentrant onlyOwner {
         Validator storage node = nodes[validator];
-        require(node.totalEthers >= NODE_ETH_LIMIT);
         require(!node.hasWithdrawed);
+        require(node.totalEthers >= NODE_ETH_LIMIT);
 
         node.hasWithdrawed = true;
         
