@@ -29,15 +29,17 @@ contract ETH2Staking is IETH2Staking, ReentrancyGuard, Pausable, Ownable {
     struct Validator {
         // fields related before validator setup
         mapping(address=>uint256) accounts;
-        uint256 total;
+        uint256 totalEthers;
 
         // fields after validator has spinned up
         mapping(address=>uint256) rewardDebts;
-        uint256 accEthers;
+        uint256 accEthersPerShare;
     }
 
-    address nextValidator; // still waiting for ether deposits
-    mapping(address=>Validator) nodes; // spined up nodes
+    address public nextValidator; // still waiting for ether deposits
+    mapping(address=>Validator) internal nodes; // spined up nodes
+    address [] public validators;
+    uint256 public numValidators;
 
     /**
      * Global
@@ -46,6 +48,8 @@ contract ETH2Staking is IETH2Staking, ReentrancyGuard, Pausable, Ownable {
     constructor() public {
         managerAccount = msg.sender;
         nextValidator = address(new ETH2Validator());
+        validators.push(nextValidator);
+        numValidators = validators.length;
     }
     
     // set manager's account
@@ -77,8 +81,11 @@ contract ETH2Staking is IETH2Staking, ReentrancyGuard, Pausable, Ownable {
         uint256 fee = msg.value.mul(managerFeeMilli).div(1000);
 
         payable(managerAccount).sendValue(fee);
-        uint256 r = msg.value.sub(fee);
-        nodes[msg.sender].accEthers = nodes[msg.sender].accEthers.add(r);
+        uint256 share = msg.value.sub(fee)
+                            .mul(SHARE_MULTIPLIER)
+                            .div(nodes[msg.sender].totalEthers);
+
+        nodes[msg.sender].accEthersPerShare = nodes[msg.sender].accEthersPerShare.add(share);
 
         emit RevenueReceived(msg.value);
     }
@@ -91,13 +98,25 @@ contract ETH2Staking is IETH2Staking, ReentrancyGuard, Pausable, Ownable {
         return validators[validatorId].accountList;
     }
     */
-    function checkReward(address account, address validator) external view returns (uint256) {
+    function checkReward(address account, address validator) public view returns (uint256) {
         Validator storage node = nodes[validator];
         uint256 amount = node.accounts[account];
         uint256 rewardDebt = node.rewardDebts[account];
 
-        uint256 revenue = amount.mul(node.accEthers).div(NODE_ETH_LIMIT).sub(rewardDebt);
+        uint256 revenue = amount
+                                .mul(node.accEthersPerShare.sub(rewardDebt))
+                                .div(SHARE_MULTIPLIER);
         return revenue;
+    }
+
+    /**
+     * claim rewards and update reward debts
+     */ 
+    function claimRewards(address validator) external {
+        uint256 rewards = checkReward(msg.sender, validator);
+        Validator storage node = nodes[validator];
+        node.rewardDebts[msg.sender] = node.accEthersPerShare;
+        msg.sender.sendValue(rewards);
     }
  
     function deposit() external 
@@ -112,18 +131,18 @@ contract ETH2Staking is IETH2Staking, ReentrancyGuard, Pausable, Ownable {
         
         while (ethersRemain > 0) {
             Validator storage node = nodes[nextValidator];
-            if (node.total.add(ethersRemain) >= NODE_ETH_LIMIT) {
+            if (node.totalEthers.add(ethersRemain) >= NODE_ETH_LIMIT) {
                 // bound to 32 ethers
-                uint256 incr =  NODE_ETH_LIMIT.sub(node.total);
+                uint256 incr =  NODE_ETH_LIMIT.sub(node.totalEthers);
                 ethersRemain = ethersRemain.sub(incr);
-                node.total = node.total.add(incr);
+                node.totalEthers = node.totalEthers.add(incr);
                 node.accounts[msg.sender] = node.accounts[msg.sender].add(incr);
         
                 // spin up node
                 _spinup();
 
             } else {
-                node.total = node.total.add(ethersRemain);
+                node.totalEthers = node.totalEthers.add(ethersRemain);
                 node.accounts[msg.sender] = node.accounts[msg.sender].add(ethersRemain);
                 ethersRemain = 0;
             }
@@ -137,6 +156,8 @@ contract ETH2Staking is IETH2Staking, ReentrancyGuard, Pausable, Ownable {
 
         // deploy new contract to receive revenue
         nextValidator = address(new ETH2Validator());
+        validators.push(nextValidator);
+        numValidators = validators.length;
     }
 
     /**
