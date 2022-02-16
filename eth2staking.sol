@@ -34,6 +34,8 @@ contract ETH2Staking is IETH2Staking, ReentrancyGuard, Pausable, Ownable {
         // fields after validator has spinned up
         mapping(address=>uint256) rewardDebts;
         uint256 accEthersPerShare;
+
+        bool hasWithdrawed;
     }
 
     address public nextValidator; // still waiting for ether deposits
@@ -112,7 +114,7 @@ contract ETH2Staking is IETH2Staking, ReentrancyGuard, Pausable, Ownable {
     /**
      * claim rewards and update reward debts
      */ 
-    function claimRewards(address validator) external {
+    function claimRewards(address validator) external nonReentrant {
         uint256 rewards = checkReward(msg.sender, validator);
         Validator storage node = nodes[validator];
         node.rewardDebts[msg.sender] = node.accEthersPerShare;
@@ -158,6 +160,17 @@ contract ETH2Staking is IETH2Staking, ReentrancyGuard, Pausable, Ownable {
         nextValidator = address(new ETH2Validator());
         validators.push(nextValidator);
         numValidators = validators.length;
+    }
+
+    // withdraw 32 ethers
+    function withdraw(address validator) external nonReentrant onlyOwner {
+        Validator storage node = nodes[validator];
+        require(node.totalEthers >= NODE_ETH_LIMIT);
+        require(!node.hasWithdrawed);
+
+        node.hasWithdrawed = true;
+        
+        msg.sender.sendValue(node.totalEthers);
     }
 
     /**
