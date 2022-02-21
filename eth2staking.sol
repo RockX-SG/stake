@@ -163,22 +163,44 @@ contract ETH2Staking is IETH2Staking, ReentrancyGuard, Pausable, Ownable {
 
     /**
      * @dev redeem ETH by burning xETH with current exchange ratio, 
-     * approve xETH to this contract first
+     * approve xETH to this contract first.
+     *
+     * amount xETH to burn:
+     *      xETH * ethers_to_redeem/current_ethers
+     *
+     * redeem keeps the ratio invariant
      */
     function redeemUnderlying(uint256 ethersToRedeem) external nonReentrant {
-        // amount XETH to burn = xETH - xETH * (current_ethers - ethers_to_redeem)/current_ethers
-        // redeem keeps the ratio invariant
-        uint256 amountXETH = IERC20(xETHAddress).totalSupply();
+        uint256 totalXETH = IERC20(xETHAddress).totalSupply();
         uint256 currentEthers = totalStaked.add(totalRevenue);
-        uint256 toBurn = amountXETH.sub
-                            (
-                                amountXETH.mul(currentEthers.sub(ethersToRedeem)).div(currentEthers)
-                            );
+        uint256 toBurn = totalXETH.mul(ethersToRedeem).div(currentEthers);
         
-        // transfer xETH from sender
+        // transfer xETH from sender & burn
         IERC20(xETHAddress).safeTransferFrom(msg.sender, address(this), toBurn);
-        // burn
         IMintableContract(xETHAddress).burn(toBurn);
+
+        // send ethers back to sender
+        msg.sender.sendValue(ethersToRedeem);
+    }
+
+    /**
+     * @dev redeem ETH by burning xETH with current exchange ratio, 
+     * approve xETH to this contract first.
+     * 
+     * amount ethers to return:
+     *  current_ethers * xETHToBurn/ xETH
+     *
+     * redeem keeps the ratio invariant
+     */
+    function redeem(uint256 xETHToBurn) external nonReentrant {
+        uint256 totalXETH = IERC20(xETHAddress).totalSupply();
+        uint256 currentEthers = totalStaked.add(totalRevenue);
+        uint256 ethersToRedeem = currentEthers.mul(xETHToBurn).div(totalXETH);
+        
+        // transfer xETH from sender & burn
+        IERC20(xETHAddress).safeTransferFrom(msg.sender, address(this), xETHToBurn);
+        IMintableContract(xETHAddress).burn(xETHToBurn);
+
         // send ethers back to sender
         msg.sender.sendValue(ethersToRedeem);
     }
