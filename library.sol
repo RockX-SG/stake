@@ -1154,3 +1154,8 @@ abstract contract Pausable is Context {
 interface IETH2Staking {
     function revenueRecevied() external payable;
 }
+
+interface IMintableContract is IERC20 {
+    function mint(address account, uint256 amount) external;
+    function burn(uint256 amount) external;
+}
