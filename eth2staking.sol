@@ -20,9 +20,10 @@ contract ETH2Staking is IETH2Staking, ReentrancyGuard, Pausable, Ownable {
     using Address for address payable;
     using SafeMath for uint256;
 
-    uint256 internal constant NODE_ETH_LIMIT = 32 ether;
+    uint256 internal constant DEPOSIT_SIZE = 32 ether;
     uint256 internal constant MULTIPLIER = 1e18; 
 
+    address public ethDepositContract; // ETH 2.0 Deposit contract
     address public xETHAddress; // xETH token address
     address public managerAccount;
     uint256 public managerFeeMilli = 100; // *1/1000
@@ -51,7 +52,8 @@ contract ETH2Staking is IETH2Staking, ReentrancyGuard, Pausable, Ownable {
      * Global
      */
 
-    constructor(address xETHAddress_) public {
+    constructor(address xETHAddress_, address ethDepositContract_) public {
+        ethDepositContract = ethDepositContract_;
         xETHAddress = xETHAddress_;
         managerAccount = msg.sender;
         nextValidator = address(new ETH2Validator());
@@ -138,9 +140,9 @@ contract ETH2Staking is IETH2Staking, ReentrancyGuard, Pausable, Ownable {
         uint256 ethersRemain = msg.value;        
         while (ethersRemain > 0) {
             Validator storage node = nodes[nextValidator];
-            if (node.totalEthers.add(ethersRemain) >= NODE_ETH_LIMIT) {
+            if (node.totalEthers.add(ethersRemain) >= DEPOSIT_SIZE) {
                 // bound to 32 ethers
-                uint256 incr =  NODE_ETH_LIMIT.sub(node.totalEthers);
+                uint256 incr =  DEPOSIT_SIZE.sub(node.totalEthers);
                 ethersRemain = ethersRemain.sub(incr);
                 node.totalEthers = node.totalEthers.add(incr);
                 node.accounts[msg.sender] = node.accounts[msg.sender].add(incr);
@@ -171,6 +173,7 @@ contract ETH2Staking is IETH2Staking, ReentrancyGuard, Pausable, Ownable {
      * redeem keeps the ratio invariant
      */
     function redeemUnderlying(uint256 ethersToRedeem) external nonReentrant {
+        require(totalRevenue >= ethersToRedeem);
         uint256 totalXETH = IERC20(xETHAddress).totalSupply();
         uint256 currentEthers = totalStaked.add(totalRevenue);
         uint256 toBurn = totalXETH.mul(ethersToRedeem).div(currentEthers);
@@ -196,7 +199,8 @@ contract ETH2Staking is IETH2Staking, ReentrancyGuard, Pausable, Ownable {
         uint256 totalXETH = IERC20(xETHAddress).totalSupply();
         uint256 currentEthers = totalStaked.add(totalRevenue);
         uint256 ethersToRedeem = currentEthers.mul(xETHToBurn).div(totalXETH);
-        
+        require(totalRevenue >= ethersToRedeem);
+
         // transfer xETH from sender & burn
         IERC20(xETHAddress).safeTransferFrom(msg.sender, address(this), xETHToBurn);
         IMintableContract(xETHAddress).burn(xETHToBurn);
@@ -205,7 +209,9 @@ contract ETH2Staking is IETH2Staking, ReentrancyGuard, Pausable, Ownable {
         msg.sender.sendValue(ethersToRedeem);
     }
 
-    // spin up the node
+    /**
+     * @dev spin up the node
+     */
     function _spinup() internal {
         // emit a log
         emit NewValidator(nextValidator);
@@ -216,6 +222,22 @@ contract ETH2Staking is IETH2Staking, ReentrancyGuard, Pausable, Ownable {
         numValidators = validators.length;
 
         // TODO: deposit to ethereum contract
+    }
+
+    /**
+    * @dev Invokes a deposit call to the official Deposit contract
+    * @param _pubkey Validator to stake for
+    * @param _signature Signature of the deposit call
+    */
+    function _stake(bytes memory _pubkey, bytes memory _signature) internal {
+        bytes32 withdrawalCredentials;
+        bytes32 depositDataRoot;
+
+        IDepositContract(ethDepositContract).deposit{value:DEPOSIT_SIZE} (
+            _pubkey, abi.encodePacked(withdrawalCredentials), _signature, depositDataRoot);
+
+        uint256 targetBalance = address(this).balance.sub(DEPOSIT_SIZE);
+        require(address(this).balance == targetBalance, "EXPECTING_DEPOSIT_TO_HAPPEN");
     }
 
     /**
