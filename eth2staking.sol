@@ -4,16 +4,6 @@ pragma experimental ABIEncoderV2;
 
 import "./library.sol";
 
-
-// ETH2Validator is a standalone address to receive revenue
-contract ETH2Validator is Ownable {
-    using Address for address payable;
-
-    receive() external payable {
-        IETH2Staking(owner()).revenueRecevied{value:msg.value}();
-    }
-}
-
 contract ETH2Staking is IETH2Staking, ReentrancyGuard, Pausable, Ownable {
     using SafeERC20 for IERC20;
     using SafeMath for uint;
@@ -28,25 +18,26 @@ contract ETH2Staking is IETH2Staking, ReentrancyGuard, Pausable, Ownable {
     address public managerAccount;
     uint256 public managerFeeMilli = 100; // *1/1000
 
-    struct Validator {
-        // fields related before validator setup
-        mapping(address=>uint256) accounts;
-        uint256 totalEthers;
-        bool hasWithdrawed;
+    struct Credential {
+        bytes pubkey;
+        bytes32 withdrawalCredentials;
+        bytes signature;
+        bytes32 depositDataRoot;
     }
 
-    // validator start up related;
-    address public nextValidator; // still waiting for ether deposits
-    mapping(address=>Validator) internal nodes; // spined up nodes
-    address [] public validators;
-    uint256 public numValidators;
+    // credentials, pushed by owner
+    mapping(uint256=>Credential) public credentials;
+
+    // next validator id
+    uint256 nextValidatorId;
 
     // revenue distribution related
-    uint256 totalStaked;
+    uint256 public totalStaked;
+    uint256 public totalDeposited;
     uint256 totalRevenue;
 
     // pending withdraw
-    mapping(address=>uint256) pendingRedeem;
+    mapping(address=>uint256) internal pendingRedeem;
 
     /**
      * Global
@@ -56,9 +47,13 @@ contract ETH2Staking is IETH2Staking, ReentrancyGuard, Pausable, Ownable {
         ethDepositContract = ethDepositContract_;
         xETHAddress = xETHAddress_;
         managerAccount = msg.sender;
-        nextValidator = address(new ETH2Validator());
-        validators.push(nextValidator);
-        numValidators = validators.length;
+    }
+
+    /**
+     * @dev add credential by owner
+     */
+    function addCredential(bytes calldata pubkey, bytes32 withdrawalCredentials, bytes calldata signature, bytes32 depositDataRoot) external onlyOwner {
+
     }
     
     // set manager's account
@@ -139,20 +134,15 @@ contract ETH2Staking is IETH2Staking, ReentrancyGuard, Pausable, Ownable {
         // allocate ethers to validators
         uint256 ethersRemain = msg.value;        
         while (ethersRemain > 0) {
-            Validator storage node = nodes[nextValidator];
-            if (node.totalEthers.add(ethersRemain) >= DEPOSIT_SIZE) {
+            if (totalStaked.add(ethersRemain).sub(totalDeposited) >= DEPOSIT_SIZE) {
                 // bound to 32 ethers
-                uint256 incr =  DEPOSIT_SIZE.sub(node.totalEthers);
+                uint256 incr = totalDeposited.add(DEPOSIT_SIZE).sub(totalStaked);
                 ethersRemain = ethersRemain.sub(incr);
-                node.totalEthers = node.totalEthers.add(incr);
-                node.accounts[msg.sender] = node.accounts[msg.sender].add(incr);
         
-                // spin up node
+                // spin up node with credentials
                 _spinup();
 
             } else {
-                node.totalEthers = node.totalEthers.add(ethersRemain);
-                node.accounts[msg.sender] = node.accounts[msg.sender].add(ethersRemain);
                 ethersRemain = 0;
             }
         }
@@ -214,14 +204,13 @@ contract ETH2Staking is IETH2Staking, ReentrancyGuard, Pausable, Ownable {
      */
     function _spinup() internal {
         // emit a log
-        emit NewValidator(nextValidator);
+        emit NewValidator(nextValidatorId);
 
         // deploy new contract to receive revenue
-        nextValidator = address(new ETH2Validator());
-        validators.push(nextValidator);
-        numValidators = validators.length;
+        nextValidatorId++;
 
         // TODO: deposit to ethereum contract
+        totalDeposited += DEPOSIT_SIZE;
     }
 
     /**
@@ -243,7 +232,7 @@ contract ETH2Staking is IETH2Staking, ReentrancyGuard, Pausable, Ownable {
     /**
      * Events
      */
-    event NewValidator(address account);
+    event NewValidator(uint256 node_id);
     event RevenueReceived(uint256 amount);
     event ManagerAccountSet(address account);
     event ManagerFeeSet(uint256 milli);
