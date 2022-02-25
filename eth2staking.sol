@@ -4,7 +4,7 @@ pragma experimental ABIEncoderV2;
 
 import "./library.sol";
 
-contract ETH2Staking is IETH2Staking, ReentrancyGuard, Pausable, Ownable {
+contract ETH2Staking is ReentrancyGuard, Pausable, Ownable {
     using SafeERC20 for IERC20;
     using SafeMath for uint;
     using Address for address payable;
@@ -34,7 +34,8 @@ contract ETH2Staking is IETH2Staking, ReentrancyGuard, Pausable, Ownable {
     // revenue distribution related
     uint256 public totalStaked;
     uint256 public totalDeposited;
-    uint256 totalRevenue;
+    uint256 public totalUserRevenue;
+    uint256 public totalManagerRevenue;
 
     // pending withdraw
     mapping(address=>uint256) internal pendingRedeem;
@@ -81,15 +82,15 @@ contract ETH2Staking is IETH2Staking, ReentrancyGuard, Pausable, Ownable {
     /**
      * revenue received for a given validator
      */
-    function revenueRecevied() external override payable {
-        uint256 fee = msg.value.mul(managerFeeMilli).div(1000);
+    function revenueRecevied(uint256 revenueConfirmed) external onlyOwner {
+        uint256 fee = revenueConfirmed.mul(managerFeeMilli).div(1000);
+        totalManagerRevenue = totalManagerRevenue.add(fee);
 
-        payable(managerAccount).sendValue(fee);
-        totalRevenue = msg.value
-                            .sub(fee)
-                            .add(totalRevenue);
+        totalUserRevenue = totalUserRevenue
+                                .add(revenueConfirmed)
+                                .sub(fee);
 
-        emit RevenueReceived(msg.value);
+        emit RevenueReceived(revenueConfirmed);
     }
 
     /**
@@ -107,7 +108,7 @@ contract ETH2Staking is IETH2Staking, ReentrancyGuard, Pausable, Ownable {
      */
     function exchangeRatio() public view returns (uint256) {
         uint256 xETHAmount = IERC20(xETHAddress).totalSupply();
-        uint256 ratio = totalStaked.add(totalRevenue)
+        uint256 ratio = totalStaked.add(totalUserRevenue)
                             .mul(MULTIPLIER)
                             .div(xETHAmount);
         return ratio;
@@ -128,7 +129,7 @@ contract ETH2Staking is IETH2Staking, ReentrancyGuard, Pausable, Ownable {
         // amount XETH to mint = xETH * (current_ethers + ethers_to_deposit)/current_ethers - xETH
         //
         uint256 amountXETH = IERC20(xETHAddress).totalSupply();
-        uint256 currentEthers = totalStaked.add(totalRevenue);
+        uint256 currentEthers = totalStaked.add(totalUserRevenue);
         uint256 toMint = amountXETH.mul(currentEthers.add(msg.value)).div(currentEthers).sub(amountXETH);
 
         // allocate ethers to validators
@@ -163,9 +164,9 @@ contract ETH2Staking is IETH2Staking, ReentrancyGuard, Pausable, Ownable {
      * redeem keeps the ratio invariant
      */
     function redeemUnderlying(uint256 ethersToRedeem) external nonReentrant {
-        require(totalRevenue >= ethersToRedeem);
+        require(totalUserRevenue >= ethersToRedeem);
         uint256 totalXETH = IERC20(xETHAddress).totalSupply();
-        uint256 currentEthers = totalStaked.add(totalRevenue);
+        uint256 currentEthers = totalStaked.add(totalUserRevenue);
         uint256 toBurn = totalXETH.mul(ethersToRedeem).div(currentEthers);
         
         // transfer xETH from sender & burn
@@ -187,9 +188,9 @@ contract ETH2Staking is IETH2Staking, ReentrancyGuard, Pausable, Ownable {
      */
     function redeem(uint256 xETHToBurn) external nonReentrant {
         uint256 totalXETH = IERC20(xETHAddress).totalSupply();
-        uint256 currentEthers = totalStaked.add(totalRevenue);
+        uint256 currentEthers = totalStaked.add(totalUserRevenue);
         uint256 ethersToRedeem = currentEthers.mul(xETHToBurn).div(totalXETH);
-        require(totalRevenue >= ethersToRedeem);
+        require(totalUserRevenue >= ethersToRedeem);
 
         // transfer xETH from sender & burn
         IERC20(xETHAddress).safeTransferFrom(msg.sender, address(this), xETHToBurn);
