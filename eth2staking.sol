@@ -20,13 +20,13 @@ contract ETH2Staking is ReentrancyGuard, Pausable, Ownable {
 
     struct Credential {
         bytes pubkey;
-        bytes32 withdrawalCredentials;
+        bytes32 withdrawalCredential;
         bytes signature;
         bytes32 depositDataRoot;
     }
 
     // credentials, pushed by owner
-    mapping(uint256=>Credential) public credentials;
+    Credential [] public credentials;
 
     // next validator id
     uint256 nextValidatorId;
@@ -51,8 +51,14 @@ contract ETH2Staking is ReentrancyGuard, Pausable, Ownable {
     /**
      * @dev add credential by owner
      */
-    function addCredential(bytes calldata pubkey, bytes32 withdrawalCredentials, bytes calldata signature, bytes32 depositDataRoot) external onlyOwner {
+    function addCredential(bytes calldata pubkey, bytes32 withdrawalCredential, bytes calldata signature, bytes32 depositDataRoot) external onlyOwner {
+        Credential memory cred;
+        cred.pubkey = pubkey;
+        cred.withdrawalCredential = withdrawalCredential;
+        cred.signature = signature;
+        cred.depositDataRoot = depositDataRoot;
 
+        credentials.push(cred);
     }
     
     // set manager's account
@@ -218,24 +224,26 @@ contract ETH2Staking is ReentrancyGuard, Pausable, Ownable {
         // emit a log
         emit NewValidator(nextValidatorId);
 
-        // deploy new contract to receive revenue
-        nextValidatorId++;
+        // deposit to ethereum contract
+        require(nextValidatorId + 1 < credentials.length) ;
+        Credential memory cred = credentials[nextValidatorId];
+        _stake(cred.pubkey, cred.signature, cred.withdrawalCredential, cred.depositDataRoot);
 
-        // TODO: deposit to ethereum contract
         totalDeposited += DEPOSIT_SIZE;
+        nextValidatorId++;        
     }
 
     /**
     * @dev Invokes a deposit call to the official Deposit contract
-    * @param _pubkey Validator to stake for
-    * @param _signature Signature of the deposit call
     */
-    function _stake(bytes memory _pubkey, bytes memory _signature) internal {
-        bytes32 withdrawalCredentials;
-        bytes32 depositDataRoot;
+    function _stake(bytes memory _pubkey, 
+        bytes memory _signature, 
+        bytes32 _withdrawCredential, 
+        bytes32 _depositDataRoot) 
+        internal {
 
         IDepositContract(ethDepositContract).deposit{value:DEPOSIT_SIZE} (
-            _pubkey, abi.encodePacked(withdrawalCredentials), _signature, depositDataRoot);
+            _pubkey, abi.encodePacked(_withdrawCredential), _signature, _depositDataRoot);
 
         uint256 targetBalance = address(this).balance.sub(DEPOSIT_SIZE);
         require(address(this).balance == targetBalance, "EXPECTING_DEPOSIT_TO_HAPPEN");
