@@ -44,7 +44,6 @@ contract ETH2Staking is ReentrancyGuard, Pausable, Ownable {
     uint256 public totalManagerRevenue;
     uint256 public redeemableEthers;
     
-
     /**
      * Global
      */
@@ -246,6 +245,8 @@ contract ETH2Staking is ReentrancyGuard, Pausable, Ownable {
             uint256 diff = bufferedRevenue.sub(fee);
             totalUserRevenue = totalUserRevenue.add(diff);
             redeemableEthers = redeemableEthers.add(diff);
+
+            bufferedRevenue = 0;
         }
     }
 
