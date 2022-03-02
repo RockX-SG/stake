@@ -74,7 +74,9 @@ contract ETH2Staking is ReentrancyGuard, Pausable, Ownable {
     }
     
     // set manager's account
-    function setManagerAccount(address account) 
+    function setManagerAccount(
+        address account
+    ) 
         external 
         onlyOwner 
     {
@@ -85,7 +87,9 @@ contract ETH2Staking is ReentrancyGuard, Pausable, Ownable {
     }
 
     // set manager's fee in 1/1000
-    function setManagerFeeMilli(uint256 milli) 
+    function setManagerFeeMilli(
+        uint256 milli
+    )
         external 
         onlyOwner 
     {
@@ -99,7 +103,10 @@ contract ETH2Staking is ReentrancyGuard, Pausable, Ownable {
     /**
      * receive revenue
      */
-    receive() external payable {
+    receive() 
+        external 
+        payable 
+    {
         bufferedRevenue = bufferedRevenue.add(msg.value);
         emit RevenueTransfered(msg.value);
     }
@@ -107,7 +114,9 @@ contract ETH2Staking is ReentrancyGuard, Pausable, Ownable {
     /**
      * revenue credit, before 2.0 launching
      */
-    function revenueCredit(uint256 creditEthers) 
+    function revenueCredit(
+        uint256 creditEthers
+    ) 
         external 
         onlyOwner 
     {
@@ -187,7 +196,9 @@ contract ETH2Staking is ReentrancyGuard, Pausable, Ownable {
      *
      * redeem keeps the ratio invariant
      */
-    function redeemUnderlying(uint256 ethersToRedeem) 
+    function redeemUnderlying(
+        uint256 ethersToRedeem
+    )
         external 
         nonReentrant 
     {
@@ -215,7 +226,9 @@ contract ETH2Staking is ReentrancyGuard, Pausable, Ownable {
      *
      * redeem keeps the ratio invariant
      */
-    function redeem(uint256 xETHToBurn) 
+    function redeem(
+        uint256 xETHToBurn
+    )
         external 
         nonReentrant 
     {
