@@ -1,6 +1,6 @@
 // SPDX-License-Identifier: MIT
 
-pragma solidity ^0.6.12;
+pragma solidity >=0.8.0 <0.9.0;
 
 /**
  * @dev Interface of the ERC20 standard as defined in the EIP.
@@ -88,7 +88,7 @@ interface IERC20 {
  */
 abstract contract Context {
     function _msgSender() internal view virtual returns (address payable) {
-        return msg.sender;
+        return payable(msg.sender);
     }
 
     function _msgData() internal view virtual returns (bytes memory) {
@@ -497,34 +497,6 @@ library SafeERC20 {
     }
 }
 
-library Strings {
-    /**
-     * @dev Converts a `uint256` to its ASCII `string` representation.
-     */
-    function toString(uint256 value) internal pure returns (string memory) {
-        // Inspired by OraclizeAPI's implementation - MIT licence
-        // https://github.com/oraclize/ethereum-api/blob/b42146b063c7d6ee1358846c198246239e9360e8/oraclizeAPI_0.4.25.sol
-
-        if (value == 0) {
-            return "0";
-        }
-        uint256 temp = value;
-        uint256 digits;
-        while (temp != 0) {
-            digits++;
-            temp /= 10;
-        }
-        bytes memory buffer = new bytes(digits);
-        uint256 index = digits - 1;
-        temp = value;
-        while (temp != 0) {
-            buffer[index--] = byte(uint8(48 + temp % 10));
-            temp /= 10;
-        }
-        return string(buffer);
-    }
-}
-
 interface AggregatorV3Interface {
 
   function decimals() external view returns (uint8);
@@ -576,7 +548,7 @@ contract Ownable is Context {
     /**
      * @dev Initializes the contract setting the deployer as the initial owner.
      */
-    constructor () internal {
+    constructor () {
         address msgSender = _msgSender();
         _owner = msgSender;
         emit OwnershipTransferred(address(0), msgSender);
@@ -1047,7 +1019,7 @@ abstract contract ReentrancyGuard {
 
     uint256 private _status;
 
-    constructor () public {
+    constructor () {
         _status = _NOT_ENTERED;
     }
     
@@ -1091,7 +1063,7 @@ abstract contract Pausable is Context {
     /**
      * @dev Initializes the contract in unpaused state.
      */
-    constructor() public {
+    constructor() {
         _paused = false;
     }
 
