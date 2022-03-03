@@ -42,7 +42,6 @@ contract ETH2Staking is ReentrancyGuard, Pausable, Ownable {
     uint256 public bufferedRevenue; // bufferedRevenue -> (user revenue + manager revenue)
     uint256 public totalUserRevenue;
     uint256 public totalManagerRevenue;
-    uint256 public redeemableEthers;
     
     /**
      * Global
@@ -215,7 +214,6 @@ contract ETH2Staking is ReentrancyGuard, Pausable, Ownable {
     {
         _processBufferedRevenue();
 
-        require(redeemableEthers >= ethersToRedeem);
         uint256 totalXETH = IERC20(xETHAddress).totalSupply();
         uint256 currentEthers = totalStaked.add(totalUserRevenue);
         uint256 toBurn = totalXETH.mul(ethersToRedeem).div(currentEthers);
@@ -248,7 +246,6 @@ contract ETH2Staking is ReentrancyGuard, Pausable, Ownable {
         uint256 totalXETH = IERC20(xETHAddress).totalSupply();
         uint256 currentEthers = totalStaked.add(totalUserRevenue);
         uint256 ethersToRedeem = currentEthers.mul(xETHToBurn).div(totalXETH);
-        require(redeemableEthers >= ethersToRedeem);
 
         // transfer xETH from sender & burn
         IERC20(xETHAddress).safeTransferFrom(msg.sender, address(this), xETHToBurn);
@@ -268,7 +265,6 @@ contract ETH2Staking is ReentrancyGuard, Pausable, Ownable {
 
             uint256 diff = bufferedRevenue.sub(fee);
             totalUserRevenue = totalUserRevenue.add(diff);
-            redeemableEthers = redeemableEthers.add(diff);
 
             bufferedRevenue = 0;
         }
