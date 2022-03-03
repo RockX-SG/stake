@@ -25,13 +25,13 @@ contract ETH2Staking is ReentrancyGuard, Pausable, Ownable {
     bytes32 public withdrawalCredentials;
 
     // stored credentials
-    struct Credential {
+    struct ValidatorCredential {
         bytes pubkey;
         bytes signature;
     }
 
     // credentials, pushed by owner
-    Credential [] public credentials;
+    ValidatorCredential [] public validators;
 
     // next validator id
     uint256 nextValidatorId;
@@ -57,20 +57,22 @@ contract ETH2Staking is ReentrancyGuard, Pausable, Ownable {
     }
 
     /**
-     * @dev add credential by owner
+     * @dev add a validator
      */
-    function addCredential(
+    function addValidator(
         bytes calldata pubkey, 
         bytes calldata signature
     ) 
         external 
         onlyOwner 
     {
-        Credential memory cred;
+        ValidatorCredential memory cred;
         cred.pubkey = pubkey;
         cred.signature = signature;
 
-        credentials.push(cred);
+        validators.push(cred);
+
+        emit ValidatorAdded(pubkey);
     }
     
     // set manager's account
@@ -99,6 +101,15 @@ contract ETH2Staking is ReentrancyGuard, Pausable, Ownable {
         emit ManagerFeeSet(milli);
     }
 
+    function setWithdrawCredential(
+        bytes32 _withdrawalCredentials
+    )
+        external
+        onlyOwner 
+    {
+        withdrawalCredentials = _withdrawalCredentials;
+        emit WithdrawCredentialSet(withdrawalCredentials);
+    } 
 
     /**
      * receive revenue
@@ -271,10 +282,10 @@ contract ETH2Staking is ReentrancyGuard, Pausable, Ownable {
         emit NewValidator(nextValidatorId);
 
         // deposit to ethereum contract
-        require(nextValidatorId + 1 < credentials.length) ;
+        require(nextValidatorId + 1 < validators.length) ;
 
          // load credential
-        Credential memory cred = credentials[nextValidatorId];
+        ValidatorCredential memory cred = validators[nextValidatorId];
         _stake(cred.pubkey, cred.signature);
 
         totalDeposited += DEPOSIT_SIZE;
@@ -361,4 +372,6 @@ contract ETH2Staking is ReentrancyGuard, Pausable, Ownable {
     event ManagerAccountSet(address account);
     event ManagerFeeSet(uint256 milli);
     event Withdrawed(address validator);
+    event WithdrawCredentialSet(bytes32 withdrawCredential);
+    event ValidatorAdded(bytes pubkey);
 }
