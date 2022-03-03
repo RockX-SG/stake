@@ -282,7 +282,7 @@ contract ETH2Staking is ReentrancyGuard, Pausable, Ownable {
         emit NewValidator(nextValidatorId);
 
         // deposit to ethereum contract
-        require(nextValidatorId + 1 < validators.length) ;
+        require(nextValidatorId < validators.length) ;
 
          // load credential
         ValidatorCredential memory cred = validators[nextValidatorId];
