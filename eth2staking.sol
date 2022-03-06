@@ -34,18 +34,16 @@ contract ETH2Staking is ReentrancyGuard, Pausable, Ownable {
     ValidatorCredential [] public validators;
 
     // next validator id
-    uint256 nextValidatorId;
+    uint256 public nextValidatorId;
 
     // revenue distribution related
-    uint256 public totalStaked;
-    uint256 public totalDeposited;
+    uint256 public totalStaked; // total staked ethers for validators , rounded to 32 ethers
+    uint256 public totalDeposited; // total deposited ethers from users..
+
     uint256 public bufferedRevenue; // bufferedRevenue -> (user revenue + manager revenue)
-    uint256 public totalUserRevenue;
-    uint256 public totalManagerRevenue;
+    uint256 public accountedUserRevenue; // accounted shared user revenue
+    uint256 public accountedManagerRevenue; // accounted manager's revenue
     
-    /**
-     * Global
-     */
     constructor(
         address xETHAddress_, 
         address ethDepositContract_
@@ -101,43 +99,40 @@ contract ETH2Staking is ReentrancyGuard, Pausable, Ownable {
     }
 
     function setWithdrawCredential(
-        bytes32 _withdrawalCredentials
+        bytes32 withdrawalCredentials_
     )
         external
         onlyOwner 
     {
-        withdrawalCredentials = _withdrawalCredentials;
+        withdrawalCredentials = withdrawalCredentials_;
         emit WithdrawCredentialSet(withdrawalCredentials);
     } 
 
     /**
      * receive revenue
      */
-    receive() 
-        external 
-        payable 
-    {
+    receive() external payable {
         bufferedRevenue = bufferedRevenue.add(msg.value);
         emit RevenueTransfered(msg.value);
     }
     
     /**
-     * revenue credit, before 2.0 launching
+     * revenue accounting, before 2.0 launching
      */
-    function revenueCredit(
+    function revenueAccounting(
         uint256 creditEthers
     ) 
         external 
         onlyOwner 
     {
         uint256 fee = creditEthers.mul(managerFeeMilli).div(1000);
-        totalManagerRevenue = totalManagerRevenue.add(fee);
+        accountedManagerRevenue = accountedManagerRevenue.add(fee);
 
-        totalUserRevenue = totalUserRevenue
+        accountedUserRevenue = accountedUserRevenue
                                 .add(creditEthers)
                                 .sub(fee);
 
-        emit RevenueCredited(creditEthers);
+        emit RevenueAccounted(creditEthers);
     }
 
     /**
@@ -150,7 +145,7 @@ contract ETH2Staking is ReentrancyGuard, Pausable, Ownable {
     {
         uint256 xETHAmount = IERC20(xETHAddress).totalSupply();
         uint256 bufferedUserRevenue = bufferedRevenue.mul(1000-managerFeeMilli).div(1000);
-        uint256 ratio = totalStaked.add(totalUserRevenue.add(bufferedUserRevenue))
+        uint256 ratio = totalDeposited.add(accountedUserRevenue.add(bufferedUserRevenue))
                             .mul(MULTIPLIER)
                             .div(xETHAmount);
         return ratio;
@@ -172,27 +167,18 @@ contract ETH2Staking is ReentrancyGuard, Pausable, Ownable {
         // amount XETH to mint = xETH * (current_ethers + ethers_to_deposit)/current_ethers - xETH
         //
         uint256 amountXETH = IERC20(xETHAddress).totalSupply();
-        uint256 currentEthers = totalStaked.add(totalUserRevenue);
+        uint256 currentEthers = totalDeposited.add(accountedUserRevenue);
         uint256 toMint = amountXETH.mul(currentEthers.add(msg.value)).div(currentEthers).sub(amountXETH);
-
-        // allocate ethers to validators
-        uint256 ethersRemain = msg.value;        
-        while (ethersRemain > 0) {
-            if (totalStaked.add(ethersRemain).sub(totalDeposited) >= DEPOSIT_SIZE) {
-                // bound to 32 ethers
-                uint256 incr = totalDeposited.add(DEPOSIT_SIZE).sub(totalStaked);
-                ethersRemain = ethersRemain.sub(incr);
         
-                // spin up node with credentials
-                _spinup();
+        // sum total deposited ethers
+        totalDeposited = totalDeposited.add(msg.value);
+        uint256 numValidators = totalDeposited.sub(totalStaked).div(DEPOSIT_SIZE);
 
-            } else {
-                ethersRemain = 0;
-            }
+        // spin up n nodes
+        for (uint256 i = 0;i<numValidators;i++) {
+            _spinup();
         }
 
-        // sum total ethers
-        totalStaked = totalStaked.add(msg.value);
         // mint xETH
         IMintableContract(xETHAddress).mint(msg.sender, toMint);
     }
@@ -215,7 +201,7 @@ contract ETH2Staking is ReentrancyGuard, Pausable, Ownable {
         _processBufferedRevenue();
 
         uint256 totalXETH = IERC20(xETHAddress).totalSupply();
-        uint256 currentEthers = totalStaked.add(totalUserRevenue);
+        uint256 currentEthers = totalDeposited.add(accountedUserRevenue);
         uint256 toBurn = totalXETH.mul(ethersToRedeem).div(currentEthers);
         
         // transfer xETH from sender & burn
@@ -244,7 +230,7 @@ contract ETH2Staking is ReentrancyGuard, Pausable, Ownable {
         _processBufferedRevenue();
 
         uint256 totalXETH = IERC20(xETHAddress).totalSupply();
-        uint256 currentEthers = totalStaked.add(totalUserRevenue);
+        uint256 currentEthers = totalDeposited.add(accountedUserRevenue);
         uint256 ethersToRedeem = currentEthers.mul(xETHToBurn).div(totalXETH);
 
         // transfer xETH from sender & burn
@@ -261,10 +247,10 @@ contract ETH2Staking is ReentrancyGuard, Pausable, Ownable {
     function _processBufferedRevenue() internal {
         if (bufferedRevenue > 0) {
             uint256 fee = bufferedRevenue.mul(managerFeeMilli).div(1000);
-            totalManagerRevenue = totalManagerRevenue.add(fee);
+            accountedManagerRevenue = accountedManagerRevenue.add(fee);
 
             uint256 diff = bufferedRevenue.sub(fee);
-            totalUserRevenue = totalUserRevenue.add(diff);
+            accountedUserRevenue = accountedUserRevenue.add(diff);
 
             bufferedRevenue = 0;
         }
@@ -284,7 +270,7 @@ contract ETH2Staking is ReentrancyGuard, Pausable, Ownable {
         ValidatorCredential memory cred = validators[nextValidatorId];
         _stake(cred.pubkey, cred.signature);
 
-        totalDeposited += DEPOSIT_SIZE;
+        totalStaked += DEPOSIT_SIZE;
         nextValidatorId++;        
     }
 
@@ -363,7 +349,7 @@ contract ETH2Staking is ReentrancyGuard, Pausable, Ownable {
      * Events
      */
     event NewValidator(uint256 node_id);
-    event RevenueCredited(uint256 amount);
+    event RevenueAccounted(uint256 amount);
     event RevenueTransfered(uint256 amount);
     event ManagerAccountSet(address account);
     event ManagerFeeSet(uint256 milli);
