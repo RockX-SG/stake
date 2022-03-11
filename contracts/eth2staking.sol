@@ -8,31 +8,56 @@ import "@openzeppelin/contracts/security/Pausable.sol";
 import "@openzeppelin/contracts/access/Ownable.sol";
 import "@openzeppelin/contracts/token/ERC20/utils/SafeERC20.sol";
 import "@openzeppelin/contracts/utils/math/SafeMath.sol";
+import "@openzeppelin/contracts-upgradeable/proxy/utils/Initializable.sol";
 
-contract ETH2Staking is ReentrancyGuard, Pausable, Ownable {
+
+contract ETH2Staking is ReentrancyGuard, Pausable, Ownable, Initializable {
     using SafeERC20 for IERC20;
     using SafeMath for uint;
     using Address for address payable;
     using Address for address;
     using SafeMath for uint256;
 
-    uint256 internal constant DEPOSIT_SIZE = 32 ether;
-    uint256 internal constant MULTIPLIER = 1e18; 
-    uint256 internal constant DEPOSIT_AMOUNT_UNIT = 1000000000 wei;
-    uint256 constant public SIGNATURE_LENGTH = 96;
+    /**
+        Incorrect storage preservation:
 
+        |Implementation_v0   |Implementation_v1        |
+        |--------------------|-------------------------|
+        |address _owner      |address _lastContributor | <=== Storage collision!
+        |mapping _balances   |address _owner           |
+        |uint256 _supply     |mapping _balances        |
+        |...                 |uint256 _supply          |
+        |                    |...                      |
+        Correct storage preservation:
 
-    address public ethDepositContract; // ETH 2.0 Deposit contract
-    address public xETHAddress; // xETH token address
-    address public managerAccount;
-    uint256 public managerFeeMilli = 100; // *1/1000
-    bytes32 public withdrawalCredentials;
+        |Implementation_v0   |Implementation_v1        |
+        |--------------------|-------------------------|
+        |address _owner      |address _owner           |
+        |mapping _balances   |mapping _balances        |
+        |uint256 _supply     |uint256 _supply          |
+        |...                 |address _lastContributor | <=== Storage extension.
+        |                    |...                      |
+    */
 
+    // Always extend storage instead of modifying it
+    // Variables in implementation v0 
     // stored credentials
     struct ValidatorCredential {
         bytes pubkey;
         bytes signature;
     }
+
+    uint256 internal constant DEPOSIT_SIZE = 32 ether;
+    uint256 internal constant MULTIPLIER = 1e18; 
+    uint256 internal constant DEPOSIT_AMOUNT_UNIT = 1000000000 wei;
+    uint256 internal constant SIGNATURE_LENGTH = 96;
+
+    address public ethDepositContract;  // ETH 2.0 Deposit contract
+    address public xETHAddress;         // xETH token address
+
+    address public managerAccount;          // manager's account to receive fee
+    uint256 public managerFeeMilli = 100;   // Percent of manger's fee
+    bytes32 public withdrawalCredentials;   // WithdrawCredential for all validator
 
     // credentials, pushed by owner
     ValidatorCredential [] public validators;
@@ -40,18 +65,19 @@ contract ETH2Staking is ReentrancyGuard, Pausable, Ownable {
     // next validator id
     uint256 public nextValidatorId;
 
-    // revenue distribution related
-    uint256 public totalStaked; // total staked ethers for validators , rounded to 32 ethers
-    uint256 public totalDeposited; // total deposited ethers from users..
+    // track user staking
+    uint256 public totalStaked;             // track total staked ethers for validators, rounded to 32 ethers
+    uint256 public totalDeposited;          // track total deposited ethers from users..
 
-    uint256 public bufferedRevenue; // bufferedRevenue -> (user revenue + manager revenue)
-    uint256 public accountedUserRevenue; // accounted shared user revenue
+    // tack revenue from validators to form exchange ratio
+    uint256 public bufferedRevenue;         // bufferedRevenue -> (user revenue + manager revenue)
+    uint256 public accountedUserRevenue;    // accounted shared user revenue
     uint256 public accountedManagerRevenue; // accounted manager's revenue
     
-    constructor(
-        address xETHAddress_, 
-        address ethDepositContract_
-    ) {
+    /**
+     * @dev initialization address
+     */
+    function initialize(address xETHAddress_, address ethDepositContract_) public initializer {
         ethDepositContract = ethDepositContract_;
         xETHAddress = xETHAddress_;
         managerAccount = msg.sender;
@@ -60,13 +86,7 @@ contract ETH2Staking is ReentrancyGuard, Pausable, Ownable {
     /**
      * @dev add a validator
      */
-    function addValidator(
-        bytes calldata pubkey, 
-        bytes calldata signature
-    ) 
-        external 
-        onlyOwner 
-    {
+    function addValidator(bytes calldata pubkey, bytes calldata signature) external onlyOwner {
         ValidatorCredential memory cred;
         cred.pubkey = pubkey;
         cred.signature = signature;
@@ -77,12 +97,7 @@ contract ETH2Staking is ReentrancyGuard, Pausable, Ownable {
     }
     
     // set manager's account
-    function setManagerAccount(
-        address account
-    ) 
-        external 
-        onlyOwner 
-    {
+    function setManagerAccount(address account) external onlyOwner {
         require(account != address(0x0));
         managerAccount = account;
 
@@ -90,24 +105,14 @@ contract ETH2Staking is ReentrancyGuard, Pausable, Ownable {
     }
 
     // set manager's fee in 1/1000
-    function setManagerFeeMilli(
-        uint256 milli
-    )
-        external 
-        onlyOwner 
-    {
+    function setManagerFeeMilli(uint256 milli) external onlyOwner {
         require(milli >=0 && milli <=1000);
         managerFeeMilli = milli;
 
         emit ManagerFeeSet(milli);
     }
 
-    function setWithdrawCredential(
-        bytes32 withdrawalCredentials_
-    )
-        external
-        onlyOwner 
-    {
+    function setWithdrawCredential(bytes32 withdrawalCredentials_) external onlyOwner {
         withdrawalCredentials = withdrawalCredentials_;
         emit WithdrawCredentialSet(withdrawalCredentials);
     } 
@@ -123,12 +128,7 @@ contract ETH2Staking is ReentrancyGuard, Pausable, Ownable {
     /**
      * revenue accounting, before 2.0 launching
      */
-    function revenueAccounting(
-        uint256 creditEthers
-    ) 
-        external 
-        onlyOwner 
-    {
+    function reportRevenue(uint256 creditEthers) external onlyOwner {
         uint256 fee = creditEthers.mul(managerFeeMilli).div(1000);
         accountedManagerRevenue = accountedManagerRevenue.add(fee);
 
@@ -142,11 +142,7 @@ contract ETH2Staking is ReentrancyGuard, Pausable, Ownable {
     /**
      * @dev return exchange ratio of xETH:ETH, multiplied by 1e18
      */
-    function exchangeRatio() 
-        public 
-        view 
-        returns (uint256) 
-    {
+    function exchangeRatio() external view returns (uint256) {
         uint256 xETHAmount = IERC20(xETHAddress).totalSupply();
         uint256 bufferedUserRevenue = bufferedRevenue.mul(1000-managerFeeMilli).div(1000);
         uint256 ratio = totalDeposited.add(accountedUserRevenue.add(bufferedUserRevenue))
@@ -158,11 +154,7 @@ contract ETH2Staking is ReentrancyGuard, Pausable, Ownable {
     /**
      * @dev mint xETH with ETH
      */
-    function mint() external 
-        payable 
-        nonReentrant 
-        whenNotPaused 
-    {
+    function mint() external payable nonReentrant whenNotPaused {
         require(msg.value > 0, "amount 0");
         _processBufferedRevenue();
 
@@ -196,13 +188,9 @@ contract ETH2Staking is ReentrancyGuard, Pausable, Ownable {
      *
      * redeem keeps the ratio invariant
      */
-    function redeemUnderlying(
-        uint256 ethersToRedeem
-    )
-        external 
-        nonReentrant 
-    {
+    function redeemUnderlying(uint256 ethersToRedeem) external nonReentrant {
         _processBufferedRevenue();
+        require(_checkEthersBalance(ethersToRedeem));
 
         uint256 totalXETH = IERC20(xETHAddress).totalSupply();
         uint256 currentEthers = totalDeposited.add(accountedUserRevenue);
@@ -225,17 +213,13 @@ contract ETH2Staking is ReentrancyGuard, Pausable, Ownable {
      *
      * redeem keeps the ratio invariant
      */
-    function redeem(
-        uint256 xETHToBurn
-    )
-        external 
-        nonReentrant 
-    {
+    function redeem(uint256 xETHToBurn) external nonReentrant {
         _processBufferedRevenue();
 
         uint256 totalXETH = IERC20(xETHAddress).totalSupply();
         uint256 currentEthers = totalDeposited.add(accountedUserRevenue);
         uint256 ethersToRedeem = currentEthers.mul(xETHToBurn).div(totalXETH);
+        require(_checkEthersBalance(ethersToRedeem));
 
         // transfer xETH from sender & burn
         IERC20(xETHAddress).safeTransferFrom(msg.sender, address(this), xETHToBurn);
@@ -261,6 +245,17 @@ contract ETH2Staking is ReentrancyGuard, Pausable, Ownable {
     }
 
     /**
+     * @dev check ethers withdrawble
+     */
+    function _checkEthersBalance(uint256 amount) internal view returns(bool) {
+        uint256 inflightEthers = totalDeposited.sub(totalStaked);
+        if (address(this).balance.sub(inflightEthers) >= amount) {
+            return true;
+        }
+        return false;
+    }
+
+    /**
      * @dev spin up the node
      */
     function _spinup() internal {
@@ -281,12 +276,7 @@ contract ETH2Staking is ReentrancyGuard, Pausable, Ownable {
     /**
     * @dev Invokes a deposit call to the official Deposit contract
     */
-    function _stake(
-        bytes memory _pubkey, 
-        bytes memory _signature)
-        internal 
-    {
-
+    function _stake(bytes memory _pubkey, bytes memory _signature) internal {
          // The following computations and Merkle tree-ization will make official Deposit contract happy
         uint256 value = DEPOSIT_SIZE;
         uint256 depositAmount = value.div(DEPOSIT_AMOUNT_UNIT);
