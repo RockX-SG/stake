@@ -11,7 +11,7 @@ import "@openzeppelin/contracts/utils/math/SafeMath.sol";
 import "@openzeppelin/contracts-upgradeable/proxy/utils/Initializable.sol";
 
 
-contract ETH2Staking is ReentrancyGuard, Pausable, Ownable, Initializable {
+contract RockXStaking is ReentrancyGuard, Pausable, Ownable, Initializable {
     using SafeERC20 for IERC20;
     using SafeMath for uint;
     using Address for address payable;
@@ -70,10 +70,17 @@ contract ETH2Staking is ReentrancyGuard, Pausable, Ownable, Initializable {
     uint256 public totalDeposited;          // track total deposited ethers from users..
 
     // tack revenue from validators to form exchange ratio
-    uint256 public bufferedRevenue;         // bufferedRevenue -> (user revenue + manager revenue)
     uint256 public accountedUserRevenue;    // accounted shared user revenue
     uint256 public accountedManagerRevenue; // accounted manager's revenue
     
+    /** 
+     * ======================================================================================
+     * 
+     * SYSTEM SETTINGS, OPERATED VIA OWNER(DAO/TIMELOCK)
+     * 
+     * ======================================================================================
+     */
+
     /**
      * @dev initialization address
      */
@@ -98,7 +105,9 @@ contract ETH2Staking is ReentrancyGuard, Pausable, Ownable, Initializable {
         emit ValidatorAdded(pubkey);
     }
     
-    // set manager's account
+    /**
+     * @dev set manager's account to receive manager fee
+     */
     function setManagerAccount(address account) external onlyOwner {
         require(account != address(0x0));
         managerAccount = account;
@@ -106,7 +115,9 @@ contract ETH2Staking is ReentrancyGuard, Pausable, Ownable, Initializable {
         emit ManagerAccountSet(account);
     }
 
-    // set manager's fee in 1/1000
+    /**
+     * @dev set manager's fee in 1/1000
+     */
     function setManagerFeeMilli(uint256 milli) external onlyOwner {
         require(milli >=0 && milli <=1000);
         managerFeeMilli = milli;
@@ -114,21 +125,23 @@ contract ETH2Staking is ReentrancyGuard, Pausable, Ownable, Initializable {
         emit ManagerFeeSet(milli);
     }
 
+    /**
+     @dev set withdraw credential to receive revenue, usually this should be the contract itself.
+     */
     function setWithdrawCredential(bytes32 withdrawalCredentials_) external onlyOwner {
         withdrawalCredentials = withdrawalCredentials_;
         emit WithdrawCredentialSet(withdrawalCredentials);
     } 
 
     /**
-     * receive revenue
+     * @dev receive revenue
      */
     receive() external payable {
-        bufferedRevenue = bufferedRevenue.add(msg.value);
-        emit RevenueTransfered(msg.value);
+        emit RevenueReceived(msg.value);
     }
     
     /**
-     * revenue accounting, before 2.0 launching
+     * @dev revenue accounting, before 2.0 launching
      */
     function reportRevenue(uint256 creditEthers) external onlyOwner {
         uint256 fee = creditEthers.mul(managerFeeMilli).div(1000);
@@ -142,23 +155,36 @@ contract ETH2Staking is ReentrancyGuard, Pausable, Ownable, Initializable {
     }
 
     /**
+     * ======================================================================================
+     * 
+     * VIEW FUNCTIONS
+     * 
+     * ======================================================================================
+     */
+
+    /**
      * @dev return exchange ratio of xETH:ETH, multiplied by 1e18
      */
     function exchangeRatio() external view returns (uint256) {
         uint256 xETHAmount = IERC20(xETHAddress).totalSupply();
-        uint256 bufferedUserRevenue = bufferedRevenue.mul(1000-managerFeeMilli).div(1000);
-        uint256 ratio = totalDeposited.add(accountedUserRevenue.add(bufferedUserRevenue))
+        uint256 ratio = totalDeposited.add(accountedUserRevenue)
                             .mul(MULTIPLIER)
                             .div(xETHAmount);
         return ratio;
     }
  
+     /**
+     * ======================================================================================
+     * 
+     * EXTERNAL FUNCTIONS
+     * 
+     * ======================================================================================
+     */
     /**
      * @dev mint xETH with ETH
      */
     function mint() external payable nonReentrant whenNotPaused {
         require(msg.value > 0, "amount 0");
-        _processBufferedRevenue();
 
         // mint xETH while keep the exchange ratio invariant
         //
@@ -196,7 +222,6 @@ contract ETH2Staking is ReentrancyGuard, Pausable, Ownable, Initializable {
      * redeem keeps the ratio invariant
      */
     function redeemUnderlying(uint256 ethersToRedeem) external nonReentrant {
-        _processBufferedRevenue();
         require(_checkEthersBalance(ethersToRedeem));
 
         uint256 totalXETH = IERC20(xETHAddress).totalSupply();
@@ -221,8 +246,6 @@ contract ETH2Staking is ReentrancyGuard, Pausable, Ownable, Initializable {
      * redeem keeps the ratio invariant
      */
     function redeem(uint256 xETHToBurn) external nonReentrant {
-        _processBufferedRevenue();
-
         uint256 totalXETH = IERC20(xETHAddress).totalSupply();
         uint256 currentEthers = totalDeposited.add(accountedUserRevenue);
         uint256 ethersToRedeem = currentEthers.mul(xETHToBurn).div(totalXETH);
@@ -236,20 +259,13 @@ contract ETH2Staking is ReentrancyGuard, Pausable, Ownable, Initializable {
         payable(msg.sender).sendValue(ethersToRedeem);
     }
 
-    /**
-     * @dev process buffered revenue
+    /** 
+     * ======================================================================================
+     * 
+     * INTERNAL FUNCTIONS
+     * 
+     * ======================================================================================
      */
-    function _processBufferedRevenue() internal {
-        if (bufferedRevenue > 0) {
-            uint256 fee = bufferedRevenue.mul(managerFeeMilli).div(1000);
-            accountedManagerRevenue = accountedManagerRevenue.add(fee);
-
-            uint256 diff = bufferedRevenue.sub(fee);
-            accountedUserRevenue = accountedUserRevenue.add(diff);
-
-            bufferedRevenue = 0;
-        }
-    }
 
     /**
      * @dev check ethers withdrawble
@@ -345,11 +361,15 @@ contract ETH2Staking is ReentrancyGuard, Pausable, Ownable, Initializable {
     }
 
     /**
-     * Events
+     * ======================================================================================
+     * 
+     * ROCKX SYSTEM EVENTS
+     *
+     * ======================================================================================
      */
     event NewValidator(uint256 node_id);
     event RevenueAccounted(uint256 amount);
-    event RevenueTransfered(uint256 amount);
+    event RevenueReceived(uint256 amount);
     event ManagerAccountSet(address account);
     event ManagerFeeSet(uint256 milli);
     event Withdrawed(address validator);
