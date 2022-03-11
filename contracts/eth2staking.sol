@@ -88,6 +88,8 @@ contract ETH2Staking is ReentrancyGuard, Pausable, Ownable, Initializable {
      */
     function addValidator(bytes calldata pubkey, bytes calldata signature) external onlyOwner {
         ValidatorCredential memory cred;
+        require(signature.length == SIGNATURE_LENGTH);
+
         cred.pubkey = pubkey;
         cred.signature = signature;
 
@@ -164,7 +166,12 @@ contract ETH2Staking is ReentrancyGuard, Pausable, Ownable, Initializable {
         //
         uint256 amountXETH = IERC20(xETHAddress).totalSupply();
         uint256 currentEthers = totalDeposited.add(accountedUserRevenue);
-        uint256 toMint = amountXETH.mul(currentEthers.add(msg.value)).div(currentEthers).sub(amountXETH);
+        uint256 toMint = msg.value;  // default exchange ratio 1:1
+        if (currentEthers > 0) { // avert division overflow
+            toMint = amountXETH.mul(currentEthers.add(msg.value))
+                                .div(currentEthers)
+                                .sub(amountXETH);
+        }
         
         // sum total deposited ethers
         totalDeposited = totalDeposited.add(msg.value);
@@ -290,19 +297,17 @@ contract ETH2Staking is ReentrancyGuard, Pausable, Ownable, Initializable {
                 sha256(_pad64(BytesLib.slice(_signature, 64, SIGNATURE_LENGTH.sub(64))))
             )
         );
-
         bytes32 depositDataRoot = sha256(
             abi.encodePacked(
                 sha256(abi.encodePacked(pubkeyRoot, withdrawalCredentials)),
                 sha256(abi.encodePacked(_toLittleEndian64(depositAmount), signatureRoot))
             )
         );
+        
 
         IDepositContract(ethDepositContract).deposit{value:DEPOSIT_SIZE} (
             _pubkey, abi.encodePacked(withdrawalCredentials), _signature, depositDataRoot);
 
-        uint256 targetBalance = address(this).balance.sub(DEPOSIT_SIZE);
-        require(address(this).balance == targetBalance, "EXPECTING_DEPOSIT_TO_HAPPEN");
     }
 
     /**
