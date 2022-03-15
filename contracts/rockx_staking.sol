@@ -104,6 +104,20 @@ contract RockXStaking is ReentrancyGuard, Pausable, Ownable, Initializable {
 
         emit ValidatorAdded(pubkey);
     }
+
+    /**
+     * @dev add a batch of validators
+     */
+    function addValidators(bytes [] calldata pubkeys, bytes [] calldata signatures) external onlyOwner {
+        require(pubkeys.length == signatures.length, "length mismatch");
+        uint256 n = pubkeys.length;
+        for(uint256 i=0;i<n;i++) {
+            ValidatorCredential memory cred;
+            cred.pubkey = pubkeys[i];
+            cred.signature = signatures[i];
+            validators.push(cred);
+        }
+    }
     
     /**
      * @dev set manager's account to receive manager fee
