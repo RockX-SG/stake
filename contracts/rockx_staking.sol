@@ -202,16 +202,15 @@ contract RockXStaking is ReentrancyGuard, Pausable, Ownable, Initializable {
 
         // mint xETH while keep the exchange ratio invariant
         //
-        // amount XETH to mint = xETH * (current_ethers + ethers_to_deposit)/current_ethers - xETH
+        // amount XETH to mint = xETH * (msg.value/current_ethers)
         //
         uint256 amountXETH = IERC20(xETHAddress).totalSupply();
         uint256 currentEthers = totalDeposited.add(accountedUserRevenue);
         uint256 toMint = msg.value;  // default exchange ratio 1:1
         if (currentEthers > 0) { // avert division overflow
-            toMint = amountXETH.mul(currentEthers.add(msg.value))
-                                .div(currentEthers)
-                                .sub(amountXETH);
-        }
+            toMint = amountXETH.mul(msg.value)
+                                .div(currentEthers); 
+       }
         
         // sum total deposited ethers
         totalDeposited = totalDeposited.add(msg.value);
