@@ -68,10 +68,12 @@ contract RockXStaking is ReentrancyGuard, Pausable, Ownable, Initializable {
     // track user staking
     uint256 public totalStaked;             // track total staked ethers for validators, rounded to 32 ethers
     uint256 public totalDeposited;          // track total deposited ethers from users..
+    uint256 public totalWithdrawed;         // track total withdrawed ethers
 
-    // tack revenue from validators to form exchange ratio
+    // track revenue from validators to form exchange ratio
     uint256 public accountedUserRevenue;    // accounted shared user revenue
     uint256 public accountedManagerRevenue; // accounted manager's revenue
+
     
     /** 
      * ======================================================================================
@@ -155,9 +157,9 @@ contract RockXStaking is ReentrancyGuard, Pausable, Ownable, Initializable {
     }
     
     /**
-     * @dev revenue accounting, before 2.0 launching
+     * @dev revenue total balance of validators
      */
-    function reportRevenue(uint256 creditEthers) external onlyOwner {
+    function reportBalance(uint256 creditEthers) external onlyOwner {
         uint256 fee = creditEthers.mul(managerFeeMilli).div(1000);
         accountedManagerRevenue = accountedManagerRevenue.add(fee);
 
@@ -202,10 +204,11 @@ contract RockXStaking is ReentrancyGuard, Pausable, Ownable, Initializable {
 
         // mint xETH while keep the exchange ratio invariant
         //
+        // current_ethers = totalDeposited + accountedUserRevenue - totalWithdrawed
         // amount XETH to mint = xETH * (msg.value/current_ethers)
         //
         uint256 amountXETH = IERC20(xETHAddress).totalSupply();
-        uint256 currentEthers = totalDeposited.add(accountedUserRevenue);
+        uint256 currentEthers = totalDeposited.add(accountedUserRevenue).sub(totalWithdrawed);
         uint256 toMint = msg.value;  // default exchange ratio 1:1
         if (currentEthers > 0) { // avert division overflow
             toMint = amountXETH.mul(msg.value)
@@ -247,6 +250,7 @@ contract RockXStaking is ReentrancyGuard, Pausable, Ownable, Initializable {
 
         // send ethers back to sender
         payable(msg.sender).sendValue(ethersToRedeem);
+        totalWithdrawed = totalWithdrawed.add(ethersToRedeem);
     }
 
     /**
@@ -270,6 +274,7 @@ contract RockXStaking is ReentrancyGuard, Pausable, Ownable, Initializable {
 
         // send ethers back to sender
         payable(msg.sender).sendValue(ethersToRedeem);
+        totalWithdrawed = totalWithdrawed.add(ethersToRedeem);
     }
 
     /** 
