@@ -55,7 +55,6 @@ contract RockXStaking is ReentrancyGuard, Pausable, Ownable, Initializable {
     address public ethDepositContract;  // ETH 2.0 Deposit contract
     address public xETHAddress;         // xETH token address
 
-    address public managerAccount;          // manager's account to receive fee
     uint256 public managerFeeMilli = 100;   // Percent of manger's fee
     bytes32 public withdrawalCredentials;   // WithdrawCredential for all validator
 
@@ -73,7 +72,6 @@ contract RockXStaking is ReentrancyGuard, Pausable, Ownable, Initializable {
     // track revenue from validators to form exchange ratio
     uint256 public accountedUserRevenue;    // accounted shared user revenue
     uint256 public accountedManagerRevenue; // accounted manager's revenue
-
     
     /** 
      * ======================================================================================
@@ -86,10 +84,9 @@ contract RockXStaking is ReentrancyGuard, Pausable, Ownable, Initializable {
     /**
      * @dev initialization address
      */
-    function initialize(address xETHAddress_, address ethDepositContract_) public initializer {
+    function initialize(address xETHAddress_, address ethDepositContract_) public initializer onlyOwner {
         ethDepositContract = ethDepositContract_;
         xETHAddress = xETHAddress_;
-        managerAccount = msg.sender;
     }
 
     /**
@@ -122,16 +119,6 @@ contract RockXStaking is ReentrancyGuard, Pausable, Ownable, Initializable {
     }
     
     /**
-     * @dev set manager's account to receive manager fee
-     */
-    function setManagerAccount(address account) external onlyOwner {
-        require(account != address(0x0));
-        managerAccount = account;
-
-        emit ManagerAccountSet(account);
-    }
-
-    /**
      * @dev set manager's fee in 1/1000
      */
     function setManagerFeeMilli(uint256 milli) external onlyOwner {
@@ -153,7 +140,7 @@ contract RockXStaking is ReentrancyGuard, Pausable, Ownable, Initializable {
      * @dev receive revenue
      */
     receive() external payable {
-        emit RevenueReceived(msg.value);
+        emit RewardReceived(msg.value);
     }
     
     /**
@@ -168,6 +155,15 @@ contract RockXStaking is ReentrancyGuard, Pausable, Ownable, Initializable {
                                 .sub(fee);
 
         emit RevenueAccounted(creditEthers);
+    }
+
+    /**
+     * @dev report accounted revenue for all validators
+     */
+    function withdrawManagerFee(uint256 amount, address to) external nonReentrant onlyOwner {
+        require(accountedManagerRevenue >= amount, "insufficient manager fee");
+        accountedManagerRevenue = accountedManagerRevenue.sub(amount);
+        payable(to).sendValue(amount);
     }
 
     /**
@@ -208,7 +204,7 @@ contract RockXStaking is ReentrancyGuard, Pausable, Ownable, Initializable {
         // amount XETH to mint = xETH * (msg.value/current_ethers)
         //
         uint256 amountXETH = IERC20(xETHAddress).totalSupply();
-        uint256 currentEthers = totalDeposited.add(accountedUserRevenue).sub(totalWithdrawed);
+        uint256 currentEthers = _currentEthers();
         uint256 toMint = msg.value;  // default exchange ratio 1:1
         if (currentEthers > 0) { // avert division overflow
             toMint = amountXETH.mul(msg.value)
@@ -241,8 +237,7 @@ contract RockXStaking is ReentrancyGuard, Pausable, Ownable, Initializable {
         require(_checkEthersBalance(ethersToRedeem));
 
         uint256 totalXETH = IERC20(xETHAddress).totalSupply();
-        uint256 currentEthers = totalDeposited.add(accountedUserRevenue);
-        uint256 toBurn = totalXETH.mul(ethersToRedeem).div(currentEthers);
+        uint256 toBurn = totalXETH.mul(ethersToRedeem).div(_currentEthers());
         
         // transfer xETH from sender & burn
         IERC20(xETHAddress).safeTransferFrom(msg.sender, address(this), toBurn);
@@ -264,8 +259,7 @@ contract RockXStaking is ReentrancyGuard, Pausable, Ownable, Initializable {
      */
     function redeem(uint256 xETHToBurn) external nonReentrant {
         uint256 totalXETH = IERC20(xETHAddress).totalSupply();
-        uint256 currentEthers = totalDeposited.add(accountedUserRevenue);
-        uint256 ethersToRedeem = currentEthers.mul(xETHToBurn).div(totalXETH);
+        uint256 ethersToRedeem = _currentEthers().mul(xETHToBurn).div(totalXETH);
         require(_checkEthersBalance(ethersToRedeem));
 
         // transfer xETH from sender & burn
@@ -286,11 +280,18 @@ contract RockXStaking is ReentrancyGuard, Pausable, Ownable, Initializable {
      */
 
     /**
+     * @dev returns totalDeposited + accountedUserRevenue - totalWithdrawed
+     */
+    function _currentEthers() internal view returns(uint256) {
+        return totalDeposited.add(accountedUserRevenue).sub(totalWithdrawed);
+    }
+
+    /**
      * @dev check ethers withdrawble
      */
     function _checkEthersBalance(uint256 amount) internal view returns(bool) {
-        uint256 inflightEthers = totalDeposited.sub(totalStaked);
-        if (address(this).balance.sub(inflightEthers) >= amount) {
+        uint256 pendingEthers = totalDeposited.sub(totalStaked);
+        if (address(this).balance.sub(pendingEthers) >= amount) {
             return true;
         }
         return false;
@@ -387,7 +388,7 @@ contract RockXStaking is ReentrancyGuard, Pausable, Ownable, Initializable {
      */
     event NewValidator(uint256 node_id);
     event RevenueAccounted(uint256 amount);
-    event RevenueReceived(uint256 amount);
+    event RewardReceived(uint256 amount);
     event ManagerAccountSet(address account);
     event ManagerFeeSet(uint256 milli);
     event Withdrawed(address validator);
