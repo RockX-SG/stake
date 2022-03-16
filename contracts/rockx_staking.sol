@@ -237,18 +237,18 @@ contract RockXStaking is ReentrancyGuard, Pausable, Ownable, Initializable {
         require(_checkEthersBalance(ethersToRedeem));
 
         uint256 totalXETH = IERC20(xETHAddress).totalSupply();
-        uint256 toBurn = totalXETH.mul(ethersToRedeem).div(_currentEthers());
+        uint256 xETHToBurn = totalXETH.mul(ethersToRedeem).div(_currentEthers());
         
         // transfer xETH from sender & burn
-        IERC20(xETHAddress).safeTransferFrom(msg.sender, address(this), toBurn);
-        IMintableContract(xETHAddress).burn(toBurn);
+        IERC20(xETHAddress).safeTransferFrom(msg.sender, address(this), xETHToBurn);
+        IMintableContract(xETHAddress).burn(xETHToBurn);
 
         // send ethers back to sender
         payable(msg.sender).sendValue(ethersToRedeem);
         totalWithdrawed = totalWithdrawed.add(ethersToRedeem);
 
         // emit amount withdrawed
-        emit Withdrawed(ethersToRedeem);
+        emit Redeemed(xETHToBurn, ethersToRedeem);
     }
 
     /**
@@ -274,7 +274,7 @@ contract RockXStaking is ReentrancyGuard, Pausable, Ownable, Initializable {
         totalWithdrawed = totalWithdrawed.add(ethersToRedeem);
 
         // emit amount withdrawed
-        emit Withdrawed(ethersToRedeem);
+        emit Redeemed(xETHToBurn, ethersToRedeem);
     }
 
     /** 
@@ -397,7 +397,7 @@ contract RockXStaking is ReentrancyGuard, Pausable, Ownable, Initializable {
     event RewardReceived(uint256 amount);
     event ManagerAccountSet(address account);
     event ManagerFeeSet(uint256 milli);
-    event Withdrawed(uint256 amount);
+    event Redeemed(uint256 amountXETH, uint256 amountETH);
     event WithdrawCredentialSet(bytes32 withdrawCredential);
     event ValidatorAdded(bytes pubkey);
 }
