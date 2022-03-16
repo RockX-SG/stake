@@ -246,6 +246,9 @@ contract RockXStaking is ReentrancyGuard, Pausable, Ownable, Initializable {
         // send ethers back to sender
         payable(msg.sender).sendValue(ethersToRedeem);
         totalWithdrawed = totalWithdrawed.add(ethersToRedeem);
+
+        // emit amount withdrawed
+        emit Withdrawed(ethersToRedeem);
     }
 
     /**
@@ -269,6 +272,9 @@ contract RockXStaking is ReentrancyGuard, Pausable, Ownable, Initializable {
         // send ethers back to sender
         payable(msg.sender).sendValue(ethersToRedeem);
         totalWithdrawed = totalWithdrawed.add(ethersToRedeem);
+
+        // emit amount withdrawed
+        emit Withdrawed(ethersToRedeem);
     }
 
     /** 
@@ -391,7 +397,7 @@ contract RockXStaking is ReentrancyGuard, Pausable, Ownable, Initializable {
     event RewardReceived(uint256 amount);
     event ManagerAccountSet(address account);
     event ManagerFeeSet(uint256 milli);
-    event Withdrawed(address validator);
+    event Withdrawed(uint256 amount);
     event WithdrawCredentialSet(bytes32 withdrawCredential);
     event ValidatorAdded(bytes pubkey);
 }
