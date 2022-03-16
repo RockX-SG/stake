@@ -157,7 +157,7 @@ contract RockXStaking is ReentrancyGuard, Pausable, Ownable, Initializable {
     }
     
     /**
-     * @dev revenue total balance of validators
+     * @dev report accounted revenue for all validators
      */
     function reportBalance(uint256 creditEthers) external onlyOwner {
         uint256 fee = creditEthers.mul(managerFeeMilli).div(1000);
