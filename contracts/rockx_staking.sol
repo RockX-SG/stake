@@ -59,10 +59,10 @@ contract RockXStaking is ReentrancyGuard, Pausable, Ownable, Initializable {
     bytes32 public withdrawalCredentials;   // WithdrawCredential for all validator
     
     // credentials, pushed by owner
-    ValidatorCredential [] public validatorRegistry;
+    ValidatorCredential [] private validatorRegistry;
 
     // next validator id
-    uint256 public nextValidatorId;
+    uint256 private nextValidatorId;
 
     // track user staking
     uint256 public totalStaked;             // track total staked ethers for validators, rounded to 32 ethers
@@ -167,10 +167,25 @@ contract RockXStaking is ReentrancyGuard, Pausable, Ownable, Initializable {
      */
 
     /**
-     * @dev return num of validator credential pushed
+     * @dev return number of registered validator
      */
-    function getRegisteredValidatorss() external view returns (uint256) {
+    function getRegisteredValidatorsCount() external view returns (uint256) {
         return validatorRegistry.length;
+    }
+    
+    /**
+     * @dev return n-th of validator credential
+     */
+    function getRegisteredValidator(uint256 id) external view 
+        returns (bytes memory pubkey, bytes memory signature) {
+        return(validatorRegistry[id].pubkey, validatorRegistry[id].signature);
+    }
+
+    /**
+     * @dev return next validator id
+     */
+    function getNextValidatorId() external view returns (uint256) {
+        return nextValidatorId;
     }
 
     /**
