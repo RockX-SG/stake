@@ -55,11 +55,11 @@ contract RockXStaking is ReentrancyGuard, Pausable, Ownable, Initializable {
     address public ethDepositContract;  // ETH 2.0 Deposit contract
     address public xETHAddress;         // xETH token address
 
-    uint256 public managerFeeMilli = 100;   // Percent of manger's fee
+    uint256 public managerFeeMilli = 100;   // manger's fee in 1/1000
     bytes32 public withdrawalCredentials;   // WithdrawCredential for all validator
-
+    
     // credentials, pushed by owner
-    ValidatorCredential [] public validators;
+    ValidatorCredential [] public validatorRegistry;
 
     // next validator id
     uint256 public nextValidatorId;
@@ -72,7 +72,7 @@ contract RockXStaking is ReentrancyGuard, Pausable, Ownable, Initializable {
     // track revenue from validators to form exchange ratio
     uint256 public accountedUserRevenue;    // accounted shared user revenue
     uint256 public accountedManagerRevenue; // accounted manager's revenue
-    
+
     /** 
      * ======================================================================================
      * 
@@ -90,31 +90,21 @@ contract RockXStaking is ReentrancyGuard, Pausable, Ownable, Initializable {
     }
 
     /**
-     * @dev add a validator
+     * @dev register a validator
      */
-    function addValidator(bytes calldata pubkey, bytes calldata signature) external onlyOwner {
-        ValidatorCredential memory cred;
+    function registerValidator(bytes calldata pubkey, bytes calldata signature) external onlyOwner {
         require(signature.length == SIGNATURE_LENGTH);
-
-        cred.pubkey = pubkey;
-        cred.signature = signature;
-
-        validators.push(cred);
-
-        emit ValidatorAdded(pubkey);
+        validatorRegistry.push(ValidatorCredential({pubkey:pubkey, signature:signature}));
     }
 
     /**
-     * @dev add a batch of validators
+     * @dev register a batch of validators
      */
-    function addValidators(bytes [] calldata pubkeys, bytes [] calldata signatures) external onlyOwner {
+    function registerValidators(bytes [] calldata pubkeys, bytes [] calldata signatures) external onlyOwner {
         require(pubkeys.length == signatures.length, "length mismatch");
         uint256 n = pubkeys.length;
         for(uint256 i=0;i<n;i++) {
-            ValidatorCredential memory cred;
-            cred.pubkey = pubkeys[i];
-            cred.signature = signatures[i];
-            validators.push(cred);
+            validatorRegistry.push(ValidatorCredential({pubkey:pubkeys[i], signature:signatures[i]}));
         }
     }
     
@@ -157,11 +147,13 @@ contract RockXStaking is ReentrancyGuard, Pausable, Ownable, Initializable {
         emit RevenueAccounted(creditEthers);
     }
 
+
     /**
-     * @dev report accounted revenue for all validators
+     * @dev manager withdraw fees
      */
     function withdrawManagerFee(uint256 amount, address to) external nonReentrant onlyOwner {
         require(accountedManagerRevenue >= amount, "insufficient manager fee");
+        require(_checkEthersBalance(amount), "insufficient ethers");
         accountedManagerRevenue = accountedManagerRevenue.sub(amount);
         payable(to).sendValue(amount);
     }
@@ -173,6 +165,13 @@ contract RockXStaking is ReentrancyGuard, Pausable, Ownable, Initializable {
      * 
      * ======================================================================================
      */
+
+    /**
+     * @dev return num of validator credential pushed
+     */
+    function getRegisteredValidatorss() external view returns (uint256) {
+        return validatorRegistry.length;
+    }
 
     /**
      * @dev return exchange ratio of xETH:ETH, multiplied by 1e18
@@ -308,13 +307,13 @@ contract RockXStaking is ReentrancyGuard, Pausable, Ownable, Initializable {
      */
     function _spinup() internal {
         // emit a log
-        emit NewValidator(nextValidatorId);
+        emit ValidatorActivated(nextValidatorId);
 
         // deposit to ethereum contract
-        require(nextValidatorId < validators.length) ;
+        require(nextValidatorId < validatorRegistry.length) ;
 
          // load credential
-        ValidatorCredential memory cred = validators[nextValidatorId];
+        ValidatorCredential memory cred = validatorRegistry[nextValidatorId];
         _stake(cred.pubkey, cred.signature);
 
         totalStaked += DEPOSIT_SIZE;
@@ -392,12 +391,11 @@ contract RockXStaking is ReentrancyGuard, Pausable, Ownable, Initializable {
      *
      * ======================================================================================
      */
-    event NewValidator(uint256 node_id);
+    event ValidatorActivated(uint256 node_id);
     event RevenueAccounted(uint256 amount);
     event RewardReceived(uint256 amount);
     event ManagerAccountSet(address account);
     event ManagerFeeSet(uint256 milli);
     event Redeemed(uint256 amountXETH, uint256 amountETH);
     event WithdrawCredentialSet(bytes32 withdrawCredential);
-    event ValidatorAdded(bytes pubkey);
 }
