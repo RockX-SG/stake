@@ -178,7 +178,7 @@ contract RockXStaking is ReentrancyGuard, Pausable, Ownable, Initializable {
      */
     function exchangeRatio() external view returns (uint256) {
         uint256 xETHAmount = IERC20(xETHAddress).totalSupply();
-        uint256 ratio = totalDeposited.add(accountedUserRevenue)
+        uint256 ratio = _currentEthers()
                             .mul(MULTIPLIER)
                             .div(xETHAmount);
         return ratio;
