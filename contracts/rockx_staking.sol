@@ -73,6 +73,10 @@ contract RockXStaking is ReentrancyGuard, Pausable, Ownable, Initializable {
     uint256 public accountedUserRevenue;    // accounted shared user revenue
     uint256 public accountedManagerRevenue; // accounted manager's revenue
 
+    // track beacon validator & balance
+    uint256 public beaconValidators;
+    uint256 public beaconBalance;
+
     /** 
      * ======================================================================================
      * 
@@ -134,17 +138,34 @@ contract RockXStaking is ReentrancyGuard, Pausable, Ownable, Initializable {
     }
     
     /**
-     * @dev report accounted revenue for all validators
+     * @dev report validators count and total balance
      */
-    function reportBalance(uint256 creditEthers) external onlyOwner {
-        uint256 fee = creditEthers.mul(managerFeeMilli).div(1000);
-        accountedManagerRevenue = accountedManagerRevenue.add(fee);
+    function pushBeacon(uint256 beaconValidators_, uint256 beaconBalance_) external onlyOwner {
+        require(beaconValidators >= beaconValidators_, "REPORTED_LESS_VALIDATORS");
+        uint256 appearedValidators = beaconValidators_.sub(beaconValidators);
 
-        accountedUserRevenue = accountedUserRevenue
-                                .add(creditEthers)
-                                .sub(fee);
+        // RewardBase is the amount of money that is not included in the reward calculation
+        // Just appeared validators * 32 added to the previously reported beacon balance
+        uint256 rewardBase = (appearedValidators.mul(DEPOSIT_SIZE)).add(beaconBalance);
 
-        emit RevenueAccounted(creditEthers);
+        // Save the current beacon balance and validators to
+        // calcuate rewards on the next push
+        beaconBalance = beaconBalance_;
+        beaconValidators = beaconValidators_;
+
+        if (beaconBalance_ > rewardBase) {
+            uint256 rewards = beaconBalance_.sub(rewardBase);
+
+            // revenue distribution
+            uint256 fee = rewards.mul(managerFeeMilli).div(1000);
+            accountedManagerRevenue = accountedManagerRevenue.add(fee);
+
+            accountedUserRevenue = accountedUserRevenue
+                                    .add(rewards)
+                                    .sub(fee);
+
+            emit RevenueAccounted(rewards);
+        }
     }
 
 
