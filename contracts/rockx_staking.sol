@@ -140,21 +140,32 @@ contract RockXStaking is ReentrancyGuard, Pausable, Ownable, Initializable {
     /**
      * @dev report validators count and total balance
      */
-    function pushBeacon(uint256 beaconValidators_, uint256 beaconBalance_) external onlyOwner {
-        require(beaconValidators >= beaconValidators_, "REPORTED_LESS_VALIDATORS");
-        uint256 appearedValidators = beaconValidators_.sub(beaconValidators);
+    function pushBeacon(uint256 _beaconValidators, uint256 _beaconBalance) external onlyOwner {
+        // range check
+        require(_beaconValidators <= nextValidatorId, "REPORTED_MORE_DEPOSITED");
+
+        // rebase reward
+        uint256 rewardBase = beaconBalance;
+        if (_beaconValidators > beaconValidators) {         
+            // newly appeared validators
+            uint256 diff = _beaconValidators.sub(beaconValidators);
+            rewardBase = rewardBase.add(diff.mul(DEPOSIT_SIZE));
+        } else if (_beaconValidators < beaconValidators) {
+            // validators disappeared
+            uint256 diff = beaconValidators.sub(_beaconValidators);
+            rewardBase = rewardBase.sub(diff.mul(DEPOSIT_SIZE));
+        }
 
         // RewardBase is the amount of money that is not included in the reward calculation
         // Just appeared validators * 32 added to the previously reported beacon balance
-        uint256 rewardBase = (appearedValidators.mul(DEPOSIT_SIZE)).add(beaconBalance);
 
         // Save the current beacon balance and validators to
         // calcuate rewards on the next push
-        beaconBalance = beaconBalance_;
-        beaconValidators = beaconValidators_;
+        beaconBalance = _beaconBalance;
+        beaconValidators = _beaconValidators;
 
-        if (beaconBalance_ > rewardBase) {
-            uint256 rewards = beaconBalance_.sub(rewardBase);
+        if (_beaconBalance > rewardBase) {
+            uint256 rewards = _beaconBalance.sub(rewardBase);
 
             // revenue distribution
             uint256 fee = rewards.mul(managerFeeMilli).div(1000);
