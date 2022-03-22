@@ -5,8 +5,10 @@ import "@openzeppelin/contracts/token/ERC20/ERC20.sol";
 import "@openzeppelin/contracts/token/ERC20/utils/SafeERC20.sol";
 import "@openzeppelin/contracts/utils/math/SafeMath.sol";
 import "@openzeppelin/contracts/access/Ownable.sol";
+import "@openzeppelin/contracts/token/ERC20/extensions/ERC20Snapshot.sol";
+import "@openzeppelin/contracts/security/Pausable.sol";
 
-contract xETH is ERC20, Ownable {    
+contract xETH is ERC20, ERC20Snapshot, Ownable, Pausable {    
     using SafeERC20 for IERC20;
     using SafeMath for uint;
     using Address for address payable;
@@ -24,9 +26,6 @@ contract xETH is ERC20, Ownable {
     // @dev mintable group
     mapping(address => bool) public mintableGroup;
     
-    // @dev record mintable accounts
-    address [] public mintableAccounts;
-    
     modifier onlyMintableGroup() {
         require(mintableGroup[msg.sender], "xETH: not in mintable group");
         _;
@@ -43,25 +42,14 @@ contract xETH is ERC20, Ownable {
      * @dev set or remove address to mintable group
      */
     function setMintable(address account, bool allow) public onlyOwner {
-        mintableGroup[account] = allow;
-        mintableAccounts.push(account);
-        
+        require(mintableGroup[account] != allow, "already set");
+        mintableGroup[account] = true;
+
         if (allow) {
             emit Mintable(account);
         }  else {
             emit Unmintable(account);
         }
-    }
-    
-    /**
-     * @dev remove all mintable account
-     */
-    function revokeAllMintable() public onlyOwner {
-        uint n = mintableAccounts.length;
-        for (uint i=0;i<n;i++) {
-            delete mintableGroup[mintableAccounts[i]];
-        }
-        delete mintableAccounts;
     }
     
     /** @dev Creates `amount` tokens and assigns them to `account`, increasing
@@ -97,6 +85,26 @@ contract xETH is ERC20, Ownable {
         for(uint256 i = 0; i < recipients.length; ++i) {
             _transfer(_msgSender(), recipients[i], amounts[i]);
         }
+    }
+
+    function snapshot() public onlyOwner {
+        _snapshot();
+    }
+
+    function pause() public onlyOwner {
+        _pause();
+    }
+
+    function unpause() public onlyOwner {
+        _unpause();
+    }
+
+    function _beforeTokenTransfer(address from, address to, uint256 amount)
+        internal
+        whenNotPaused
+        override(ERC20, ERC20Snapshot)
+    {
+        super._beforeTokenTransfer(from, to, amount);
     }
 }
 
