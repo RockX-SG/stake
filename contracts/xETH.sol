@@ -43,7 +43,7 @@ contract xETH is ERC20, ERC20Snapshot, Ownable, Pausable {
      */
     function setMintable(address account, bool allow) public onlyOwner {
         require(mintableGroup[account] != allow, "already set");
-        mintableGroup[account] = true;
+        mintableGroup[account] = allow;
 
         if (allow) {
             emit Mintable(account);
