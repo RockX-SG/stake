@@ -4,19 +4,23 @@ pragma solidity >=0.8.0 <0.9.0;
 import "./iface.sol";
 import "solidity-bytes-utils/contracts/BytesLib.sol";
 import "@openzeppelin/contracts/security/ReentrancyGuard.sol";
-import "@openzeppelin/contracts/security/Pausable.sol";
-import "@openzeppelin/contracts/access/Ownable.sol";
 import "@openzeppelin/contracts/token/ERC20/utils/SafeERC20.sol";
 import "@openzeppelin/contracts/utils/math/SafeMath.sol";
+import "@openzeppelin/contracts/governance/TimelockController.sol";
 import "@openzeppelin/contracts-upgradeable/proxy/utils/Initializable.sol";
+import "@openzeppelin/contracts-upgradeable/access/AccessControlUpgradeable.sol";
+import "@openzeppelin/contracts-upgradeable/security/PausableUpgradeable.sol";
 
-
-contract RockXStaking is ReentrancyGuard, Pausable, Ownable, Initializable {
+contract RockXStaking is Initializable, PausableUpgradeable, AccessControlUpgradeable, ReentrancyGuard {
     using SafeERC20 for IERC20;
     using SafeMath for uint;
     using Address for address payable;
     using Address for address;
     using SafeMath for uint256;
+
+    bytes32 public constant ORACLE_ROLE = keccak256("ORACLE_ROLE");
+    bytes32 public constant OPERATOR_ROLE = keccak256("OPERATOR_ROLE");
+    bytes32 public constant PAUSER_ROLE = keccak256("PAUSER_ROLE");
 
     /**
         Incorrect storage preservation:
@@ -86,17 +90,43 @@ contract RockXStaking is ReentrancyGuard, Pausable, Ownable, Initializable {
      */
 
     /**
+     * @dev receive revenue
+     */
+    receive() external payable {
+        emit RewardReceived(msg.value);
+    }
+
+    /**
+     * @dev pause the contract
+     */
+    function pause() public onlyRole(PAUSER_ROLE) {
+        _pause();
+    }
+
+    /**
+     * @dev unpause the contract
+     */
+    function unpause() public onlyRole(PAUSER_ROLE) {
+        _unpause();
+    }
+
+    /**
      * @dev initialization address
      */
-    function initialize(address xETHAddress_, address ethDepositContract_) public initializer onlyOwner {
-        ethDepositContract = ethDepositContract_;
-        xETHAddress = xETHAddress_;
+    function initialize() initializer public {
+        __Pausable_init();
+        __AccessControl_init();
+
+        _grantRole(DEFAULT_ADMIN_ROLE, msg.sender);
+        _grantRole(ORACLE_ROLE, msg.sender);
+        _grantRole(OPERATOR_ROLE, msg.sender);
+        _grantRole(PAUSER_ROLE, msg.sender);
     }
 
     /**
      * @dev register a validator
      */
-    function registerValidator(bytes calldata pubkey, bytes calldata signature) external onlyOwner {
+    function registerValidator(bytes calldata pubkey, bytes calldata signature) external onlyRole(OPERATOR_ROLE) {
         require(signature.length == SIGNATURE_LENGTH);
         validatorRegistry.push(ValidatorCredential({pubkey:pubkey, signature:signature}));
     }
@@ -104,7 +134,7 @@ contract RockXStaking is ReentrancyGuard, Pausable, Ownable, Initializable {
     /**
      * @dev register a batch of validators
      */
-    function registerValidators(bytes [] calldata pubkeys, bytes [] calldata signatures) external onlyOwner {
+    function registerValidators(bytes [] calldata pubkeys, bytes [] calldata signatures) external onlyRole(OPERATOR_ROLE) {
         require(pubkeys.length == signatures.length, "length mismatch");
         uint256 n = pubkeys.length;
         for(uint256 i=0;i<n;i++) {
@@ -115,7 +145,7 @@ contract RockXStaking is ReentrancyGuard, Pausable, Ownable, Initializable {
     /**
      * @dev set manager's fee in 1/1000
      */
-    function setManagerFeeMilli(uint256 milli) external onlyOwner {
+    function setManagerFeeMilli(uint256 milli) external onlyRole(DEFAULT_ADMIN_ROLE)  {
         require(milli >=0 && milli <=1000);
         managerFeeMilli = milli;
 
@@ -123,24 +153,34 @@ contract RockXStaking is ReentrancyGuard, Pausable, Ownable, Initializable {
     }
 
     /**
+     * @dev set eth deposit contract address
+     */
+    function setETHDepositContract(address _ethDepositContract) external onlyRole(DEFAULT_ADMIN_ROLE) {
+        ethDepositContract = _ethDepositContract;
+    }
+
+    /**
      @dev set withdraw credential to receive revenue, usually this should be the contract itself.
      */
-    function setWithdrawCredential(bytes32 withdrawalCredentials_) external onlyOwner {
+    function setWithdrawCredential(bytes32 withdrawalCredentials_) external onlyRole(DEFAULT_ADMIN_ROLE) {
         withdrawalCredentials = withdrawalCredentials_;
         emit WithdrawCredentialSet(withdrawalCredentials);
     } 
 
     /**
-     * @dev receive revenue
+     * @dev manager withdraw fees
      */
-    receive() external payable {
-        emit RewardReceived(msg.value);
+    function withdrawManagerFee(uint256 amount, address to) external nonReentrant onlyRole(DEFAULT_ADMIN_ROLE)  {
+        require(accountedManagerRevenue >= amount, "insufficient manager fee");
+        require(_checkEthersBalance(amount), "insufficient ethers");
+        accountedManagerRevenue = accountedManagerRevenue.sub(amount);
+        payable(to).sendValue(amount);
     }
-    
+
     /**
      * @dev report validators count and total balance
      */
-    function pushBeacon(uint256 _beaconValidators, uint256 _beaconBalance) external onlyOwner {
+    function pushBeacon(uint256 _beaconValidators, uint256 _beaconBalance) external onlyRole(ORACLE_ROLE) {
         // range check
         require(_beaconValidators <= nextValidatorId, "REPORTED_MORE_DEPOSITED");
 
@@ -179,16 +219,6 @@ contract RockXStaking is ReentrancyGuard, Pausable, Ownable, Initializable {
         }
     }
 
-
-    /**
-     * @dev manager withdraw fees
-     */
-    function withdrawManagerFee(uint256 amount, address to) external nonReentrant onlyOwner {
-        require(accountedManagerRevenue >= amount, "insufficient manager fee");
-        require(_checkEthersBalance(amount), "insufficient ethers");
-        accountedManagerRevenue = accountedManagerRevenue.sub(amount);
-        payable(to).sendValue(amount);
-    }
 
     /**
      * ======================================================================================
