@@ -3,20 +3,17 @@ pragma solidity >=0.8.0 <0.9.0;
 
 import "./iface.sol";
 import "solidity-bytes-utils/contracts/BytesLib.sol";
-import "@openzeppelin/contracts/security/ReentrancyGuard.sol";
 import "@openzeppelin/contracts/token/ERC20/utils/SafeERC20.sol";
-import "@openzeppelin/contracts/utils/math/SafeMath.sol";
-import "@openzeppelin/contracts/governance/TimelockController.sol";
 import "@openzeppelin/contracts-upgradeable/proxy/utils/Initializable.sol";
 import "@openzeppelin/contracts-upgradeable/access/AccessControlUpgradeable.sol";
 import "@openzeppelin/contracts-upgradeable/security/PausableUpgradeable.sol";
+import "@openzeppelin/contracts-upgradeable/security/ReentrancyGuardUpgradeable.sol";
 
-contract RockXStaking is Initializable, PausableUpgradeable, AccessControlUpgradeable, ReentrancyGuard {
+
+contract RockXStaking is Initializable, PausableUpgradeable, AccessControlUpgradeable, ReentrancyGuardUpgradeable {
     using SafeERC20 for IERC20;
-    using SafeMath for uint;
     using Address for address payable;
     using Address for address;
-    using SafeMath for uint256;
 
     bytes32 public constant ORACLE_ROLE = keccak256("ORACLE_ROLE");
     bytes32 public constant OPERATOR_ROLE = keccak256("OPERATOR_ROLE");
@@ -173,7 +170,7 @@ contract RockXStaking is Initializable, PausableUpgradeable, AccessControlUpgrad
     function withdrawManagerFee(uint256 amount, address to) external nonReentrant onlyRole(DEFAULT_ADMIN_ROLE)  {
         require(accountedManagerRevenue >= amount, "insufficient manager fee");
         require(_checkEthersBalance(amount), "insufficient ethers");
-        accountedManagerRevenue = accountedManagerRevenue.sub(amount);
+        accountedManagerRevenue -= amount;
         payable(to).sendValue(amount);
     }
 
@@ -188,12 +185,12 @@ contract RockXStaking is Initializable, PausableUpgradeable, AccessControlUpgrad
         uint256 rewardBase = beaconBalance;
         if (_beaconValidators > beaconValidators) {         
             // newly appeared validators
-            uint256 diff = _beaconValidators.sub(beaconValidators);
-            rewardBase = rewardBase.add(diff.mul(DEPOSIT_SIZE));
+            uint256 diff = _beaconValidators - beaconValidators;
+            rewardBase += diff * DEPOSIT_SIZE;
         } else if (_beaconValidators < beaconValidators) {
             // validators disappeared
-            uint256 diff = beaconValidators.sub(_beaconValidators);
-            rewardBase = rewardBase.sub(diff.mul(DEPOSIT_SIZE));
+            uint256 diff = beaconValidators - _beaconValidators;
+            rewardBase -= diff * DEPOSIT_SIZE;
         }
 
         // RewardBase is the amount of money that is not included in the reward calculation
@@ -205,16 +202,12 @@ contract RockXStaking is Initializable, PausableUpgradeable, AccessControlUpgrad
         beaconValidators = _beaconValidators;
 
         if (_beaconBalance > rewardBase) {
-            uint256 rewards = _beaconBalance.sub(rewardBase);
+            uint256 rewards = _beaconBalance - rewardBase;
 
             // revenue distribution
-            uint256 fee = rewards.mul(managerFeeMilli).div(1000);
-            accountedManagerRevenue = accountedManagerRevenue.add(fee);
-
-            accountedUserRevenue = accountedUserRevenue
-                                    .add(rewards)
-                                    .sub(fee);
-
+            uint256 fee = rewards * managerFeeMilli / 1000;
+            accountedManagerRevenue += fee;
+            accountedUserRevenue += rewards - fee;
             emit RevenueAccounted(rewards);
         }
     }
@@ -255,9 +248,7 @@ contract RockXStaking is Initializable, PausableUpgradeable, AccessControlUpgrad
      */
     function exchangeRatio() external view returns (uint256) {
         uint256 xETHAmount = IERC20(xETHAddress).totalSupply();
-        uint256 ratio = _currentEthers()
-                            .mul(MULTIPLIER)
-                            .div(xETHAmount);
+        uint256 ratio = _currentEthers() * MULTIPLIER / xETHAmount;
         return ratio;
     }
  
@@ -283,13 +274,12 @@ contract RockXStaking is Initializable, PausableUpgradeable, AccessControlUpgrad
         uint256 currentEthers = _currentEthers();
         uint256 toMint = msg.value;  // default exchange ratio 1:1
         if (currentEthers > 0) { // avert division overflow
-            toMint = amountXETH.mul(msg.value)
-                                .div(currentEthers); 
+            toMint = amountXETH * msg.value / currentEthers;
        }
         
         // sum total deposited ethers
-        totalDeposited = totalDeposited.add(msg.value);
-        uint256 numValidators = totalDeposited.sub(totalStaked).div(DEPOSIT_SIZE);
+        totalDeposited += msg.value;
+        uint256 numValidators = (totalDeposited - totalStaked) / DEPOSIT_SIZE;
 
         // spin up n nodes
         for (uint256 i = 0;i<numValidators;i++) {
@@ -313,7 +303,7 @@ contract RockXStaking is Initializable, PausableUpgradeable, AccessControlUpgrad
         require(_checkEthersBalance(ethersToRedeem));
 
         uint256 totalXETH = IERC20(xETHAddress).totalSupply();
-        uint256 xETHToBurn = totalXETH.mul(ethersToRedeem).div(_currentEthers());
+        uint256 xETHToBurn = totalXETH * ethersToRedeem / _currentEthers();
         
         // transfer xETH from sender & burn
         IERC20(xETHAddress).safeTransferFrom(msg.sender, address(this), xETHToBurn);
@@ -321,7 +311,7 @@ contract RockXStaking is Initializable, PausableUpgradeable, AccessControlUpgrad
 
         // send ethers back to sender
         payable(msg.sender).sendValue(ethersToRedeem);
-        totalWithdrawed = totalWithdrawed.add(ethersToRedeem);
+        totalWithdrawed += ethersToRedeem;
 
         // emit amount withdrawed
         emit Redeemed(xETHToBurn, ethersToRedeem);
@@ -338,7 +328,7 @@ contract RockXStaking is Initializable, PausableUpgradeable, AccessControlUpgrad
      */
     function redeem(uint256 xETHToBurn) external nonReentrant {
         uint256 totalXETH = IERC20(xETHAddress).totalSupply();
-        uint256 ethersToRedeem = _currentEthers().mul(xETHToBurn).div(totalXETH);
+        uint256 ethersToRedeem = _currentEthers() * xETHToBurn / totalXETH;
         require(_checkEthersBalance(ethersToRedeem));
 
         // transfer xETH from sender & burn
@@ -347,7 +337,7 @@ contract RockXStaking is Initializable, PausableUpgradeable, AccessControlUpgrad
 
         // send ethers back to sender
         payable(msg.sender).sendValue(ethersToRedeem);
-        totalWithdrawed = totalWithdrawed.add(ethersToRedeem);
+        totalWithdrawed += ethersToRedeem;
 
         // emit amount withdrawed
         emit Redeemed(xETHToBurn, ethersToRedeem);
@@ -365,15 +355,15 @@ contract RockXStaking is Initializable, PausableUpgradeable, AccessControlUpgrad
      * @dev returns totalDeposited + accountedUserRevenue - totalWithdrawed
      */
     function _currentEthers() internal view returns(uint256) {
-        return totalDeposited.add(accountedUserRevenue).sub(totalWithdrawed);
+        return totalDeposited + accountedUserRevenue - totalWithdrawed;
     }
 
     /**
      * @dev check ethers withdrawble
      */
     function _checkEthersBalance(uint256 amount) internal view returns(bool) {
-        uint256 pendingEthers = totalDeposited.sub(totalStaked);
-        if (address(this).balance.sub(pendingEthers) >= amount) {
+        uint256 pendingEthers = totalDeposited - totalStaked;
+        if (address(this).balance - pendingEthers >= amount) {
             return true;
         }
         return false;
@@ -403,15 +393,15 @@ contract RockXStaking is Initializable, PausableUpgradeable, AccessControlUpgrad
     function _stake(bytes memory _pubkey, bytes memory _signature) internal {
          // The following computations and Merkle tree-ization will make official Deposit contract happy
         uint256 value = DEPOSIT_SIZE;
-        uint256 depositAmount = value.div(DEPOSIT_AMOUNT_UNIT);
-        assert(depositAmount.mul(DEPOSIT_AMOUNT_UNIT) == value);    // properly rounded
+        uint256 depositAmount = value / DEPOSIT_AMOUNT_UNIT;
+        assert(depositAmount * DEPOSIT_AMOUNT_UNIT == value);    // properly rounded
 
         // Compute deposit data root (`DepositData` hash tree root) according to deposit_contract.sol
         bytes32 pubkeyRoot = sha256(_pad64(_pubkey));
         bytes32 signatureRoot = sha256(
             abi.encodePacked(
                 sha256(BytesLib.slice(_signature, 0, 64)),
-                sha256(_pad64(BytesLib.slice(_signature, 64, SIGNATURE_LENGTH.sub(64))))
+                sha256(_pad64(BytesLib.slice(_signature, 64, SIGNATURE_LENGTH - 64)))
             )
         );
         bytes32 depositDataRoot = sha256(
@@ -442,7 +432,7 @@ contract RockXStaking is Initializable, PausableUpgradeable, AccessControlUpgrad
         if (32 == _b.length)
             return BytesLib.concat(_b, zero32);
         else
-            return BytesLib.concat(_b, BytesLib.slice(zero32, 0, uint256(64).sub(_b.length)));
+            return BytesLib.concat(_b, BytesLib.slice(zero32, 0, uint256(64) - _b.length));
     }
 
     /**
