@@ -83,9 +83,12 @@ contract RockXStaking is Initializable, PausableUpgradeable, AccessControlUpgrad
     uint256 public accountedManagerRevenue; // accounted manager's revenue
 
     // track beacon validator & balance
-    uint256 public beaconValidators;
-    uint256 public beaconBalance;
-    uint256 public settledRevenue;          // track total rewards from stopped validators
+    uint256 public beaconValidatorSnapshot;
+    uint256 public beaconBalanceSnapshot;
+
+    // track stopped validators
+    uint256 public stoppedValidators;       // accumulated stopped validators
+    uint256 public stoppedBalance;          // the balance snapshot of those stopped validators
 
     // FIFO of debts from redeemFromValidators
     mapping(uint256=>Debt) private etherDebts;
@@ -204,53 +207,37 @@ contract RockXStaking is Initializable, PausableUpgradeable, AccessControlUpgrad
     /**
      * @dev report validators count and total balance
      */
-    function pushBeacon(uint256 _beaconValidators, uint256 _beaconBalance) external onlyRole(ORACLE_ROLE) {
-        // range check
+    function pushBeacon(uint256 _beaconValidators, uint256 _beaconBalance) public onlyRole(ORACLE_ROLE) {
         require(_beaconValidators <= nextValidatorId, "REPORTED_MORE_DEPOSITED");
-        require(_beaconBalance >= _beaconValidators * DEPOSIT_SIZE, "REPORTED_LESSTHAN_MINIMUM");
 
-        // rebase reward
-        uint256 rewardBase = beaconBalance;
-        if (_beaconValidators > beaconValidators) {         
+        uint256 rewardBase = beaconBalanceSnapshot;
+        if (_beaconValidators + stoppedValidators > beaconValidatorSnapshot) {         
             // newly appeared validators
-            uint256 diff = _beaconValidators - beaconValidators;
+            uint256 diff = _beaconValidators + stoppedValidators - beaconValidatorSnapshot;
             rewardBase += diff * DEPOSIT_SIZE;
-        } else if (_beaconValidators < beaconValidators) {
-            // validators disappeared
-            uint256 diff = beaconValidators - _beaconValidators;
-            rewardBase -= diff * DEPOSIT_SIZE;
         }
 
-        // RewardBase is the amount of money that is not included in the reward calculation
-        // Just appeared validators * 32 added to the previously reported beacon balance
+        // take snapshot of current balances & validators,including stopped ones
+        beaconBalanceSnapshot = _beaconBalance + stoppedBalance; 
+        beaconValidatorSnapshot = _beaconValidators + stoppedValidators;
 
-        // Save the current beacon balance and validators to
-        // calcuate rewards on the next push
-        beaconBalance = _beaconBalance;
-        beaconValidators = _beaconValidators;
-
-        // NOTE: for stopped validators, oracle will not report those ones
-        //  but the revenue needs to be considered in rewards distribution.
-        if (_beaconBalance + settledRevenue > rewardBase) {
-            uint256 rewards = _beaconBalance + settledRevenue - rewardBase;
-
-            // revenue distribution
-            uint256 fee = rewards * managerFeeMilli / 1000;
-            accountedManagerRevenue += fee;
-            accountedUserRevenue += rewards - fee;
-            emit RevenueAccounted(rewards);
+        // the actual increase in balance is the reward
+        if (beaconBalanceSnapshot > rewardBase) {
+            uint256 rewards = beaconBalanceSnapshot - rewardBase;
+            _distributeRewards(rewards);
         }
     }
 
     /**
      * @dev operator stops validator and return ethers staked along with revenue
+     * the revenue will stored in this contract
      */
-    function validatorStopped(uint256 numValidators) external payable nonReentrant onlyRole(OPERATOR_ROLE) {
+    function validatorStopped(uint256 stoppedValidators_) external payable nonReentrant onlyRole(OPERATOR_ROLE) {
         // guarantee sufficient ethers returned
-        require(msg.value >= numValidators * DEPOSIT_SIZE, "RETURNED_LESS_ETHERS");
+        require(msg.value >= stoppedValidators_ * DEPOSIT_SIZE, "RETURNED_LESS_ETHERS");
 
         // ethers to pay
-        uint256 ethersPayable = numValidators * DEPOSIT_SIZE;
+        uint256 ethersPayable = stoppedValidators_ * DEPOSIT_SIZE;
         for (uint i=firstDebt;i<=lastDebt;i++) {
             if (ethersPayable == 0) {
                 break;
@@ -273,8 +260,9 @@ contract RockXStaking is Initializable, PausableUpgradeable, AccessControlUpgrad
             }
         }
 
-        // record settled revenue
-        settledRevenue += msg.value - ethersPayable;
+        // record stopped validators snapshot.
+        stoppedValidators += stoppedValidators_;
+        stoppedBalance += msg.value;
     }
 
     /**
@@ -456,6 +444,17 @@ contract RockXStaking is Initializable, PausableUpgradeable, AccessControlUpgrad
     }
 
     /**
+     * @dev distribute revenue
+     */
+    function _distributeRewards(uint256 rewards) internal {
+        // rewards distribution
+        uint256 fee = rewards * managerFeeMilli / 1000;
+        accountedManagerRevenue += fee;
+        accountedUserRevenue += rewards - fee;
+        emit RevenueAccounted(rewards);
+    }
+
+    /**
      * @dev returns totalDeposited + accountedUserRevenue - totalWithdrawed
      */
     function _currentEthers() internal view returns(uint256) {
@@ -495,6 +494,7 @@ contract RockXStaking is Initializable, PausableUpgradeable, AccessControlUpgrad
     * @dev Invokes a deposit call to the official Deposit contract
     */
     function _stake(bytes memory _pubkey, bytes memory _signature) internal {
+        require(withdrawalCredentials != bytes32(0x0), "WITHDRAWAL_CREDENTIALS_NOT_SET");
          // The following computations and Merkle tree-ization will make official Deposit contract happy
         uint256 value = DEPOSIT_SIZE;
         uint256 depositAmount = value / DEPOSIT_AMOUNT_UNIT;
