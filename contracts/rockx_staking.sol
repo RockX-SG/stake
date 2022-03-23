@@ -50,6 +50,7 @@ contract RockXStaking is Initializable, PausableUpgradeable, AccessControlUpgrad
 
     // Always extend storage instead of modifying it
     // Variables in implementation v0 
+    bytes32 public constant MANAGER_ROLE = keccak256("MANAGER_ROLE");
     bytes32 public constant ORACLE_ROLE = keccak256("ORACLE_ROLE");
     bytes32 public constant OPERATOR_ROLE = keccak256("OPERATOR_ROLE");
     bytes32 public constant PAUSER_ROLE = keccak256("PAUSER_ROLE");
@@ -58,6 +59,7 @@ contract RockXStaking is Initializable, PausableUpgradeable, AccessControlUpgrad
     uint256 internal constant MULTIPLIER = 1e18; 
     uint256 internal constant DEPOSIT_AMOUNT_UNIT = 1000000000 wei;
     uint256 internal constant SIGNATURE_LENGTH = 96;
+    uint256 internal constant PUBKEY_LENGTH = 48;
 
     address public ethDepositContract;  // ETH 2.0 Deposit contract
     address public xETHAddress;         // xETH token address
@@ -131,13 +133,15 @@ contract RockXStaking is Initializable, PausableUpgradeable, AccessControlUpgrad
         _grantRole(ORACLE_ROLE, msg.sender);
         _grantRole(OPERATOR_ROLE, msg.sender);
         _grantRole(PAUSER_ROLE, msg.sender);
+        _grantRole(MANAGER_ROLE, msg.sender);
     }
 
     /**
      * @dev register a validator
      */
     function registerValidator(bytes calldata pubkey, bytes calldata signature) external onlyRole(OPERATOR_ROLE) {
-        require(signature.length == SIGNATURE_LENGTH);
+        require(signature.length == SIGNATURE_LENGTH, "INCONSISTENT_SIG_LEN");
+        require(pubkey.length == PUBKEY_LENGTH, "INCONSISTENT_PUBKEY_LEN");
         validatorRegistry.push(ValidatorCredential({pubkey:pubkey, signature:signature}));
     }
 
@@ -147,7 +151,7 @@ contract RockXStaking is Initializable, PausableUpgradeable, AccessControlUpgrad
     function replaceValidator(uint256 index, bytes calldata pubkey, bytes calldata signature) external onlyRole(OPERATOR_ROLE) {
         require(index < validatorRegistry.length, "INDEX_OUT_OF_RANGE");
         require(index < nextValidatorId, "KEY_ALREADY_ACTIVATED");
-        require(signature.length == SIGNATURE_LENGTH);
+        require(signature.length == SIGNATURE_LENGTH, "INCONSISTENT_SIG_LEN");
         validatorRegistry[index] = ValidatorCredential({pubkey:pubkey, signature:signature});
     }
 
@@ -155,7 +159,7 @@ contract RockXStaking is Initializable, PausableUpgradeable, AccessControlUpgrad
      * @dev register a batch of validators
      */
     function registerValidators(bytes [] calldata pubkeys, bytes [] calldata signatures) external onlyRole(OPERATOR_ROLE) {
-        require(pubkeys.length == signatures.length, "LENGTH_MISMATCH");
+        require(pubkeys.length == signatures.length, "PUBKEYS_SIGNATURES_NOT_EQUAL");
         uint256 n = pubkeys.length;
         for(uint256 i=0;i<n;i++) {
             validatorRegistry.push(ValidatorCredential({pubkey:pubkeys[i], signature:signatures[i]}));
@@ -166,7 +170,7 @@ contract RockXStaking is Initializable, PausableUpgradeable, AccessControlUpgrad
      * @dev set manager's fee in 1/1000
      */
     function setManagerFeeMilli(uint256 milli) external onlyRole(DEFAULT_ADMIN_ROLE)  {
-        require(milli >=0 && milli <=1000);
+        require(milli >=0 && milli <=1000, "MILLI_OUT_OF_RANGE");
         managerFeeMilli = milli;
 
         emit ManagerFeeSet(milli);
@@ -190,7 +194,7 @@ contract RockXStaking is Initializable, PausableUpgradeable, AccessControlUpgrad
     /**
      * @dev manager withdraw fees
      */
-    function withdrawManagerFee(uint256 amount, address to) external nonReentrant onlyRole(DEFAULT_ADMIN_ROLE)  {
+    function withdrawManagerFee(uint256 amount, address to) external nonReentrant onlyRole(MANAGER_ROLE)  {
         require(accountedManagerRevenue >= amount, "INSUFFICIENT_MANAGER_FEE");
         require(_checkEthersBalance(amount), "INSUFFICIENT_ETHERS");
         accountedManagerRevenue -= amount;
