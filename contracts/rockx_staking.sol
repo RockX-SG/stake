@@ -113,6 +113,7 @@ contract RockXStaking is Initializable, PausableUpgradeable, AccessControlUpgrad
     function initialize() initializer public {
         __Pausable_init();
         __AccessControl_init();
+        __ReentrancyGuard_init();
 
         _grantRole(DEFAULT_ADMIN_ROLE, msg.sender);
         _grantRole(ORACLE_ROLE, msg.sender);
