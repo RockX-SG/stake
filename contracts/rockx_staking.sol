@@ -15,9 +15,17 @@ contract RockXStaking is Initializable, PausableUpgradeable, AccessControlUpgrad
     using Address for address payable;
     using Address for address;
 
-    bytes32 public constant ORACLE_ROLE = keccak256("ORACLE_ROLE");
-    bytes32 public constant OPERATOR_ROLE = keccak256("OPERATOR_ROLE");
-    bytes32 public constant PAUSER_ROLE = keccak256("PAUSER_ROLE");
+    // stored credentials
+    struct ValidatorCredential {
+        bytes pubkey;
+        bytes signature;
+    }
+    
+    // track ether debts to return to async caller
+    struct Debt {
+        address account;
+        uint256 amount;
+    }
 
     /**
         Incorrect storage preservation:
@@ -42,11 +50,9 @@ contract RockXStaking is Initializable, PausableUpgradeable, AccessControlUpgrad
 
     // Always extend storage instead of modifying it
     // Variables in implementation v0 
-    // stored credentials
-    struct ValidatorCredential {
-        bytes pubkey;
-        bytes signature;
-    }
+    bytes32 public constant ORACLE_ROLE = keccak256("ORACLE_ROLE");
+    bytes32 public constant OPERATOR_ROLE = keccak256("OPERATOR_ROLE");
+    bytes32 public constant PAUSER_ROLE = keccak256("PAUSER_ROLE");
 
     uint256 internal constant DEPOSIT_SIZE = 32 ether;
     uint256 internal constant MULTIPLIER = 1e18; 
@@ -67,7 +73,7 @@ contract RockXStaking is Initializable, PausableUpgradeable, AccessControlUpgrad
 
     // track user staking
     uint256 public totalStaked;             // track total staked ethers for validators, rounded to 32 ethers
-    uint256 public totalDeposited;          // track total deposited ethers from users..
+    uint256 public totalDeposited;          // track total deposited ethers from users
     uint256 public totalWithdrawed;         // track total withdrawed ethers
 
     // track revenue from validators to form exchange ratio
@@ -77,13 +83,9 @@ contract RockXStaking is Initializable, PausableUpgradeable, AccessControlUpgrad
     // track beacon validator & balance
     uint256 public beaconValidators;
     uint256 public beaconBalance;
+    uint256 public settledRevenue;          // track total rewards from stopped validators
 
-    // track ether debts to return to async caller
-    struct Debt {
-        address account;
-        uint256 amount;
-    }
-
+    // FIFO of debts from redeemFromValidators
     mapping(uint256=>Debt) private etherDebts;
     uint256 private firstDebt = 1;
     uint256 private lastDebt = 0;
@@ -143,8 +145,8 @@ contract RockXStaking is Initializable, PausableUpgradeable, AccessControlUpgrad
      * @dev replace a validator in case of msitakes
      */
     function replaceValidator(uint256 index, bytes calldata pubkey, bytes calldata signature) external onlyRole(OPERATOR_ROLE) {
-        require(index < validatorRegistry.length, "index out of range");
-        require(index < nextValidatorId, "key already activated");
+        require(index < validatorRegistry.length, "INDEX_OUT_OF_RANGE");
+        require(index < nextValidatorId, "KEY_ALREADY_ACTIVATED");
         require(signature.length == SIGNATURE_LENGTH);
         validatorRegistry[index] = ValidatorCredential({pubkey:pubkey, signature:signature});
     }
@@ -153,7 +155,7 @@ contract RockXStaking is Initializable, PausableUpgradeable, AccessControlUpgrad
      * @dev register a batch of validators
      */
     function registerValidators(bytes [] calldata pubkeys, bytes [] calldata signatures) external onlyRole(OPERATOR_ROLE) {
-        require(pubkeys.length == signatures.length, "length mismatch");
+        require(pubkeys.length == signatures.length, "LENGTH_MISMATCH");
         uint256 n = pubkeys.length;
         for(uint256 i=0;i<n;i++) {
             validatorRegistry.push(ValidatorCredential({pubkey:pubkeys[i], signature:signatures[i]}));
@@ -189,8 +191,8 @@ contract RockXStaking is Initializable, PausableUpgradeable, AccessControlUpgrad
      * @dev manager withdraw fees
      */
     function withdrawManagerFee(uint256 amount, address to) external nonReentrant onlyRole(DEFAULT_ADMIN_ROLE)  {
-        require(accountedManagerRevenue >= amount, "insufficient manager fee");
-        require(_checkEthersBalance(amount), "insufficient ethers");
+        require(accountedManagerRevenue >= amount, "INSUFFICIENT_MANAGER_FEE");
+        require(_checkEthersBalance(amount), "INSUFFICIENT_ETHERS");
         accountedManagerRevenue -= amount;
         payable(to).sendValue(amount);
     }
@@ -223,8 +225,10 @@ contract RockXStaking is Initializable, PausableUpgradeable, AccessControlUpgrad
         beaconBalance = _beaconBalance;
         beaconValidators = _beaconValidators;
 
-        if (_beaconBalance > rewardBase) {
-            uint256 rewards = _beaconBalance - rewardBase;
+        // NOTE: for stopped validators, oracle will not report those ones
+        //  but the revenue needs to be considered in rewards distribution.
+        if (_beaconBalance + settledRevenue > rewardBase) {
+            uint256 rewards = _beaconBalance + settledRevenue - rewardBase;
 
             // revenue distribution
             uint256 fee = rewards * managerFeeMilli / 1000;
@@ -239,7 +243,7 @@ contract RockXStaking is Initializable, PausableUpgradeable, AccessControlUpgrad
      */
     function validatorStopped(uint256 numValidators) external payable nonReentrant onlyRole(OPERATOR_ROLE) {
         // guarantee sufficient ethers returned
-        require(numValidators * DEPOSIT_SIZE >= msg.value);
+        require(msg.value >= numValidators * DEPOSIT_SIZE, "RETURNED_LESS_ETHERS");
 
         // ethers to pay
         uint256 ethersPayable = numValidators * DEPOSIT_SIZE;
@@ -264,6 +268,9 @@ contract RockXStaking is Initializable, PausableUpgradeable, AccessControlUpgrad
                 _dequeueDebt();
             }
         }
+
+        // record settled revenue
+        settledRevenue += msg.value - ethersPayable;
     }
 
     /**
@@ -324,7 +331,7 @@ contract RockXStaking is Initializable, PausableUpgradeable, AccessControlUpgrad
      * @dev mint xETH with ETH
      */
     function mint() external payable nonReentrant whenNotPaused {
-        require(msg.value > 0, "amount 0");
+        require(msg.value > 0, "MINT_ZERO");
 
         // mint xETH while keep the exchange ratio invariant
         //
@@ -356,7 +363,7 @@ contract RockXStaking is Initializable, PausableUpgradeable, AccessControlUpgrad
      * redeem keeps the ratio invariant
      */
     function redeemFromValidators(uint256 ethersToRedeem) external nonReentrant {
-        require(ethersToRedeem % DEPOSIT_SIZE == 0, "must be N * 32 ethers");
+        require(ethersToRedeem % DEPOSIT_SIZE == 0, "REDEEM_NOT_32ETHERSUNIT");
 
         uint256 totalXETH = IERC20(xETHAddress).totalSupply();
         uint256 xETHToBurn = totalXETH * ethersToRedeem / _currentEthers();
@@ -382,7 +389,7 @@ contract RockXStaking is Initializable, PausableUpgradeable, AccessControlUpgrad
      * redeem keeps the ratio invariant
      */
     function redeemUnderlying(uint256 ethersToRedeem) external nonReentrant {
-        require(_checkEthersBalance(ethersToRedeem));
+        require(_checkEthersBalance(ethersToRedeem), "INSUFFICIENT_ETHERS");
 
         uint256 totalXETH = IERC20(xETHAddress).totalSupply();
         uint256 xETHToBurn = totalXETH * ethersToRedeem / _currentEthers();
@@ -411,7 +418,7 @@ contract RockXStaking is Initializable, PausableUpgradeable, AccessControlUpgrad
     function redeem(uint256 xETHToBurn) external nonReentrant {
         uint256 totalXETH = IERC20(xETHAddress).totalSupply();
         uint256 ethersToRedeem = _currentEthers() * xETHToBurn / totalXETH;
-        require(_checkEthersBalance(ethersToRedeem));
+        require(_checkEthersBalance(ethersToRedeem), "INSUFFICIENT_ETHERS");
 
         // transfer xETH from sender & burn
         IERC20(xETHAddress).safeTransferFrom(msg.sender, address(this), xETHToBurn);
