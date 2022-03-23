@@ -78,6 +78,16 @@ contract RockXStaking is Initializable, PausableUpgradeable, AccessControlUpgrad
     uint256 public beaconValidators;
     uint256 public beaconBalance;
 
+    // track ether debts to return to async caller
+    struct Debt {
+        address account;
+        uint256 amount;
+    }
+
+    mapping(uint256=>Debt) private etherDebts;
+    uint256 private firstDebt = 1;
+    uint256 private lastDebt = 0;
+
     /** 
      * ======================================================================================
      * 
@@ -224,6 +234,37 @@ contract RockXStaking is Initializable, PausableUpgradeable, AccessControlUpgrad
         }
     }
 
+    /**
+     * @dev operator stops validator and return ethers staked along with revenue
+     */
+    function validatorStopped(uint256 numValidators) external payable nonReentrant onlyRole(OPERATOR_ROLE) {
+        // guarantee sufficient ethers returned
+        require(numValidators * DEPOSIT_SIZE >= msg.value);
+
+        // ethers to pay
+        uint256 ethersPayable = numValidators * DEPOSIT_SIZE;
+        for (uint i=firstDebt;i<=lastDebt;i++) {
+            if (ethersPayable == 0) {
+                break;
+            }
+
+            Debt storage debt = etherDebts[i];
+
+            // clean debts
+            uint256 toPay = debt.amount <= ethersPayable? debt.amount:ethersPayable;
+            debt.amount -= toPay;
+            ethersPayable -= toPay;
+            payable(debt.account).sendValue(toPay);
+
+            // log
+            emit DebtPaid(debt.account, debt.amount);
+
+            // untrack 
+            if (debt.amount == 0) {
+                _dequeueDebt();
+            }
+        }
+    }
 
     /**
      * ======================================================================================
@@ -263,6 +304,14 @@ contract RockXStaking is Initializable, PausableUpgradeable, AccessControlUpgrad
         uint256 ratio = _currentEthers() * MULTIPLIER / xETHAmount;
         return ratio;
     }
+
+    /**
+     * @dev return debt of the caller
+     */
+    function checkDebt(uint256 index) external view returns (address account, uint256 amount) {
+        Debt memory debt = etherDebts[index];
+        return (debt.account, debt.amount);
+    }
  
      /**
      * ======================================================================================
@@ -300,6 +349,27 @@ contract RockXStaking is Initializable, PausableUpgradeable, AccessControlUpgrad
 
         // mint xETH
         IMintableContract(xETHAddress).mint(msg.sender, toMint);
+    }
+
+    /**
+     * @dev redeem N * 32Ethers and turn off validadators
+     * redeem keeps the ratio invariant
+     */
+    function redeemFromValidators(uint256 ethersToRedeem) external nonReentrant {
+        require(ethersToRedeem % DEPOSIT_SIZE == 0, "must be N * 32 ethers");
+
+        uint256 totalXETH = IERC20(xETHAddress).totalSupply();
+        uint256 xETHToBurn = totalXETH * ethersToRedeem / _currentEthers();
+        
+        // transfer xETH from sender & burn
+        IERC20(xETHAddress).safeTransferFrom(msg.sender, address(this), xETHToBurn);
+        IMintableContract(xETHAddress).burn(xETHToBurn);
+
+        // track ether debts
+        _enqueueDebt(msg.sender, ethersToRedeem);
+
+        // log 
+        emit RedeemFromValidator(xETHToBurn, ethersToRedeem);
     }
 
     /**
@@ -362,6 +432,17 @@ contract RockXStaking is Initializable, PausableUpgradeable, AccessControlUpgrad
      * 
      * ======================================================================================
      */
+    function _enqueueDebt(address account, uint256 amount) internal {
+        lastDebt += 1;
+        etherDebts[lastDebt] = Debt({account:account, amount:amount});
+    }
+
+    function _dequeueDebt() internal returns (Debt memory debt) {
+        require(lastDebt >= firstDebt);  // non-empty queue
+        debt = etherDebts[firstDebt];
+        delete etherDebts[firstDebt];
+        firstDebt += 1;
+    }
 
     /**
      * @dev returns totalDeposited + accountedUserRevenue - totalWithdrawed
@@ -476,5 +557,7 @@ contract RockXStaking is Initializable, PausableUpgradeable, AccessControlUpgrad
     event ManagerAccountSet(address account);
     event ManagerFeeSet(uint256 milli);
     event Redeemed(uint256 amountXETH, uint256 amountETH);
+    event RedeemFromValidator(uint256 amountXETH, uint256 amountETH);
     event WithdrawCredentialSet(bytes32 withdrawCredential);
+    event DebtPaid(address creditor, uint256 amountEther);
 }
