@@ -1,5 +1,5 @@
 // SPDX-License-Identifier: MIT
-pragma solidity >=0.8.0 <0.9.0;
+pragma solidity ^0.8.4;
 
 import "./iface.sol";
 import "solidity-bytes-utils/contracts/BytesLib.sol";
@@ -126,6 +126,16 @@ contract RockXStaking is Initializable, PausableUpgradeable, AccessControlUpgrad
     function registerValidator(bytes calldata pubkey, bytes calldata signature) external onlyRole(OPERATOR_ROLE) {
         require(signature.length == SIGNATURE_LENGTH);
         validatorRegistry.push(ValidatorCredential({pubkey:pubkey, signature:signature}));
+    }
+
+    /**
+     * @dev replace a validator in case of msitakes
+     */
+    function replaceValidator(uint256 index, bytes calldata pubkey, bytes calldata signature) external onlyRole(OPERATOR_ROLE) {
+        require(index < validatorRegistry.length, "index out of range");
+        require(index < nextValidatorId, "key already activated");
+        require(signature.length == SIGNATURE_LENGTH);
+        validatorRegistry[index] = ValidatorCredential({pubkey:pubkey, signature:signature});
     }
 
     /**
