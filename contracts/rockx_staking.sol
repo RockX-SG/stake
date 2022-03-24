@@ -96,6 +96,9 @@ contract RockXStaking is Initializable, PausableUpgradeable, AccessControlUpgrad
     uint256 private firstDebt = 1;
     uint256 private lastDebt = 0;
 
+    // phase switch from 0 to 1
+    uint256 private phase = 0;
+
     /** 
      * ======================================================================================
      * 
@@ -109,6 +112,14 @@ contract RockXStaking is Initializable, PausableUpgradeable, AccessControlUpgrad
      */
     receive() external payable {
         emit RewardReceived(msg.value);
+    }
+
+    /**
+     * @dev only phase
+     */
+    modifier onlyPhase(uint256 requiredPhase) {
+        require(requiredPhase >= phase, "PHASE_MISMATCH");
+        _;
     }
 
     /**
@@ -141,6 +152,14 @@ contract RockXStaking is Initializable, PausableUpgradeable, AccessControlUpgrad
     }
 
     /**
+     * @dev phase switch
+     */
+    function switchPhase(uint256 newPhase) external onlyRole(DEFAULT_ADMIN_ROLE) {
+        require (newPhase >= phase, "PHASE_ROLLBACK");
+        phase = newPhase;
+    }
+
+    /**
      * @dev register a validator
      */
     function registerValidator(bytes calldata pubkey, bytes calldata signature) external onlyRole(OPERATOR_ROLE) {
@@ -153,8 +172,8 @@ contract RockXStaking is Initializable, PausableUpgradeable, AccessControlUpgrad
      * @dev replace a validator in case of msitakes
      */
     function replaceValidator(uint256 index, bytes calldata pubkey, bytes calldata signature) external onlyRole(OPERATOR_ROLE) {
-        require(index < validatorRegistry.length, "INDEX_OUT_OF_RANGE");
-        require(index < nextValidatorId, "KEY_ALREADY_ACTIVATED");
+        require(index < validatorRegistry.length, "OUT_OF_RANGE");
+        require(index < nextValidatorId, "ALREADY_ACTIVATED");
         require(signature.length == SIGNATURE_LENGTH, "INCONSISTENT_SIG_LEN");
         validatorRegistry[index] = ValidatorCredential({pubkey:pubkey, signature:signature});
     }
@@ -163,7 +182,7 @@ contract RockXStaking is Initializable, PausableUpgradeable, AccessControlUpgrad
      * @dev register a batch of validators
      */
     function registerValidators(bytes [] calldata pubkeys, bytes [] calldata signatures) external onlyRole(OPERATOR_ROLE) {
-        require(pubkeys.length == signatures.length, "PUBKEYS_SIGNATURES_NOT_EQUAL");
+        require(pubkeys.length == signatures.length, "LENGTH_NOT_EQUAL");
         uint256 n = pubkeys.length;
         for(uint256 i=0;i<n;i++) {
             validatorRegistry.push(ValidatorCredential({pubkey:pubkeys[i], signature:signatures[i]}));
@@ -174,7 +193,7 @@ contract RockXStaking is Initializable, PausableUpgradeable, AccessControlUpgrad
      * @dev set manager's fee in 1/1000
      */
     function setManagerFeeMilli(uint256 milli) external onlyRole(DEFAULT_ADMIN_ROLE)  {
-        require(milli >=0 && milli <=1000, "MILLI_OUT_OF_RANGE");
+        require(milli >=0 && milli <=1000, "OUT_OF_RANGE");
         managerFeeMilli = milli;
 
         emit ManagerFeeSet(milli);
@@ -372,11 +391,13 @@ contract RockXStaking is Initializable, PausableUpgradeable, AccessControlUpgrad
     }
 
     /**
-     * @dev redeem N * 32Ethers and turn off validadators
+     * @dev redeem N * 32Ethers, which will turn off validadators,
+     * note this function is asynchronous, the caller will only receive his ethers
+     * after the validator has turned off
      * redeem keeps the ratio invariant
      */
-    function redeemFromValidators(uint256 ethersToRedeem) external nonReentrant {
-        require(ethersToRedeem % DEPOSIT_SIZE == 0, "REDEEM_NOT_32ETHERSUNIT");
+    function redeemFromValidators(uint256 ethersToRedeem) external nonReentrant onlyPhase(1) {
+        require(ethersToRedeem % DEPOSIT_SIZE == 0, "REDEEM_NOT_IN_32ETHERS");
 
         uint256 totalXETH = IERC20(xETHAddress).totalSupply();
         uint256 xETHToBurn = totalXETH * ethersToRedeem / _currentEthers();
