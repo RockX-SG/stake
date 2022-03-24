@@ -89,6 +89,7 @@ contract RockXStaking is Initializable, PausableUpgradeable, AccessControlUpgrad
     // track stopped validators
     uint256 public stoppedValidators;       // accumulated stopped validators
     uint256 public stoppedBalance;          // the balance snapshot of those stopped validators
+    uint256 private lastStopTimestamp;      // record timestamp of last stop
 
     // FIFO of debts from redeemFromValidators
     mapping(uint256=>Debt) private etherDebts;
@@ -207,9 +208,11 @@ contract RockXStaking is Initializable, PausableUpgradeable, AccessControlUpgrad
     /**
      * @dev report validators count and total balance
      */
-    function pushBeacon(uint256 _beaconValidators, uint256 _beaconBalance) public onlyRole(ORACLE_ROLE) {
+    function pushBeacon(uint256 _beaconValidators, uint256 _beaconBalance, uint256 ts) public onlyRole(ORACLE_ROLE) {
         require(_beaconValidators <= nextValidatorId, "REPORTED_MORE_DEPOSITED");
         require(_beaconValidators + stoppedValidators >= beaconValidatorSnapshot, "REPORTED_LESS_VALIDATORS");
+        require(block.timestamp >= ts, "REPORTED_CLOCK_DRIFT");
+        require(ts > lastStopTimestamp, "REPORTED_EXPIRED_TIMESTAMP");
 
         uint256 rewardBase = beaconBalanceSnapshot;
         if (_beaconValidators + stoppedValidators > beaconValidatorSnapshot) {         
@@ -264,6 +267,9 @@ contract RockXStaking is Initializable, PausableUpgradeable, AccessControlUpgrad
         // record stopped validators snapshot.
         stoppedValidators += stoppedValidators_;
         stoppedBalance += msg.value;
+
+        // record timestamp
+        lastStopTimestamp = block.timestamp;
     }
 
     /**
