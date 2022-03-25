@@ -87,9 +87,9 @@ contract RockXStaking is Initializable, PausableUpgradeable, AccessControlUpgrad
     uint256 public beaconBalanceSnapshot;
 
     // track stopped validators
-    uint256 public stoppedValidators;       // accumulated stopped validators
     uint256 public stoppedBalance;          // the balance snapshot of those stopped validators
     uint256 private lastStopTimestamp;      // record timestamp of last stop
+    uint256 [] private stoppedValidators;  // track stopped validator ID
 
     // FIFO of debts from redeemFromValidators
     mapping(uint256=>Debt) private etherDebts;
@@ -229,20 +229,20 @@ contract RockXStaking is Initializable, PausableUpgradeable, AccessControlUpgrad
      */
     function pushBeacon(uint256 _beaconValidators, uint256 _beaconBalance, uint256 ts) external onlyRole(ORACLE_ROLE) {
         require(_beaconValidators <= nextValidatorId, "REPORTED_MORE_DEPOSITED");
-        require(_beaconValidators + stoppedValidators >= beaconValidatorSnapshot, "REPORTED_LESS_VALIDATORS");
+        require(_beaconValidators + stoppedValidators.length >= beaconValidatorSnapshot, "REPORTED_LESS_VALIDATORS");
         require(block.timestamp >= ts, "REPORTED_CLOCK_DRIFT");
         require(ts > lastStopTimestamp, "REPORTED_EXPIRED_TIMESTAMP");
 
         uint256 rewardBase = beaconBalanceSnapshot;
-        if (_beaconValidators + stoppedValidators > beaconValidatorSnapshot) {         
+        if (_beaconValidators + stoppedValidators.length > beaconValidatorSnapshot) {         
             // newly appeared validators
-            uint256 diff = _beaconValidators + stoppedValidators - beaconValidatorSnapshot;
+            uint256 diff = _beaconValidators + stoppedValidators.length - beaconValidatorSnapshot;
             rewardBase += diff * DEPOSIT_SIZE;
         }
 
         // take snapshot of current balances & validators,including stopped ones
         beaconBalanceSnapshot = _beaconBalance + stoppedBalance; 
-        beaconValidatorSnapshot = _beaconValidators + stoppedValidators;
+        beaconValidatorSnapshot = _beaconValidators + stoppedValidators.length;
 
         // the actual increase in balance is the reward
         if (beaconBalanceSnapshot > rewardBase) {
@@ -255,12 +255,13 @@ contract RockXStaking is Initializable, PausableUpgradeable, AccessControlUpgrad
      * @dev operator stops validator and return ethers staked along with revenue
      * the revenue will stored in this contract
      */
-    function validatorStopped(uint256 stoppedValidators_) external payable nonReentrant onlyRole(OPERATOR_ROLE) {
+    function validatorStopped(uint256 [] calldata stoppedIDs) external payable nonReentrant onlyRole(OPERATOR_ROLE) {
+        require(stoppedIDs.length > 0, "NO_ID_GIVEN");
         // guarantee sufficient ethers returned
-        require(msg.value >= stoppedValidators_ * DEPOSIT_SIZE, "RETURNED_LESS_ETHERS");
+        require(msg.value >= stoppedIDs.length * DEPOSIT_SIZE, "RETURNED_LESS_ETHERS");
 
         // ethers to pay
-        uint256 ethersPayable = stoppedValidators_ * DEPOSIT_SIZE;
+        uint256 ethersPayable = stoppedIDs.length * DEPOSIT_SIZE;
         for (uint i=firstDebt;i<=lastDebt;i++) {
             if (ethersPayable == 0) {
                 break;
@@ -284,7 +285,9 @@ contract RockXStaking is Initializable, PausableUpgradeable, AccessControlUpgrad
         }
 
         // record stopped validators snapshot.
-        stoppedValidators += stoppedValidators_;
+        for (uint i=0;i<stoppedIDs.length;i++) {
+            stoppedValidators.push(stoppedIDs[i]);
+        }
         stoppedBalance += msg.value;
 
         // record timestamp
@@ -351,7 +354,27 @@ contract RockXStaking is Initializable, PausableUpgradeable, AccessControlUpgrad
     function getDebtQueue() external view returns (uint256 first, uint256 last) {
         return (firstDebt, lastDebt);
     }
- 
+
+    /**
+     * @dev get stopped validators count
+     */
+    function getStoppedValidatorsCount() external view returns (uint256) {
+        return stoppedValidators.length;
+    }
+    
+    /**
+     * @dev get stopped validators ID range
+     */
+    function getStoppedValidators(uint256 idx_from, uint256 idx_to) external view returns (uint256[] memory) {
+        uint[] memory result = new uint[](idx_to - idx_from);
+        uint counter = 0;
+        for (uint i = idx_from; i <= idx_to;i++) {
+            result[counter] = stoppedValidators[i];
+            counter++;
+        }
+        return result;
+    }
+
      /**
      * ======================================================================================
      * 
