@@ -89,7 +89,7 @@ contract RockXStaking is Initializable, PausableUpgradeable, AccessControlUpgrad
     // track stopped validators
     uint256 public stoppedBalance;          // the balance snapshot of those stopped validators
     uint256 private lastStopTimestamp;      // record timestamp of last stop
-    uint256 [] private stoppedValidators;  // track stopped validator ID
+    uint256 [] private stoppedValidators;   // track stopped validator ID
 
     // FIFO of debts from redeemFromValidators
     mapping(uint256=>Debt) private etherDebts;
