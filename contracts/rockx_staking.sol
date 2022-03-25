@@ -227,7 +227,7 @@ contract RockXStaking is Initializable, PausableUpgradeable, AccessControlUpgrad
     /**
      * @dev report validators count and total balance
      */
-    function pushBeacon(uint256 _beaconValidators, uint256 _beaconBalance, uint256 ts) public onlyRole(ORACLE_ROLE) {
+    function pushBeacon(uint256 _beaconValidators, uint256 _beaconBalance, uint256 ts) external onlyRole(ORACLE_ROLE) {
         require(_beaconValidators <= nextValidatorId, "REPORTED_MORE_DEPOSITED");
         require(_beaconValidators + stoppedValidators >= beaconValidatorSnapshot, "REPORTED_LESS_VALIDATORS");
         require(block.timestamp >= ts, "REPORTED_CLOCK_DRIFT");
@@ -363,6 +363,8 @@ contract RockXStaking is Initializable, PausableUpgradeable, AccessControlUpgrad
      * @dev mint xETH with ETH
      */
     function mint() external payable nonReentrant whenNotPaused {
+        // only from EOA
+        require(!msg.sender.isContract() && msg.sender == tx.origin);
         require(msg.value > 0, "MINT_ZERO");
 
         // mint xETH while keep the exchange ratio invariant
@@ -393,10 +395,15 @@ contract RockXStaking is Initializable, PausableUpgradeable, AccessControlUpgrad
     /**
      * @dev redeem N * 32Ethers, which will turn off validadators,
      * note this function is asynchronous, the caller will only receive his ethers
-     * after the validator has turned off
+     * after the validator has turned off.
+     *
+     * this function is dedicated for institutional operations.
+     * 
      * redeem keeps the ratio invariant
      */
     function redeemFromValidators(uint256 ethersToRedeem) external nonReentrant onlyPhase(1) {
+        // only from EOA
+        require(!msg.sender.isContract() && msg.sender == tx.origin);
         require(ethersToRedeem % DEPOSIT_SIZE == 0, "REDEEM_NOT_IN_32ETHERS");
 
         uint256 totalXETH = IERC20(xETHAddress).totalSupply();
@@ -423,6 +430,8 @@ contract RockXStaking is Initializable, PausableUpgradeable, AccessControlUpgrad
      * redeem keeps the ratio invariant
      */
     function redeemUnderlying(uint256 ethersToRedeem) external nonReentrant {
+        // only from EOA
+        require(!msg.sender.isContract() && msg.sender == tx.origin);
         require(_checkEthersBalance(ethersToRedeem), "INSUFFICIENT_ETHERS");
 
         uint256 totalXETH = IERC20(xETHAddress).totalSupply();
@@ -450,6 +459,9 @@ contract RockXStaking is Initializable, PausableUpgradeable, AccessControlUpgrad
      * redeem keeps the ratio invariant
      */
     function redeem(uint256 xETHToBurn) external nonReentrant {
+        // only from EOA
+        require(!msg.sender.isContract() && msg.sender == tx.origin);
+         
         uint256 totalXETH = IERC20(xETHAddress).totalSupply();
         uint256 ethersToRedeem = _currentEthers() * xETHToBurn / totalXETH;
         require(_checkEthersBalance(ethersToRedeem), "INSUFFICIENT_ETHERS");
