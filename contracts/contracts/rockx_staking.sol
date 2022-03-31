@@ -199,6 +199,14 @@ contract RockXStaking is Initializable, PausableUpgradeable, AccessControlUpgrad
         emit ManagerFeeSet(milli);
     }
 
+
+    /**
+     * @dev set xETH token contract address
+     */
+    function setXETHContractAddress(address _xETHContract) external onlyRole(DEFAULT_ADMIN_ROLE) {
+        xETHAddress = _xETHContract;
+    }
+
     /**
      * @dev set eth deposit contract address
      */
@@ -329,6 +337,10 @@ contract RockXStaking is Initializable, PausableUpgradeable, AccessControlUpgrad
      */
     function exchangeRatio() external view returns (uint256) {
         uint256 xETHAmount = IERC20(xETHAddress).totalSupply();
+        if (xETHAmount == 0) {
+            return 1 * MULTIPLIER;
+        }
+
         uint256 ratio = _currentEthers() * MULTIPLIER / xETHAmount;
         return ratio;
     }
