@@ -6,24 +6,12 @@ dependencies:
   - OpenZeppelin/openzeppelin-contracts-upgradeable@4.5.2
   - GNSPS/solidity-bytes-utils@0.8.0
 
-networks:
-    default: development
-    development:
-      chain_id: 1234
-      port: 8545
-      gas_limit: 12000000
-      accounts: 10
-      evm_version: istanbul
-      mnemonic: brownie
-      fork: mainnet-fork
-      unlock:
-        - 0xDA9dfA130Df4dE4673b89022EE50ff26f6EA73Cf
-
 pytest:
     # these settings replace the defaults when running pytest
     default_contract_owner: true
     reverting_tx_gas_limit: 6721975
     revert_traceback: true
+
 compiler:
     solc:
         version: 0.8.4
