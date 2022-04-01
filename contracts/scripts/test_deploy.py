@@ -1,4 +1,11 @@
-from brownie import *
+from brownie import (
+        RockXETH,
+        RockXStaking,
+        TransparentUpgradeableProxy,
+        accounts,
+        chain,
+        interface
+)
 
 GAS_LIMIT = 6721975
 
@@ -15,7 +22,7 @@ def main():
     )
 
     xETH_proxy = TransparentUpgradeableProxy.deploy(
-        xETH_contract, admin, 0x8129fc1c,
+        xETH_contract, admin, b'',
         {'from': admin, 'gas': GAS_LIMIT}
     )
 
@@ -24,7 +31,7 @@ def main():
     )
 
     staking_proxy = TransparentUpgradeableProxy.deploy(
-        staking_contract, admin, 0x8129fc1c,
+        staking_contract, admin, b'',
         {'from': admin, 'gas': GAS_LIMIT}
     )
    
