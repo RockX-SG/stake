@@ -1,9 +1,11 @@
-from brownie import *
 import pytest
+
+from brownie import *
 
 GAS_LIMIT = 6721975
 
-def main():
+@pytest.fixture
+def setup():
     owner = accounts[0]
     deployer = accounts[1]
     ethDepositContract = "0x00000000219ab540356cbb839cbe05303d7705fa"
@@ -28,9 +30,12 @@ def main():
         staking_contract, deployer, b'',
         {'from': deployer, 'gas': GAS_LIMIT}
     )
-  
+
+    global transparent_xeth
+    global transparent_staking
     transparent_xeth = Contract.from_abi("RockXETH", xETH_contract.address, RockXETH.abi)
     transparent_staking = Contract.from_abi("RockXStaking",staking_proxy.address, RockXStaking.abi)
+
 
     transparent_xeth.initialize(
         {'from': owner, 'gas': GAS_LIMIT}
@@ -64,4 +69,23 @@ def main():
             0xa09b4dc28c10063f6e2a9d2ca94b23db029ef618660138898cb827eae227d99ee1c438988d0222ca4229ba85c40add3b045e823fdb7519a36538ff901ab89f311060bcecc517ba683b84009ee3509afbcd25e991ef34112a5a16be44265441eb,
         {'from': owner, 'gas': GAS_LIMIT}
     )
+
+def test_mint(setup):
+    user1 = accounts[2]
+    user1.transfer(to=transparent_staking, amount='1 ether')
+    transparent_xeth.approve(transparent_staking, '100 ether', {'from': user1})
+    transparent_staking.mint({'from':user1, 'value': "1 ether"})
+    assert transparent_xeth.balanceOf(user1) == '1 ether'
+    transparent_staking.redeemUnderlying("1 ether", {'from': user1})
+    assert transparent_xeth.balanceOf(user1) == 0
+    assert transparent_staking.exchangeRatio() == 1e18
+
+def test_mint32(setup):
+    user1 = accounts[2]
+    transparent_staking.mint({'from':user1, 'value': "32 ether"})
+    assert transparent_xeth.balanceOf(user1) == '32 ether'
+    
+    transparent_xeth.approve(transparent_staking, '100 ether', {'from': user1})
+    transparent_staking.redeemFromValidators("32 ether", {'from': user1})
+    assert transparent_staking.exchangeRatio() == 1e18
 
