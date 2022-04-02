@@ -1,4 +1,5 @@
 import pytest
+import time
 
 from brownie import *
 
@@ -88,4 +89,22 @@ def test_mint32(setup):
     transparent_xeth.approve(transparent_staking, '100 ether', {'from': user1})
     transparent_staking.redeemFromValidators("32 ether", {'from': user1})
     assert transparent_staking.exchangeRatio() == 1e18
+
+def test_beacon(setup):
+    expectedExchangeRatio = 1009000000000000000
+    # some ethers to redeem
+    user1 = accounts[2]
+    user1.transfer(to=transparent_staking, amount='50 ether')
+
+    oracle = accounts[3]
+    transparent_staking.mint({'from':oracle, 'value': "32 ether"})
+    assert transparent_xeth.balanceOf(oracle) == '32 ether'
+
+    transparent_staking.grantRole(transparent_staking.ORACLE_ROLE(), oracle, {'from': accounts[0]})
+    transparent_staking.pushBeacon(1, '32.32 ether', int(time.time()), {'from':oracle})
+
+    assert transparent_staking.exchangeRatio() == expectedExchangeRatio
+    transparent_xeth.approve(transparent_staking, '50 ether', {'from': oracle})
+    transparent_staking.redeem(transparent_xeth.balanceOf(oracle), {'from': oracle})
+    assert transparent_staking.exchangeRatio() == expectedExchangeRatio
 
