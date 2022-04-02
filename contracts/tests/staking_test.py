@@ -106,5 +106,5 @@ def test_beacon(setup):
     assert transparent_staking.exchangeRatio() == expectedExchangeRatio
     transparent_xeth.approve(transparent_staking, '50 ether', {'from': oracle})
     transparent_staking.redeem(transparent_xeth.balanceOf(oracle), {'from': oracle})
-    assert transparent_staking.exchangeRatio() == expectedExchangeRatio
+    assert transparent_staking.exchangeRatio() == 1e18
 
