@@ -64,7 +64,7 @@ contract RockXStaking is Initializable, PausableUpgradeable, AccessControlUpgrad
     address public ethDepositContract;  // ETH 2.0 Deposit contract
     address public xETHAddress;         // xETH token address
 
-    uint256 public managerFeeMilli = 100;   // manger's fee in 1/1000
+    uint256 public managerFeeMilli;   // manger's fee in 1/1000
     bytes32 public withdrawalCredentials;   // WithdrawCredential for all validator
     
     // credentials, pushed by owner
@@ -97,11 +97,11 @@ contract RockXStaking is Initializable, PausableUpgradeable, AccessControlUpgrad
 
     // FIFO of debts from redeemFromValidators
     mapping(uint256=>Debt) private etherDebts;
-    uint256 private firstDebt = 1;
-    uint256 private lastDebt = 0;
+    uint256 private firstDebt;
+    uint256 private lastDebt;
 
     // phase switch from 0 to 1
-    uint256 private phase = 0;
+    uint256 private phase;
 
     /** 
      * ======================================================================================
@@ -153,6 +153,12 @@ contract RockXStaking is Initializable, PausableUpgradeable, AccessControlUpgrad
         _grantRole(OPERATOR_ROLE, msg.sender);
         _grantRole(PAUSER_ROLE, msg.sender);
         _grantRole(MANAGER_ROLE, msg.sender);
+
+        // init default values
+        managerFeeMilli = 100;
+        firstDebt = 1;
+        lastDebt = 0;
+        phase = 0;
     }
 
     /**
