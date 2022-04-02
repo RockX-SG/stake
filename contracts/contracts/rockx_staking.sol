@@ -73,15 +73,19 @@ contract RockXStaking is Initializable, PausableUpgradeable, AccessControlUpgrad
     // next validator id
     uint256 private nextValidatorId;
 
-    // track user staking
-    uint256 public totalStaked;             // track total staked ethers for validators, rounded to 32 ethers
+    // exchange ratio related variables
+    // track user deposits & redeem (xETH mint & burn)
+    // based on the variables following, the total ether balance is equal to 
+    //  totalDeposited - totalRedeemed + accountedUserRevenue
     uint256 public totalDeposited;          // track total deposited ethers from users
-    uint256 public totalWithdrawed;         // track total withdrawed ethers
+    uint256 public totalRedeemed;           // track total redeemed ethers(along with xETH burned)
+    uint256 public totalStaked;             // track total staked ethers for validators, rounded to 32 ethers
 
     // track revenue from validators to form exchange ratio
     uint256 public accountedUserRevenue;    // accounted shared user revenue
     uint256 public accountedManagerRevenue; // accounted manager's revenue
 
+    // revenue related variables
     // track beacon validator & balance
     uint256 public beaconValidatorSnapshot;
     uint256 public beaconBalanceSnapshot;
@@ -205,6 +209,8 @@ contract RockXStaking is Initializable, PausableUpgradeable, AccessControlUpgrad
      */
     function setXETHContractAddress(address _xETHContract) external onlyRole(DEFAULT_ADMIN_ROLE) {
         xETHAddress = _xETHContract;
+
+        emit XETHContractSet(_xETHContract);
     }
 
     /**
@@ -212,6 +218,8 @@ contract RockXStaking is Initializable, PausableUpgradeable, AccessControlUpgrad
      */
     function setETHDepositContract(address _ethDepositContract) external onlyRole(DEFAULT_ADMIN_ROLE) {
         ethDepositContract = _ethDepositContract;
+
+        emit DepositContractSet(_ethDepositContract);
     }
 
     /**
@@ -230,6 +238,8 @@ contract RockXStaking is Initializable, PausableUpgradeable, AccessControlUpgrad
         require(_checkEthersBalance(amount), "INSUFFICIENT_ETHERS");
         accountedManagerRevenue -= amount;
         payable(to).sendValue(amount);
+
+        emit ManagerFeeWithdrawed(amount, to);
     }
 
     /**
@@ -451,6 +461,9 @@ contract RockXStaking is Initializable, PausableUpgradeable, AccessControlUpgrad
         // track ether debts
         _enqueueDebt(msg.sender, ethersToRedeem);
 
+        // sum redeemed ethers
+        totalRedeemed  += ethersToRedeem;
+
         // log 
         emit RedeemFromValidator(xETHToBurn, ethersToRedeem);
     }
@@ -478,7 +491,9 @@ contract RockXStaking is Initializable, PausableUpgradeable, AccessControlUpgrad
 
         // send ethers back to sender
         payable(msg.sender).sendValue(ethersToRedeem);
-        totalWithdrawed += ethersToRedeem;
+        
+        // sum redeemed ethers
+        totalRedeemed  += ethersToRedeem;
 
         // emit amount withdrawed
         emit Redeemed(xETHToBurn, ethersToRedeem);
@@ -507,7 +522,9 @@ contract RockXStaking is Initializable, PausableUpgradeable, AccessControlUpgrad
 
         // send ethers back to sender
         payable(msg.sender).sendValue(ethersToRedeem);
-        totalWithdrawed += ethersToRedeem;
+
+        // sum redeemed ethers
+        totalRedeemed += ethersToRedeem;
 
         // emit amount withdrawed
         emit Redeemed(xETHToBurn, ethersToRedeem);
@@ -544,10 +561,10 @@ contract RockXStaking is Initializable, PausableUpgradeable, AccessControlUpgrad
     }
 
     /**
-     * @dev returns totalDeposited + accountedUserRevenue - totalWithdrawed
+     * @dev returns totalDeposited + accountedUserRevenue - totalRedeemed
      */
     function _currentEthers() internal view returns(uint256) {
-        return totalDeposited + accountedUserRevenue - totalWithdrawed;
+        return totalDeposited + accountedUserRevenue - totalRedeemed;
     }
 
     /**
@@ -656,8 +673,11 @@ contract RockXStaking is Initializable, PausableUpgradeable, AccessControlUpgrad
     event RewardReceived(uint256 amount);
     event ManagerAccountSet(address account);
     event ManagerFeeSet(uint256 milli);
+    event ManagerFeeWithdrawed(uint256 amount, address);
     event Redeemed(uint256 amountXETH, uint256 amountETH);
     event RedeemFromValidator(uint256 amountXETH, uint256 amountETH);
     event WithdrawCredentialSet(bytes32 withdrawCredential);
     event DebtPaid(address creditor, uint256 amountEther);
+    event XETHContractSet(address addr);
+    event DepositContractSet(address addr);
 }
