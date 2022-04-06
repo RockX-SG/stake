@@ -69,6 +69,7 @@ contract RockXStaking is Initializable, PausableUpgradeable, AccessControlUpgrad
     
     // credentials, pushed by owner
     ValidatorCredential [] private validatorRegistry;
+    mapping(bytes32 => bool) pubkeyIndices;
 
     // next validator id
     uint256 private nextValidatorId;
@@ -175,7 +176,11 @@ contract RockXStaking is Initializable, PausableUpgradeable, AccessControlUpgrad
     function registerValidator(bytes calldata pubkey, bytes calldata signature) external onlyRole(OPERATOR_ROLE) {
         require(signature.length == SIGNATURE_LENGTH, "INCONSISTENT_SIG_LEN");
         require(pubkey.length == PUBKEY_LENGTH, "INCONSISTENT_PUBKEY_LEN");
+
+        bytes32 pubkeyHash = keccak256(pubkey);
+        require(!pubkeyIndices[pubkeyHash], "DUPLICATED_PUBKEY");
         validatorRegistry.push(ValidatorCredential({pubkey:pubkey, signature:signature}));
+        pubkeyIndices[pubkeyHash] = true;
     }
 
     /**
@@ -185,7 +190,16 @@ contract RockXStaking is Initializable, PausableUpgradeable, AccessControlUpgrad
         require(index < validatorRegistry.length, "OUT_OF_RANGE");
         require(index < nextValidatorId, "ALREADY_ACTIVATED");
         require(signature.length == SIGNATURE_LENGTH, "INCONSISTENT_SIG_LEN");
+
+        // mark old pub key to false
+        bytes32 oldPubKeyHash = keccak256(validatorRegistry[index].pubkey);
+        pubkeyIndices[oldPubKeyHash] = false;
+
+        // set new pubkey
+        bytes32 pubkeyHash = keccak256(pubkey);
+        require(!pubkeyIndices[pubkeyHash], "DUPLICATED_PUBKEY");
         validatorRegistry[index] = ValidatorCredential({pubkey:pubkey, signature:signature});
+        pubkeyIndices[pubkeyHash] = true;
     }
 
     /**
@@ -195,7 +209,10 @@ contract RockXStaking is Initializable, PausableUpgradeable, AccessControlUpgrad
         require(pubkeys.length == signatures.length, "LENGTH_NOT_EQUAL");
         uint256 n = pubkeys.length;
         for(uint256 i=0;i<n;i++) {
+            bytes32 pubkeyHash = keccak256(pubkeys[i]);
+            require(!pubkeyIndices[pubkeyHash], "DUPLICATED_PUBKEY");
             validatorRegistry.push(ValidatorCredential({pubkey:pubkeys[i], signature:signatures[i]}));
+            pubkeyIndices[pubkeyHash] = true;
         }
     }
     
