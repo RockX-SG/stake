@@ -1,4 +1,5 @@
 from brownie import *
+import time
 import pytest
 
 GAS_LIMIT = 6721975
@@ -64,4 +65,20 @@ def main():
             0xa09b4dc28c10063f6e2a9d2ca94b23db029ef618660138898cb827eae227d99ee1c438988d0222ca4229ba85c40add3b045e823fdb7519a36538ff901ab89f311060bcecc517ba683b84009ee3509afbcd25e991ef34112a5a16be44265441eb,
         {'from': owner, 'gas': GAS_LIMIT}
     )
+
+    transparent_staking.mint({'from':accounts[0], 'value': '32 ether'})
+    transparent_staking.pushBeacon(1, '32.32 ethers', time.time(), {'from':accounts[0]})
+    transparent_xeth.approve(transparent_staking, '10000 ethers', {'from': accounts[0]})
+    transparent_staking.redeemFromValidators('32 ethers', {'from':accounts[0]})
+    transparent_staking.validatorStopped([0],{'from':accounts[0],'value':'32.33 ethers'})
+    transparent_staking.stoppedBalance()
+    transparent_staking.exchangeRatio()
+
+    transparent_staking.registerValidator(
+            0x97d717d346868b9df4851684d5219f4deb4c7388ee1454c9b46837d29b40150ceeb5825d791f993b03745427b6cbe6db, 
+            0xa09b4dc28c10063f6e2a9d2ca94b23db029ef618660138898cb827eae227d99ee1c438988d0222ca4229ba85c40add3b045e823fdb7519a36538ff901ab89f311060bcecc517ba683b84009ee3509afbcd25e991ef34112a5a16be44265441eb,
+        {'from': owner, 'gas': GAS_LIMIT}
+    )
+
+
 
