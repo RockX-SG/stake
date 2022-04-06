@@ -270,7 +270,7 @@ contract RockXStaking is Initializable, PausableUpgradeable, AccessControlUpgrad
      */
     function pushBeacon(uint256 _beaconValidators, uint256 _beaconBalance, uint256 ts) external onlyRole(ORACLE_ROLE) {
         require(_beaconValidators + stoppedValidators.length <= nextValidatorId, "REPORTED_MORE_DEPOSITED");
-        require(_beaconValidators + stoppedValidators.length >= beaconValidatorSnapshot, "REPORTED_LESS_VALIDATORS");
+        require(_beaconValidators + stoppedValidators.length >= beaconValidatorSnapshot, "REPORTED_DECREASING_VALIDATORS");
         require(_beaconBalance >= _beaconValidators * DEPOSIT_SIZE, "REPORTED_LESS_VALUE");
         require(block.timestamp >= ts, "REPORTED_CLOCK_DRIFT");
         require(ts > lastStopTimestamp, "REPORTED_EXPIRED_TIMESTAMP");
