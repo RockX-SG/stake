@@ -19,6 +19,7 @@ contract RockXStaking is Initializable, PausableUpgradeable, AccessControlUpgrad
     struct ValidatorCredential {
         bytes pubkey;
         bytes signature;
+        bool stopped;
     }
     
     // track ether debts to return to async caller
@@ -179,7 +180,7 @@ contract RockXStaking is Initializable, PausableUpgradeable, AccessControlUpgrad
 
         bytes32 pubkeyHash = keccak256(pubkey);
         require(!pubkeyIndices[pubkeyHash], "DUPLICATED_PUBKEY");
-        validatorRegistry.push(ValidatorCredential({pubkey:pubkey, signature:signature}));
+        validatorRegistry.push(ValidatorCredential({pubkey:pubkey, signature:signature, stopped:false}));
         pubkeyIndices[pubkeyHash] = true;
     }
 
@@ -198,7 +199,7 @@ contract RockXStaking is Initializable, PausableUpgradeable, AccessControlUpgrad
         // set new pubkey
         bytes32 pubkeyHash = keccak256(pubkey);
         require(!pubkeyIndices[pubkeyHash], "DUPLICATED_PUBKEY");
-        validatorRegistry[index] = ValidatorCredential({pubkey:pubkey, signature:signature});
+        validatorRegistry[index] = ValidatorCredential({pubkey:pubkey, signature:signature, stopped:false});
         pubkeyIndices[pubkeyHash] = true;
     }
 
@@ -211,7 +212,7 @@ contract RockXStaking is Initializable, PausableUpgradeable, AccessControlUpgrad
         for(uint256 i=0;i<n;i++) {
             bytes32 pubkeyHash = keccak256(pubkeys[i]);
             require(!pubkeyIndices[pubkeyHash], "DUPLICATED_PUBKEY");
-            validatorRegistry.push(ValidatorCredential({pubkey:pubkeys[i], signature:signatures[i]}));
+            validatorRegistry.push(ValidatorCredential({pubkey:pubkeys[i], signature:signatures[i], stopped:false}));
             pubkeyIndices[pubkeyHash] = true;
         }
     }
@@ -302,6 +303,19 @@ contract RockXStaking is Initializable, PausableUpgradeable, AccessControlUpgrad
         require(stoppedIDs.length + stoppedValidators.length <= nextValidatorId, "REPORTED_MORE_STOPPED_VALIDATORS");
         require(msg.value >= stoppedIDs.length * DEPOSIT_SIZE, "RETURNED_LESS_ETHERS"); 
 
+        // record stopped validators snapshot.
+        for (uint i=0;i<stoppedIDs.length;i++) {
+            require(stoppedIDs[i] < nextValidatorId, "ID_OUT_OF_RANGE");
+            require(!validatorRegistry[stoppedIDs[i]].stopped, "ID_ALREADY_STOPPED");
+            
+            validatorRegistry[stoppedIDs[i]].stopped = true;
+            stoppedValidators.push(stoppedIDs[i]);
+        }
+        stoppedBalance += msg.value;
+        
+        // record timestamp to avoid expired pushBeacon transaction
+        lastStopTimestamp = block.timestamp;
+
         // ethers to pay
         uint256 ethersPayable = stoppedIDs.length * DEPOSIT_SIZE;
         for (uint i=firstDebt;i<=lastDebt;i++) {
@@ -325,15 +339,6 @@ contract RockXStaking is Initializable, PausableUpgradeable, AccessControlUpgrad
                 _dequeueDebt();
             }
         }
-
-        // record stopped validators snapshot.
-        for (uint i=0;i<stoppedIDs.length;i++) {
-            stoppedValidators.push(stoppedIDs[i]);
-        }
-        stoppedBalance += msg.value;
-
-        // record timestamp to avoid expired pushBeacon transaction
-        lastStopTimestamp = block.timestamp;
     }
 
     /**
