@@ -61,10 +61,10 @@ contract RockXStaking is Initializable, PausableUpgradeable, AccessControlUpgrad
     uint256 private constant SIGNATURE_LENGTH = 96;
     uint256 private constant PUBKEY_LENGTH = 48;
 
-    address public ethDepositContract;  // ETH 2.0 Deposit contract
-    address public xETHAddress;         // xETH token address
+    address public ethDepositContract;      // ETH 2.0 Deposit contract
+    address public xETHAddress;             // xETH token address
 
-    uint256 public managerFeeMilli;   // manger's fee in 1/1000
+    uint256 public managerFeeMilli;         // manger's fee in 1/1000
     bytes32 public withdrawalCredentials;   // WithdrawCredential for all validator
     
     // credentials, pushed by owner
