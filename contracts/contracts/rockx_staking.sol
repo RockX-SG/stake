@@ -276,11 +276,11 @@ contract RockXStaking is Initializable, PausableUpgradeable, AccessControlUpgrad
     }
 
     /**
-     * @dev operator stops validator and return ethers staked along with revenue
-     * the revenue will stored in this contract
+     * @dev operator stops validator and return ethers staked along with revenue;
+     * the overall balance will be stored in this contract
      */
     function validatorStopped(uint256 [] calldata stoppedIDs) external payable nonReentrant onlyRole(OPERATOR_ROLE) {
-        require(stoppedIDs.length > 0, "NO_ID_GIVEN");
+        require(stoppedIDs.length > 0, "EMPTY_CALLDATA");
         // guarantee sufficient ethers returned
         require(msg.value >= stoppedIDs.length * DEPOSIT_SIZE, "RETURNED_LESS_ETHERS");
 
@@ -314,7 +314,7 @@ contract RockXStaking is Initializable, PausableUpgradeable, AccessControlUpgrad
         }
         stoppedBalance += msg.value;
 
-        // record timestamp
+        // record timestamp to avoid expired pushBeacon transaction
         lastStopTimestamp = block.timestamp;
     }
 
@@ -336,8 +336,7 @@ contract RockXStaking is Initializable, PausableUpgradeable, AccessControlUpgrad
     /**
      * @dev return n-th of validator credential
      */
-    function getRegisteredValidator(uint256 id) external view 
-        returns (bytes memory pubkey, bytes memory signature) {
+    function getRegisteredValidator(uint256 id) external view returns (bytes memory pubkey, bytes memory signature) {
         return(validatorRegistry[id].pubkey, validatorRegistry[id].signature);
     }
 
@@ -420,9 +419,14 @@ contract RockXStaking is Initializable, PausableUpgradeable, AccessControlUpgrad
 
         // mint xETH while keep the exchange ratio invariant
         //
-        // current_ethers = totalDeposited + accountedUserRevenue - totalWithdrawed
+        // current_ethers = totalDeposited + accountedUserRevenue - totalRedeemed
         // amount XETH to mint = xETH * (msg.value/current_ethers)
         //
+        // For every user operation related to ETH, xETH is minted or burned, so the swap ratio is bounded to:
+        // (Total User Deposited Ethers + Validator Revenue - Total User Withdrawed Ethers - Total Ether Debts) / total xETH supply
+        // 
+        // NOTE: variable `totalRedeemed' includes the debts
+        // 
         uint256 amountXETH = IERC20(xETHAddress).totalSupply();
         uint256 currentEthers = _currentEthers();
         uint256 toMint = msg.value;  // default exchange ratio 1:1
