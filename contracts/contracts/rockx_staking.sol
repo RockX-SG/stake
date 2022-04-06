@@ -55,11 +55,11 @@ contract RockXStaking is Initializable, PausableUpgradeable, AccessControlUpgrad
     bytes32 public constant OPERATOR_ROLE = keccak256("OPERATOR_ROLE");
     bytes32 public constant PAUSER_ROLE = keccak256("PAUSER_ROLE");
 
-    uint256 internal constant DEPOSIT_SIZE = 32 ether;
-    uint256 internal constant MULTIPLIER = 1e18; 
-    uint256 internal constant DEPOSIT_AMOUNT_UNIT = 1000000000 wei;
-    uint256 internal constant SIGNATURE_LENGTH = 96;
-    uint256 internal constant PUBKEY_LENGTH = 48;
+    uint256 private constant DEPOSIT_SIZE = 32 ether;
+    uint256 private constant MULTIPLIER = 1e18; 
+    uint256 private constant DEPOSIT_AMOUNT_UNIT = 1000000000 wei;
+    uint256 private constant SIGNATURE_LENGTH = 96;
+    uint256 private constant PUBKEY_LENGTH = 48;
 
     address public ethDepositContract;  // ETH 2.0 Deposit contract
     address public xETHAddress;         // xETH token address
@@ -252,8 +252,9 @@ contract RockXStaking is Initializable, PausableUpgradeable, AccessControlUpgrad
      * @dev report validators count and total balance
      */
     function pushBeacon(uint256 _beaconValidators, uint256 _beaconBalance, uint256 ts) external onlyRole(ORACLE_ROLE) {
-        require(_beaconValidators <= nextValidatorId, "REPORTED_MORE_DEPOSITED");
+        require(_beaconValidators + stoppedValidators.length <= nextValidatorId, "REPORTED_MORE_DEPOSITED");
         require(_beaconValidators + stoppedValidators.length >= beaconValidatorSnapshot, "REPORTED_LESS_VALIDATORS");
+        require(_beaconBalance >= _beaconValidators * DEPOSIT_SIZE, "REPORTED_LESS_VALUE");
         require(block.timestamp >= ts, "REPORTED_CLOCK_DRIFT");
         require(ts > lastStopTimestamp, "REPORTED_EXPIRED_TIMESTAMP");
 
@@ -281,8 +282,8 @@ contract RockXStaking is Initializable, PausableUpgradeable, AccessControlUpgrad
      */
     function validatorStopped(uint256 [] calldata stoppedIDs) external payable nonReentrant onlyRole(OPERATOR_ROLE) {
         require(stoppedIDs.length > 0, "EMPTY_CALLDATA");
-        // guarantee sufficient ethers returned
-        require(msg.value >= stoppedIDs.length * DEPOSIT_SIZE, "RETURNED_LESS_ETHERS");
+        require(stoppedIDs.length + stoppedValidators.length <= nextValidatorId, "REPORTED_MORE_STOPPED_VALIDATORS");
+        require(msg.value >= stoppedIDs.length * DEPOSIT_SIZE, "RETURNED_LESS_ETHERS"); 
 
         // ethers to pay
         uint256 ethersPayable = stoppedIDs.length * DEPOSIT_SIZE;
@@ -596,7 +597,7 @@ contract RockXStaking is Initializable, PausableUpgradeable, AccessControlUpgrad
         emit ValidatorActivated(nextValidatorId);
 
         // deposit to ethereum contract
-        require(nextValidatorId < validatorRegistry.length) ;
+        require(nextValidatorId < validatorRegistry.length, "REGISTRY_VALIDATORS_DEPLETED");
 
          // load credential
         ValidatorCredential memory cred = validatorRegistry[nextValidatorId];
