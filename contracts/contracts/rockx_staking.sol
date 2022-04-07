@@ -65,7 +65,7 @@ contract RockXStaking is Initializable, PausableUpgradeable, AccessControlUpgrad
     address public ethDepositContract;      // ETH 2.0 Deposit contract
     address public xETHAddress;             // xETH token address
 
-    uint256 public managerFeeMilli;         // manger's fee in 1/1000
+    uint256 public managerFeeShare;         // manager's fee in 1/1000
     bytes32 public withdrawalCredentials;   // WithdrawCredential for all validator
     
     // credentials, pushed by owner
@@ -157,7 +157,7 @@ contract RockXStaking is Initializable, PausableUpgradeable, AccessControlUpgrad
         _grantRole(MANAGER_ROLE, msg.sender);
 
         // init default values
-        managerFeeMilli = 100;
+        managerFeeShare = 100;
         firstDebt = 1;
         lastDebt = 0;
         phase = 0;
@@ -220,9 +220,9 @@ contract RockXStaking is Initializable, PausableUpgradeable, AccessControlUpgrad
     /**
      * @dev set manager's fee in 1/1000
      */
-    function setManagerFeeMilli(uint256 milli) external onlyRole(DEFAULT_ADMIN_ROLE)  {
+    function setManagerFeeShare(uint256 milli) external onlyRole(DEFAULT_ADMIN_ROLE)  {
         require(milli >=0 && milli <=1000, "OUT_OF_RANGE");
-        managerFeeMilli = milli;
+        managerFeeShare = milli;
 
         emit ManagerFeeSet(milli);
     }
@@ -307,7 +307,7 @@ contract RockXStaking is Initializable, PausableUpgradeable, AccessControlUpgrad
         for (uint i=0;i<stoppedIDs.length;i++) {
             require(stoppedIDs[i] < nextValidatorId, "ID_OUT_OF_RANGE");
             require(!validatorRegistry[stoppedIDs[i]].stopped, "ID_ALREADY_STOPPED");
-            
+
             validatorRegistry[stoppedIDs[i]].stopped = true;
             stoppedValidators.push(stoppedIDs[i]);
         }
@@ -587,7 +587,7 @@ contract RockXStaking is Initializable, PausableUpgradeable, AccessControlUpgrad
      */
     function _distributeRewards(uint256 rewards) internal {
         // rewards distribution
-        uint256 fee = rewards * managerFeeMilli / 1000;
+        uint256 fee = rewards * managerFeeShare / 1000;
         accountedManagerRevenue += fee;
         accountedUserRevenue += rewards - fee;
         emit RevenueAccounted(rewards);
