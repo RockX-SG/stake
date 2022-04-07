@@ -384,14 +384,6 @@ contract RockXStaking is Initializable, PausableUpgradeable, AccessControlUpgrad
     }
 
     /**
-     * @dev check ethers withdrawble without stopping validators.
-     */
-    function getEthersRedeemable() internal view returns(uint256) {
-        uint256 pendingEthers = totalDeposited - totalStaked;
-        return address(this).balance - pendingEthers;
-    }
-
-    /**
      * @dev return debt of index
      */
     function checkDebt(uint256 index) external view returns (address account, uint256 amount) {
