@@ -60,8 +60,8 @@ contract RockXStaking is Initializable, PausableUpgradeable, AccessControlUpgrad
     uint256 private constant DEPOSIT_AMOUNT_UNIT = 1000000000 wei;
     uint256 private constant SIGNATURE_LENGTH = 96;
     uint256 private constant PUBKEY_LENGTH = 48;
-
-	uint256 private DEPOSIT_SIZE; 			// deposit_size adjustable via func
+    
+    uint256 private DEPOSIT_SIZE; 			// deposit_size adjustable via func
     address public ethDepositContract;      // ETH 2.0 Deposit contract
     address public xETHAddress;             // xETH token address
 
