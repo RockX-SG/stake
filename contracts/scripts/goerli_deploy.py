@@ -3,12 +3,12 @@ import time
 import pytest
 
 GAS_LIMIT = 6721975
+ETH1_ADDRESS_WITHDRAWAL_PREFIX = bytes.fromhex('01')
 
 def main():
     owner = accounts.load('goerli')
     deployer = accounts.load('goerli-deployer')
     ethDepositContract = "0x07b39f4fde4a38bace212b546dac87c58dfe3fdc"
-    withdrawalCredential = "0059114a87b004550c90a185fe9318fccfe3c2cdaf87a9f1345e52b9eb720dfc"
 
     print(f'contract owner account: {owner.address}\n')
 
@@ -60,6 +60,11 @@ def main():
         ethDepositContract,
         {'from': owner, 'gas': GAS_LIMIT}
     ) 
+
+    withdrawalCredential = ETH1_ADDRESS_WITHDRAWAL_PREFIX
+    withdrawalCredential += b'\x00' * 11
+    withdrawalCredential += bytes.fromhex(transparent_staking.address[2:])
+    print("withdrawCredential:", withdrawalCredential.hex())
 
     transparent_staking.setWithdrawCredential(
         withdrawalCredential,
