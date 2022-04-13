@@ -56,12 +56,12 @@ contract RockXStaking is Initializable, PausableUpgradeable, AccessControlUpgrad
     bytes32 public constant OPERATOR_ROLE = keccak256("OPERATOR_ROLE");
     bytes32 public constant PAUSER_ROLE = keccak256("PAUSER_ROLE");
 
-    uint256 private constant DEPOSIT_SIZE = 32 ether;
     uint256 private constant MULTIPLIER = 1e18; 
     uint256 private constant DEPOSIT_AMOUNT_UNIT = 1000000000 wei;
     uint256 private constant SIGNATURE_LENGTH = 96;
     uint256 private constant PUBKEY_LENGTH = 48;
 
+	uint256 private DEPOSIT_SIZE; 			// deposit_size adjustable via func
     address public ethDepositContract;      // ETH 2.0 Deposit contract
     address public xETHAddress;             // xETH token address
 
@@ -161,9 +161,19 @@ contract RockXStaking is Initializable, PausableUpgradeable, AccessControlUpgrad
         firstDebt = 1;
         lastDebt = 0;
         phase = 0;
+		DEPOSIT_SIZE = 32 ether;
     }
 
-    /**
+	/**
+     * @dev adjust deposit_size
+     */
+    function setDepositSize(uint256 depositSize) external onlyRole(DEFAULT_ADMIN_ROLE) {
+		require(depositSize > 0, "INVALID_DEPOSIT_SIZE");
+		DEPOSIT_SIZE = depositSize;
+    }
+
+
+	/**
      * @dev phase switch
      */
     function switchPhase(uint256 newPhase) external onlyRole(DEFAULT_ADMIN_ROLE) {
