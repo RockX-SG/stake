@@ -3,6 +3,7 @@ import time
 import pytest
 
 GAS_LIMIT = 6721975
+ETH1_ADDRESS_WITHDRAWAL_PREFIX = bytes.fromhex('01')
 
 def main():
     owner = accounts[0]
@@ -54,6 +55,11 @@ def main():
         ethDepositContract,
         {'from': owner, 'gas': GAS_LIMIT}
     ) 
+
+    withdrawalCredential = ETH1_ADDRESS_WITHDRAWAL_PREFIX
+    withdrawalCredential += b'\x00' * 11
+    withdrawalCredential += bytes.fromhex(transparent_staking.address[2:])
+    print("withdrawCredential:", withdrawalCredential.hex())
 
     transparent_staking.setWithdrawCredential(
         withdrawalCredential,
