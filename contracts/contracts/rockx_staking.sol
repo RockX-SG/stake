@@ -161,15 +161,15 @@ contract RockXStaking is Initializable, PausableUpgradeable, AccessControlUpgrad
         firstDebt = 1;
         lastDebt = 0;
         phase = 0;
-		DEPOSIT_SIZE = 32 ether;
+        DEPOSIT_SIZE = 32 ether;
     }
 
 	/**
      * @dev adjust deposit_size
      */
     function setDepositSize(uint256 depositSize) external onlyRole(DEFAULT_ADMIN_ROLE) {
-		require(depositSize > 0, "INVALID_DEPOSIT_SIZE");
-		DEPOSIT_SIZE = depositSize;
+        require(depositSize > 0, "INVALID_DEPOSIT_SIZE");
+        DEPOSIT_SIZE = depositSize;
     }
 
 
