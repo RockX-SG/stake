@@ -6,6 +6,9 @@ GAS_LIMIT = 6721975
 ETH1_ADDRESS_WITHDRAWAL_PREFIX = bytes.fromhex('01')
 
 def main():
+    deps = project.load(  Path.home() / ".brownie" / "packages" / config["dependencies"][0])
+    TransparentUpgradeableProxy = deps.TransparentUpgradeableProxy
+
     owner = accounts.load('goerli')
     deployer = accounts.load('goerli-deployer')
     ethDepositContract = "0x07b39f4fde4a38bace212b546dac87c58dfe3fdc"
