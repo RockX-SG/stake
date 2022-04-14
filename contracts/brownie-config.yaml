@@ -2,7 +2,7 @@
 # https://eth-brownie.readthedocs.io/en/stable/config.html
 # required external contracts
 dependencies:
-  - OpenZeppelin/openzeppelin-contracts@4.5.0
+  - OpenZeppelin/openzeppelin-contracts@4.4.2
   - OpenZeppelin/openzeppelin-contracts-upgradeable@4.5.2
   - GNSPS/solidity-bytes-utils@0.8.0
 
