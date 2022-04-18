@@ -349,6 +349,9 @@ contract RockXStaking is Initializable, PausableUpgradeable, AccessControlUpgrad
                 _dequeueDebt();
             }
         }
+
+        // log
+        emit ValidatorStopped(stoppedIDs);
     }
 
     /**
@@ -704,6 +707,7 @@ contract RockXStaking is Initializable, PausableUpgradeable, AccessControlUpgrad
      * ======================================================================================
      */
     event ValidatorActivated(uint256 node_id);
+    event ValidatorStopped(uint256 [] stoppedIDs);
     event RevenueAccounted(uint256 amount);
     event RewardReceived(uint256 amount);
     event ManagerAccountSet(address account);
