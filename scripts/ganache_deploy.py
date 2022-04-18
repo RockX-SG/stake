@@ -77,7 +77,7 @@ def main():
             {'from': owner, 'gas': GAS_LIMIT}
             )
 
-    transparent_staking.mint({'from':owner, 'value': '32 ether'})
+    tx = transparent_staking.mint({'from':owner, 'value': '32 ether'})
     transparent_staking.pushBeacon(1, '32.32 ethers', time.time(), {'from':owner})
     transparent_xeth.approve(transparent_staking, '10000 ethers', {'from': owner})
     transparent_staking.redeemFromValidators('32 ethers', {'from':owner})
