@@ -95,7 +95,7 @@ contract RockXStaking is Initializable, PausableUpgradeable, AccessControlUpgrad
     // track stopped validators
     uint256 public stoppedBalance;          // the balance snapshot of those stopped validators
     uint256 private lastStopTimestamp;      // record timestamp of last stop
-    uint256 [] private stoppedValidators;   // track stopped validator ID
+    bytes [] private stoppedValidators;     // track stopped validator pubkey
 
     // FIFO of debts from redeemFromValidators
     mapping(uint256=>Debt) private etherDebts;
@@ -319,7 +319,7 @@ contract RockXStaking is Initializable, PausableUpgradeable, AccessControlUpgrad
             require(!validatorRegistry[stoppedIDs[i]].stopped, "ID_ALREADY_STOPPED");
 
             validatorRegistry[stoppedIDs[i]].stopped = true;
-            stoppedValidators.push(stoppedIDs[i]);
+            stoppedValidators.push(validatorRegistry[stoppedIDs[i]].pubkey);
         }
         stoppedBalance += msg.value;
         
@@ -420,10 +420,10 @@ contract RockXStaking is Initializable, PausableUpgradeable, AccessControlUpgrad
     /**
      * @dev get stopped validators ID range
      */
-    function getStoppedValidators(uint256 idx_from, uint256 idx_to) external view returns (uint256[] memory) {
-        uint[] memory result = new uint[](idx_to - idx_from);
+    function getStoppedValidators(uint256 idx_from, uint256 idx_to) external view returns (bytes[] memory) {
+        bytes[] memory result = new bytes[](idx_to - idx_from);
         uint counter = 0;
-        for (uint i = idx_from; i <= idx_to;i++) {
+        for (uint i = idx_from; i < idx_to;i++) {
             result[counter] = stoppedValidators[i];
             counter++;
         }
