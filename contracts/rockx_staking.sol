@@ -101,6 +101,7 @@ contract RockXStaking is Initializable, PausableUpgradeable, AccessControlUpgrad
     mapping(uint256=>Debt) private etherDebts;
     uint256 private firstDebt;
     uint256 private lastDebt;
+    mapping(address=>uint256) private userDebts;    // debts from user's perspective
 
     // phase switch from 0 to 1
     uint256 private phase;
@@ -339,6 +340,9 @@ contract RockXStaking is Initializable, PausableUpgradeable, AccessControlUpgrad
             uint256 toPay = debt.amount <= ethersPayable? debt.amount:ethersPayable;
             debt.amount -= toPay;
             ethersPayable -= toPay;
+            userDebts[debt.account] -= toPay;
+
+            // money
             payable(debt.account).sendValue(toPay);
 
             // log
@@ -361,6 +365,13 @@ contract RockXStaking is Initializable, PausableUpgradeable, AccessControlUpgrad
      * 
      * ======================================================================================
      */
+
+    /**
+     * @dev return debt for an account
+     */
+    function debtOf(address account) external view returns (uint256) {
+        return userDebts[account];
+    }
 
     /**
      * @dev return number of registered validator
@@ -498,6 +509,7 @@ contract RockXStaking is Initializable, PausableUpgradeable, AccessControlUpgrad
 
         // track ether debts
         _enqueueDebt(msg.sender, ethersToRedeem);
+        userDebts[msg.sender] += ethersToRedeem;
 
         // sum redeemed ethers
         totalRedeemed  += ethersToRedeem;
