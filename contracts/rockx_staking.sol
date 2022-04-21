@@ -457,6 +457,8 @@ contract RockXStaking is Initializable, PausableUpgradeable, AccessControlUpgrad
         if (currentEthers > 0) { // avert division overflow
             toMint = amountXETH * msg.value / currentEthers;
         }
+        // mint xETH
+        IMintableContract(xETHAddress).mint(msg.sender, toMint);
 
         // pay debts in priority
         uint256 debtPaied = _payDebts(msg.value);
@@ -467,8 +469,6 @@ contract RockXStaking is Initializable, PausableUpgradeable, AccessControlUpgrad
         for (uint256 i = 0;i<numValidators;i++) {
             _spinup();
         }
-        // mint xETH
-        IMintableContract(xETHAddress).mint(msg.sender, toMint);
     }
 
     /**
@@ -498,6 +498,8 @@ contract RockXStaking is Initializable, PausableUpgradeable, AccessControlUpgrad
 
         // sum redeemed ethers
         totalRedeemed += ethersToRedeem;
+        // total debts increased
+        totalDebts += ethersToRedeem;
 
         // log
         emit DebtQueued(msg.sender, ethersToRedeem);
@@ -529,8 +531,6 @@ contract RockXStaking is Initializable, PausableUpgradeable, AccessControlUpgrad
         
         // sum redeemed ethers
         totalRedeemed += ethersToRedeem;
-        // total debts increased
-        totalDebts += ethersToRedeem;
 
         // emit amount withdrawed
         emit Redeemed(xETHToBurn, ethersToRedeem);
@@ -589,20 +589,19 @@ contract RockXStaking is Initializable, PausableUpgradeable, AccessControlUpgrad
     /**
      * @dev pay debts for a given amount
      */
-    function _payDebts(uint256 amount) internal returns(uint256 amountPaied) {
+    function _payDebts(uint256 total) internal returns(uint256 amountPaied) {
         // ethers to pay
-        uint256 ethersPayable = amount;
         for (uint i=firstDebt;i<=lastDebt;i++) {
-            if (ethersPayable == 0) {
+            if (total == 0) {
                 break;
             }
 
             Debt storage debt = etherDebts[i];
 
             // clean debts
-            uint256 toPay = debt.amount <= ethersPayable? debt.amount:ethersPayable;
+            uint256 toPay = debt.amount <= total? debt.amount:total;
             debt.amount -= toPay;
-            ethersPayable -= toPay;
+            total -= toPay;
             userDebts[debt.account] -= toPay;
             amountPaied += toPay;
 
@@ -610,7 +609,7 @@ contract RockXStaking is Initializable, PausableUpgradeable, AccessControlUpgrad
             payable(debt.account).sendValue(toPay);
 
             // log
-            emit DebtPaid(debt.account, debt.amount);
+            emit DebtPaid(debt.account, toPay);
 
             // untrack 
             if (debt.amount == 0) {
