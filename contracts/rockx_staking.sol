@@ -78,11 +78,10 @@ contract RockXStaking is Initializable, PausableUpgradeable, AccessControlUpgrad
     // exchange ratio related variables
     // track user deposits & redeem (xETH mint & burn)
     // based on the variables following, the total ether balance is equal to 
-    //  totalDeposited - totalRedeemed + accountedUserRevenue
+    //  totalDeposited + accountedUserRevenue - totalDebts
     uint256 public totalDeposited;          // track total deposited ethers from users
-    uint256 public totalRedeemed;           // track total redeemed ethers(along with xETH burned)
     uint256 public totalStaked;             // track total staked ethers for validators, rounded to 32 ethers
-    uint256 public totalDebts;              // track total debts
+    uint256 public totalDebts;              // track total debts unpaied
 
     // FIFO of debts from redeemFromValidators
     mapping(uint256=>Debt) private etherDebts;
@@ -443,13 +442,12 @@ contract RockXStaking is Initializable, PausableUpgradeable, AccessControlUpgrad
 
         // mint xETH while keep the exchange ratio invariant
         //
-        // current_ethers = totalDeposited + accountedUserRevenue - totalRedeemed
+        // current_ethers = totalDeposited + accountedUserRevenue - totalDebts
         // amount XETH to mint = xETH * (msg.value/current_ethers)
         //
         // For every user operation related to ETH, xETH is minted or burned, so the swap ratio is bounded to:
         // (Total User Deposited Ethers + Validator Revenue - Total User Withdrawed Ethers - Total Ether Debts) / total xETH supply
         // 
-        // NOTE: variable `totalRedeemed' includes the debts
         // 
         uint256 amountXETH = IERC20(xETHAddress).totalSupply();
         uint256 currentEthers = _currentEthers();
@@ -496,8 +494,6 @@ contract RockXStaking is Initializable, PausableUpgradeable, AccessControlUpgrad
         _enqueueDebt(msg.sender, ethersToRedeem);
         userDebts[msg.sender] += ethersToRedeem;
 
-        // sum redeemed ethers
-        totalRedeemed += ethersToRedeem;
         // total debts increased
         totalDebts += ethersToRedeem;
 
@@ -528,9 +524,6 @@ contract RockXStaking is Initializable, PausableUpgradeable, AccessControlUpgrad
 
         // send ethers back to sender
         payable(msg.sender).sendValue(ethersToRedeem);
-        
-        // sum redeemed ethers
-        totalRedeemed += ethersToRedeem;
 
         // emit amount withdrawed
         emit Redeemed(xETHToBurn, ethersToRedeem);
@@ -559,9 +552,6 @@ contract RockXStaking is Initializable, PausableUpgradeable, AccessControlUpgrad
 
         // send ethers back to sender
         payable(msg.sender).sendValue(ethersToRedeem);
-
-        // sum redeemed ethers
-        totalRedeemed += ethersToRedeem;
 
         // emit amount withdrawed
         emit Redeemed(xETHToBurn, ethersToRedeem);
@@ -632,10 +622,10 @@ contract RockXStaking is Initializable, PausableUpgradeable, AccessControlUpgrad
     }
 
     /**
-     * @dev returns totalDeposited + accountedUserRevenue - totalRedeemed
+     * @dev returns totalDeposited + accountedUserRevenue - totalDebts
      */
     function _currentEthers() internal view returns(uint256) {
-        return totalDeposited + accountedUserRevenue - totalRedeemed;
+        return totalDeposited + accountedUserRevenue - totalDebts;
     }
 
     /**
