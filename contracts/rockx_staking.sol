@@ -82,6 +82,7 @@ contract RockXStaking is Initializable, PausableUpgradeable, AccessControlUpgrad
     uint256 public totalDeposited;          // track total deposited ethers from users
     uint256 public totalStaked;             // track total staked ethers for validators, rounded to 32 ethers
     uint256 public totalDebts;              // track total debts unpaied
+    uint256 public swapPool;                // track swappable ethers for redeem()/redeemUnderlying()
 
     // FIFO of debts from redeemFromValidators
     mapping(uint256=>Debt) private etherDebts;
@@ -270,9 +271,10 @@ contract RockXStaking is Initializable, PausableUpgradeable, AccessControlUpgrad
      */
     function withdrawManagerFee(uint256 amount, address to) external nonReentrant onlyRole(MANAGER_ROLE)  {
         require(accountedManagerRevenue >= amount, "INSUFFICIENT_MANAGER_FEE");
-        require(_checkEthersBalance(amount), "INSUFFICIENT_ETHERS");
+        require(swapPool >= amount, "INSUFFICIENT_ETHERS");
         accountedManagerRevenue -= amount;
         payable(to).sendValue(amount);
+        swapPool -= amount;
 
         emit ManagerFeeWithdrawed(amount, to);
     }
@@ -328,7 +330,10 @@ contract RockXStaking is Initializable, PausableUpgradeable, AccessControlUpgrad
         lastStopTimestamp = block.timestamp;
 
         // pay debt
-        _payDebts(stoppedIDs.length * DEPOSIT_SIZE);
+        uint256 paied = _payDebts(msg.value);
+
+        // the remaining ethers are aggregated to swap pool
+        swapPool += msg.value - paied;
 
         // log
         emit ValidatorStopped(stoppedIDs);
@@ -513,7 +518,7 @@ contract RockXStaking is Initializable, PausableUpgradeable, AccessControlUpgrad
     function redeemUnderlying(uint256 ethersToRedeem) external nonReentrant {
         // only from EOA
         require(!msg.sender.isContract() && msg.sender == tx.origin);
-        require(_checkEthersBalance(ethersToRedeem), "INSUFFICIENT_ETHERS");
+        require(swapPool >= ethersToRedeem, "INSUFFICIENT_ETHERS");
 
         uint256 totalXETH = IERC20(xETHAddress).totalSupply();
         uint256 xETHToBurn = totalXETH * ethersToRedeem / _currentEthers();
@@ -524,6 +529,7 @@ contract RockXStaking is Initializable, PausableUpgradeable, AccessControlUpgrad
 
         // send ethers back to sender
         payable(msg.sender).sendValue(ethersToRedeem);
+        swapPool -= ethersToRedeem;
 
         // emit amount withdrawed
         emit Redeemed(xETHToBurn, ethersToRedeem);
@@ -544,7 +550,7 @@ contract RockXStaking is Initializable, PausableUpgradeable, AccessControlUpgrad
          
         uint256 totalXETH = IERC20(xETHAddress).totalSupply();
         uint256 ethersToRedeem = _currentEthers() * xETHToBurn / totalXETH;
-        require(_checkEthersBalance(ethersToRedeem), "INSUFFICIENT_ETHERS");
+        require(swapPool >= ethersToRedeem, "INSUFFICIENT_ETHERS");
 
         // transfer xETH from sender & burn
         IERC20(xETHAddress).safeTransferFrom(msg.sender, address(this), xETHToBurn);
@@ -552,6 +558,7 @@ contract RockXStaking is Initializable, PausableUpgradeable, AccessControlUpgrad
 
         // send ethers back to sender
         payable(msg.sender).sendValue(ethersToRedeem);
+        swapPool -= ethersToRedeem;
 
         // emit amount withdrawed
         emit Redeemed(xETHToBurn, ethersToRedeem);
@@ -626,17 +633,6 @@ contract RockXStaking is Initializable, PausableUpgradeable, AccessControlUpgrad
      */
     function _currentEthers() internal view returns(uint256) {
         return totalDeposited + accountedUserRevenue - totalDebts;
-    }
-
-    /**
-     * @dev check ethers withdrawble
-     */
-    function _checkEthersBalance(uint256 amount) internal view returns(bool) {
-        uint256 pendingEthers = totalDeposited - totalStaked;
-        if (address(this).balance - pendingEthers >= amount) {
-            return true;
-        }
-        return false;
     }
 
     /**
