@@ -82,6 +82,13 @@ contract RockXStaking is Initializable, PausableUpgradeable, AccessControlUpgrad
     uint256 public totalDeposited;          // track total deposited ethers from users
     uint256 public totalRedeemed;           // track total redeemed ethers(along with xETH burned)
     uint256 public totalStaked;             // track total staked ethers for validators, rounded to 32 ethers
+    uint256 public totalDebts;              // track total debts
+
+    // FIFO of debts from redeemFromValidators
+    mapping(uint256=>Debt) private etherDebts;
+    uint256 private firstDebt;
+    uint256 private lastDebt;
+    mapping(address=>uint256) private userDebts;    // debts from user's perspective
 
     // track revenue from validators to form exchange ratio
     uint256 public accountedUserRevenue;    // accounted shared user revenue
@@ -96,12 +103,6 @@ contract RockXStaking is Initializable, PausableUpgradeable, AccessControlUpgrad
     uint256 public stoppedBalance;          // the balance snapshot of those stopped validators
     uint256 private lastStopTimestamp;      // record timestamp of last stop
     bytes [] private stoppedValidators;     // track stopped validator pubkey
-
-    // FIFO of debts from redeemFromValidators
-    mapping(uint256=>Debt) private etherDebts;
-    uint256 private firstDebt;
-    uint256 private lastDebt;
-    mapping(address=>uint256) private userDebts;    // debts from user's perspective
 
     // phase switch from 0 to 1
     uint256 private phase;
@@ -457,14 +458,15 @@ contract RockXStaking is Initializable, PausableUpgradeable, AccessControlUpgrad
             toMint = amountXETH * msg.value / currentEthers;
         }
 
-        totalDeposited += msg.value;
-        uint256 numValidators = (totalDeposited - totalStaked) / DEPOSIT_SIZE;
+        // pay debts in priority
+        uint256 debtPaied = _payDebts(msg.value);
+        totalDeposited += msg.value - debtPaied; 
 
         // spin up n nodes
+        uint256 numValidators = (totalDeposited - totalStaked) / DEPOSIT_SIZE;
         for (uint256 i = 0;i<numValidators;i++) {
             _spinup();
         }
-
         // mint xETH
         IMintableContract(xETHAddress).mint(msg.sender, toMint);
     }
@@ -497,8 +499,8 @@ contract RockXStaking is Initializable, PausableUpgradeable, AccessControlUpgrad
         // sum redeemed ethers
         totalRedeemed += ethersToRedeem;
 
-        // log 
-        emit RedeemFromValidator(xETHToBurn, ethersToRedeem);
+        // log
+        emit DebtQueued(msg.sender, ethersToRedeem);
     }
 
     /**
@@ -527,6 +529,8 @@ contract RockXStaking is Initializable, PausableUpgradeable, AccessControlUpgrad
         
         // sum redeemed ethers
         totalRedeemed += ethersToRedeem;
+        // total debts increased
+        totalDebts += ethersToRedeem;
 
         // emit amount withdrawed
         emit Redeemed(xETHToBurn, ethersToRedeem);
@@ -613,6 +617,8 @@ contract RockXStaking is Initializable, PausableUpgradeable, AccessControlUpgrad
                 _dequeueDebt();
             }
         }
+        
+        totalDebts -= amountPaied;
     }
 
     /**
@@ -744,6 +750,7 @@ contract RockXStaking is Initializable, PausableUpgradeable, AccessControlUpgrad
     event Redeemed(uint256 amountXETH, uint256 amountETH);
     event RedeemFromValidator(uint256 amountXETH, uint256 amountETH);
     event WithdrawCredentialSet(bytes32 withdrawCredential);
+    event DebtQueued(address creditor, uint256 amountEther);
     event DebtPaid(address creditor, uint256 amountEther);
     event XETHContractSet(address addr);
     event DepositContractSet(address addr);
