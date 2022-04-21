@@ -284,7 +284,7 @@ contract RockXStaking is Initializable, PausableUpgradeable, AccessControlUpgrad
         require(_beaconValidators + stoppedValidators.length <= nextValidatorId, "REPORTED_MORE_DEPOSITED");
         require(_beaconValidators + stoppedValidators.length >= beaconValidatorSnapshot, "REPORTED_DECREASING_VALIDATORS");
         require(_beaconBalance >= _beaconValidators * DEPOSIT_SIZE, "REPORTED_LESS_VALUE");
-        require(block.timestamp >= ts, "REPORTED_CLOCK_DRIFT");
+        //require(block.timestamp >= ts, "REPORTED_CLOCK_DRIFT");
         require(ts > lastStopTimestamp, "REPORTED_EXPIRED_TIMESTAMP");
 
         uint256 rewardBase = beaconBalanceSnapshot;
@@ -381,10 +381,18 @@ contract RockXStaking is Initializable, PausableUpgradeable, AccessControlUpgrad
     }
     
     /**
-     * @dev return n-th of validator credential
+     * @dev return a batch of validators credential
      */
-    function getRegisteredValidator(uint256 id) external view returns (bytes memory pubkey, bytes memory signature) {
-        return(validatorRegistry[id].pubkey, validatorRegistry[id].signature);
+    function getRegisteredValidators(uint256 idx_from, uint256 idx_to) external view returns (bytes [] memory pubkeys, bytes [] memory signatures) {
+        pubkeys = new bytes[](idx_to - idx_from);
+        signatures = new bytes[](idx_to - idx_from);
+
+        uint counter = 0;
+        for (uint i = idx_from; i < idx_to;i++) {
+            pubkeys[counter] = validatorRegistry[i].pubkey;
+            signatures[counter] = validatorRegistry[i].signature;
+            counter++;
+        }
     }
 
     /**
