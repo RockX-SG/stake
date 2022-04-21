@@ -327,32 +327,8 @@ contract RockXStaking is Initializable, PausableUpgradeable, AccessControlUpgrad
         // record timestamp to avoid expired pushBeacon transaction
         lastStopTimestamp = block.timestamp;
 
-        // ethers to pay
-        uint256 ethersPayable = stoppedIDs.length * DEPOSIT_SIZE;
-        for (uint i=firstDebt;i<=lastDebt;i++) {
-            if (ethersPayable == 0) {
-                break;
-            }
-
-            Debt storage debt = etherDebts[i];
-
-            // clean debts
-            uint256 toPay = debt.amount <= ethersPayable? debt.amount:ethersPayable;
-            debt.amount -= toPay;
-            ethersPayable -= toPay;
-            userDebts[debt.account] -= toPay;
-
-            // money
-            payable(debt.account).sendValue(toPay);
-
-            // log
-            emit DebtPaid(debt.account, debt.amount);
-
-            // untrack 
-            if (debt.amount == 0) {
-                _dequeueDebt();
-            }
-        }
+        // pay debt
+        _payDebts(stoppedIDs.length * DEPOSIT_SIZE);
 
         // log
         emit ValidatorStopped(stoppedIDs);
@@ -479,9 +455,8 @@ contract RockXStaking is Initializable, PausableUpgradeable, AccessControlUpgrad
         uint256 toMint = msg.value;  // default exchange ratio 1:1
         if (currentEthers > 0) { // avert division overflow
             toMint = amountXETH * msg.value / currentEthers;
-       }
-        
-        // sum total deposited ethers
+        }
+
         totalDeposited += msg.value;
         uint256 numValidators = (totalDeposited - totalStaked) / DEPOSIT_SIZE;
 
@@ -520,7 +495,7 @@ contract RockXStaking is Initializable, PausableUpgradeable, AccessControlUpgrad
         userDebts[msg.sender] += ethersToRedeem;
 
         // sum redeemed ethers
-        totalRedeemed  += ethersToRedeem;
+        totalRedeemed += ethersToRedeem;
 
         // log 
         emit RedeemFromValidator(xETHToBurn, ethersToRedeem);
@@ -551,7 +526,7 @@ contract RockXStaking is Initializable, PausableUpgradeable, AccessControlUpgrad
         payable(msg.sender).sendValue(ethersToRedeem);
         
         // sum redeemed ethers
-        totalRedeemed  += ethersToRedeem;
+        totalRedeemed += ethersToRedeem;
 
         // emit amount withdrawed
         emit Redeemed(xETHToBurn, ethersToRedeem);
@@ -605,6 +580,39 @@ contract RockXStaking is Initializable, PausableUpgradeable, AccessControlUpgrad
         debt = etherDebts[firstDebt];
         delete etherDebts[firstDebt];
         firstDebt += 1;
+    }
+
+    /**
+     * @dev pay debts for a given amount
+     */
+    function _payDebts(uint256 amount) internal returns(uint256 amountPaied) {
+        // ethers to pay
+        uint256 ethersPayable = amount;
+        for (uint i=firstDebt;i<=lastDebt;i++) {
+            if (ethersPayable == 0) {
+                break;
+            }
+
+            Debt storage debt = etherDebts[i];
+
+            // clean debts
+            uint256 toPay = debt.amount <= ethersPayable? debt.amount:ethersPayable;
+            debt.amount -= toPay;
+            ethersPayable -= toPay;
+            userDebts[debt.account] -= toPay;
+            amountPaied += toPay;
+
+            // money
+            payable(debt.account).sendValue(toPay);
+
+            // log
+            emit DebtPaid(debt.account, debt.amount);
+
+            // untrack 
+            if (debt.amount == 0) {
+                _dequeueDebt();
+            }
+        }
     }
 
     /**
