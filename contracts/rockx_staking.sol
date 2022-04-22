@@ -99,7 +99,7 @@ contract RockXStaking is Initializable, PausableUpgradeable, AccessControlUpgrad
     // revenue related variables
     // track beacon validator & balance
     uint256 private accValidators;
-    uint256 private accValidatorBalacne;
+    uint256 private accValidatorBalance;
 
     // track stopped validators
     uint256 private accStoppedBalance;      // track accumulated balance of stopped validators
@@ -292,7 +292,7 @@ contract RockXStaking is Initializable, PausableUpgradeable, AccessControlUpgrad
 
         // step 1. check if new validator launched
         // and adjust rewardBase to include the new validators value
-        uint256 rewardBase = accValidatorBalacne;
+        uint256 rewardBase = accValidatorBalance;
         if (_aliveValidators + stoppedValidators.length > accValidators) {         
             // newly appeared validators
             uint256 newValidators = _aliveValidators + stoppedValidators.length - accValidators;
@@ -301,13 +301,13 @@ contract RockXStaking is Initializable, PausableUpgradeable, AccessControlUpgrad
 
         // step 2. update accValidators
         // take snapshot of current balances & validators,including stopped ones
-        accValidatorBalacne = _aliveBalance + accStoppedBalance; 
+        accValidatorBalance = _aliveBalance + accStoppedBalance; 
         accValidators = _aliveValidators + stoppedValidators.length;
 
         // step 3. calc rewards
         // the actual increase in balance is the reward
-        if (accValidatorBalacne > rewardBase) {
-            uint256 rewards = accValidatorBalacne - rewardBase;
+        if (accValidatorBalance > rewardBase) {
+            uint256 rewards = accValidatorBalance - rewardBase;
             _distributeRewards(rewards);
         }
     }
@@ -395,7 +395,7 @@ contract RockXStaking is Initializable, PausableUpgradeable, AccessControlUpgrad
     /*
      * @dev returns accumulated balance snapshot
      */
-    function getAccumulatedValidatorBalance() external view returns (uint256) { return accValidatorBalacne; }
+    function getAccumulatedValidatorBalance() external view returns (uint256) { return accValidatorBalance; }
 
     /*
      * @dev returns accumulated balance of stopped validators
@@ -559,7 +559,7 @@ contract RockXStaking is Initializable, PausableUpgradeable, AccessControlUpgrad
 
         // check if there is debt remaining
         uint256 debt = ethersToRedeem - paid;
-        if (debt > 0 ) {
+        if (debt > 0) {
             // track ether debts
             _enqueueDebt(msg.sender, debt);
             userDebts[msg.sender] += debt;
