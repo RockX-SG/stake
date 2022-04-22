@@ -353,6 +353,13 @@ contract RockXStaking is Initializable, PausableUpgradeable, AccessControlUpgrad
      */
 
     /**
+     * @dev returns current reserve of ethers
+     */
+    function currentReserve() public view returns(uint256) {
+        return accDeposited - accWithdrawed + accountedUserRevenue - currentDebts;
+    }
+
+    /**
      * @dev return accumulated deposited ethers
      */
     function getAccumulatedDeposited() external view returns (uint256) { return  accDeposited; }
@@ -447,7 +454,7 @@ contract RockXStaking is Initializable, PausableUpgradeable, AccessControlUpgrad
             return 1 * MULTIPLIER;
         }
 
-        uint256 ratio = _currentEthers() * MULTIPLIER / xETHAmount;
+        uint256 ratio = currentReserve() * MULTIPLIER / xETHAmount;
         return ratio;
     }
 
@@ -502,15 +509,15 @@ contract RockXStaking is Initializable, PausableUpgradeable, AccessControlUpgrad
 
         // mint xETH while keep the exchange ratio invariant
         //
-        // current_ethers = totalDeposited + accountedUserRevenue - totalDebts
-        // amount XETH to mint = xETH * (msg.value/current_ethers)
+        // reserve := accDeposited - accWithdrawed + accountedUserRevenue - currentDebts
+        // amount XETH to mint = xETH * (msg.value/reserve)
         //
         // For every user operation related to ETH, xETH is minted or burned, so the swap ratio is bounded to:
         // (TotalDeposited - TotalWithdrawed + Validator Revenue - Total Ether Debts) / total xETH supply
         // 
         // 
         uint256 amountXETH = IERC20(xETHAddress).totalSupply();
-        uint256 currentEthers = _currentEthers();
+        uint256 currentEthers = currentReserve();
         uint256 toMint = msg.value;  // default exchange ratio 1:1
         require(toMint >= minToMint, "EXCEEDED_SLIPPAGE");
 
@@ -546,7 +553,7 @@ contract RockXStaking is Initializable, PausableUpgradeable, AccessControlUpgrad
         require(ethersToRedeem % DEPOSIT_SIZE == 0, "REDEEM_NOT_IN_32ETHERS");
 
         uint256 totalXETH = IERC20(xETHAddress).totalSupply();
-        uint256 xETHToBurn = totalXETH * ethersToRedeem / _currentEthers();
+        uint256 xETHToBurn = totalXETH * ethersToRedeem / currentReserve();
         require(xETHToBurn <= maxToBurn, "EXCEEDED_SLIPPAGE");
         
         // transfer xETH from sender & burn
@@ -587,7 +594,7 @@ contract RockXStaking is Initializable, PausableUpgradeable, AccessControlUpgrad
         require(swapPool >= ethersToRedeem, "INSUFFICIENT_ETHERS");
 
         uint256 totalXETH = IERC20(xETHAddress).totalSupply();
-        uint256 xETHToBurn = totalXETH * ethersToRedeem / _currentEthers();
+        uint256 xETHToBurn = totalXETH * ethersToRedeem / currentReserve();
         require(xETHToBurn <= maxToBurn, "EXCEEDED_SLIPPAGE");
 
         // transfer xETH from sender & burn
@@ -619,7 +626,7 @@ contract RockXStaking is Initializable, PausableUpgradeable, AccessControlUpgrad
         require(!msg.sender.isContract() && msg.sender == tx.origin);
          
         uint256 totalXETH = IERC20(xETHAddress).totalSupply();
-        uint256 ethersToRedeem = _currentEthers() * xETHToBurn / totalXETH;
+        uint256 ethersToRedeem = currentReserve() * xETHToBurn / totalXETH;
         require(swapPool >= ethersToRedeem, "INSUFFICIENT_ETHERS");
         require(ethersToRedeem >= minToRedeem, "EXCEEDED_SLIPPAGE");
 
@@ -701,13 +708,6 @@ contract RockXStaking is Initializable, PausableUpgradeable, AccessControlUpgrad
         accountedManagerRevenue += fee;
         accountedUserRevenue += rewards - fee;
         emit RevenueAccounted(rewards);
-    }
-
-    /**
-     * @dev returns totalDeposited + accountedUserRevenue - totalDebts
-     */
-    function _currentEthers() internal view returns(uint256) {
-        return accDeposited - accWithdrawed + accountedUserRevenue - currentDebts;
     }
 
     /**
