@@ -166,7 +166,7 @@ contract RockXStaking is Initializable, PausableUpgradeable, AccessControlUpgrad
         DEPOSIT_SIZE = 32 ether;
     }
 
-	/**
+    /**
      * @dev adjust deposit_size
      */
     function setDepositSize(uint256 depositSize) external onlyRole(DEFAULT_ADMIN_ROLE) {
@@ -175,7 +175,7 @@ contract RockXStaking is Initializable, PausableUpgradeable, AccessControlUpgrad
     }
 
 
-	/**
+    /**
      * @dev phase switch
      */
     function switchPhase(uint256 newPhase) external onlyRole(DEFAULT_ADMIN_ROLE) {
@@ -430,7 +430,7 @@ contract RockXStaking is Initializable, PausableUpgradeable, AccessControlUpgrad
         return result;
     }
 
-     /**
+    /**
      * ======================================================================================
      * 
      * EXTERNAL FUNCTIONS
@@ -495,15 +495,23 @@ contract RockXStaking is Initializable, PausableUpgradeable, AccessControlUpgrad
         IERC20(xETHAddress).safeTransferFrom(msg.sender, address(this), xETHToBurn);
         IMintableContract(xETHAddress).burn(xETHToBurn);
 
-        // track ether debts
-        _enqueueDebt(msg.sender, ethersToRedeem);
-        userDebts[msg.sender] += ethersToRedeem;
+        // pay debts from swap pool at first
+        uint256 paid = _payDebts(swapPool);
+        swapPool -= paid;
 
-        // total debts increased
-        totalDebts += ethersToRedeem;
+        // check if there is debt remaining
+        uint256 debt = ethersToRedeem - paid;
+        if (debt > 0 ) {
+            // track ether debts
+            _enqueueDebt(msg.sender, debt);
+            userDebts[msg.sender] += debt;
 
-        // log
-        emit DebtQueued(msg.sender, ethersToRedeem);
+            // total debts increased
+            totalDebts += debt;
+
+            // log
+            emit DebtQueued(msg.sender, debt);
+        }
     }
 
     /**
