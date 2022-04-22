@@ -41,7 +41,6 @@ def setup():
     transparent_xeth = Contract.from_abi("RockXETH", xETH_contract.address, RockXETH.abi)
     transparent_staking = Contract.from_abi("RockXStaking",staking_proxy.address, RockXStaking.abi)
 
-
     transparent_xeth.initialize(
         {'from': owner, 'gas': GAS_LIMIT}
     )
@@ -69,6 +68,7 @@ def setup():
         {'from': owner, 'gas': GAS_LIMIT}
     )
 
+    transparent_staking.switchPhase(1,{'from':owner})
     transparent_staking.registerValidator(
             0x97d717d346868b9df4851684d5219f4deb4c7388ee1454c9b46837d29b40150ceeb5825d791f993b03745427b6cbe6db, 
             0xa09b4dc28c10063f6e2a9d2ca94b23db029ef618660138898cb827eae227d99ee1c438988d0222ca4229ba85c40add3b045e823fdb7519a36538ff901ab89f311060bcecc517ba683b84009ee3509afbcd25e991ef34112a5a16be44265441eb,
@@ -79,17 +79,23 @@ def test_mint(setup):
     user1 = accounts[2]
     user1.transfer(to=transparent_staking, amount='1 ether')
     transparent_xeth.approve(transparent_staking, '100 ether', {'from': user1})
-    transparent_staking.mint({'from':user1, 'value': "1 ether"})
+    transparent_staking.mint(0, {'from':user1, 'value': "1 ether"})
     assert transparent_staking.exchangeRatio() == 1e18
 
-def test_mint32(setup):
+def test_redeem(setup):
     user1 = accounts[2]
-    transparent_staking.mint({'from':user1, 'value': "32 ether"})
+    user2 = accounts[3]
+    transparent_staking.mint(0, {'from':user1, 'value': "32 ether"})
     assert transparent_xeth.balanceOf(user1) == '32 ether'
     
     transparent_xeth.approve(transparent_staking, '100 ether', {'from': user1})
-    transparent_staking.redeemFromValidators("32 ether", {'from': user1})
+    transparent_staking.redeemFromValidators("32 ether", "32 ether", {'from': user1})
+    assert transparent_staking.debtOf(user1) == '32 ether'
     assert transparent_staking.exchangeRatio() == 1e18
+    assert transparent_xeth.balanceOf(user1) == 0
+
+    transparent_staking.mint(0, {'from':user2, 'value': "8 ether"})
+    assert transparent_staking.debtOf(user1) == '24 ether'
 
 def test_beacon(setup):
     expectedExchangeRatio = 1009000000000000000
@@ -98,14 +104,11 @@ def test_beacon(setup):
     user1.transfer(to=transparent_staking, amount='50 ether')
 
     oracle = accounts[3]
-    transparent_staking.mint({'from':oracle, 'value': "32 ether"})
+    transparent_staking.mint(0, {'from':oracle, 'value': "32 ether"})
     assert transparent_xeth.balanceOf(oracle) == '32 ether'
 
     transparent_staking.grantRole(transparent_staking.ORACLE_ROLE(), oracle, {'from': accounts[0]})
     transparent_staking.pushBeacon(1, '32.32 ether', int(time.time()), {'from':oracle})
 
     assert transparent_staking.exchangeRatio() == expectedExchangeRatio
-    transparent_xeth.approve(transparent_staking, '50 ether', {'from': oracle})
-    transparent_staking.redeem(transparent_xeth.balanceOf(oracle), {'from': oracle})
-    assert transparent_staking.exchangeRatio() == 1e18
 
