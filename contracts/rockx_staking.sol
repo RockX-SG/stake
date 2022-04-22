@@ -98,8 +98,8 @@ contract RockXStaking is Initializable, PausableUpgradeable, AccessControlUpgrad
 
     // revenue related variables
     // track beacon validator & balance
-    uint256 private beaconValidatorSnapshot;
-    uint256 private beaconBalanceSnapshot;
+    uint256 private accValidators;
+    uint256 private accValidatorBalacne;
 
     // track stopped validators
     uint256 private accStoppedBalance;      // track accumulated balance of stopped validators
@@ -284,27 +284,31 @@ contract RockXStaking is Initializable, PausableUpgradeable, AccessControlUpgrad
     /**
      * @dev report validators count and total balance
      */
-    function pushBeacon(uint256 _beaconValidators, uint256 _beaconBalance, uint256 ts) external onlyRole(ORACLE_ROLE) {
-        require(_beaconValidators + stoppedValidators.length <= nextValidatorId, "REPORTED_MORE_DEPOSITED");
-        require(_beaconValidators + stoppedValidators.length >= beaconValidatorSnapshot, "REPORTED_DECREASING_VALIDATORS");
-        require(_beaconBalance >= _beaconValidators * DEPOSIT_SIZE, "REPORTED_LESS_VALUE");
+    function pushBeacon(uint256 _aliveValidators, uint256 _aliveBalance, uint256 ts) external onlyRole(ORACLE_ROLE) {
+        require(_aliveValidators + stoppedValidators.length <= nextValidatorId, "REPORTED_MORE_DEPOSITED");
+        require(_aliveValidators + stoppedValidators.length >= accValidators, "REPORTED_DECREASING_VALIDATORS");
+        require(_aliveBalance >= _aliveValidators * DEPOSIT_SIZE, "REPORTED_LESS_VALUE");
         //require(block.timestamp >= ts, "REPORTED_CLOCK_DRIFT");
         require(ts > lastStopTimestamp, "REPORTED_EXPIRED_TIMESTAMP");
 
-        uint256 rewardBase = beaconBalanceSnapshot;
-        if (_beaconValidators + stoppedValidators.length > beaconValidatorSnapshot) {         
+        // step 1. check if new validator launched
+        // and adjust rewardBase to include the new validators value
+        uint256 rewardBase = accValidatorBalacne;
+        if (_aliveValidators + stoppedValidators.length > accValidators) {         
             // newly appeared validators
-            uint256 diff = _beaconValidators + stoppedValidators.length - beaconValidatorSnapshot;
-            rewardBase += diff * DEPOSIT_SIZE;
+            uint256 newValidators = _aliveValidators + stoppedValidators.length - accValidators;
+            rewardBase += newValidators * DEPOSIT_SIZE;
         }
 
+        // step 2. update accValidators
         // take snapshot of current balances & validators,including stopped ones
-        beaconBalanceSnapshot = _beaconBalance + accStoppedBalance; 
-        beaconValidatorSnapshot = _beaconValidators + stoppedValidators.length;
+        accValidatorBalacne = _aliveBalance + accStoppedBalance; 
+        accValidators = _aliveValidators + stoppedValidators.length;
 
+        // step 3. calc rewards
         // the actual increase in balance is the reward
-        if (beaconBalanceSnapshot > rewardBase) {
-            uint256 rewards = beaconBalanceSnapshot - rewardBase;
+        if (accValidatorBalacne > rewardBase) {
+            uint256 rewards = accValidatorBalacne - rewardBase;
             _distributeRewards(rewards);
         }
     }
@@ -385,14 +389,14 @@ contract RockXStaking is Initializable, PausableUpgradeable, AccessControlUpgrad
     function getAccountedManagerRevenue() external view returns (uint256) { return accountedManagerRevenue; }
 
     /*
-     * @dev returns beacon validator snapshot
+     * @dev returns accumulated beacon validators
      */
-    function getBeaconValidatorSnapshot() external view returns (uint256) { return beaconValidatorSnapshot; }
+    function getAccumulatedValidators() external view returns (uint256) { return accValidators; }
 
     /*
-     * @dev returns beacon balance snapshot
+     * @dev returns accumulated balance snapshot
      */
-    function getBeaconBalanceSnapshot() external view returns (uint256) { return beaconBalanceSnapshot; }
+    function getAccumulatedValidatorBalance() external view returns (uint256) { return accValidatorBalacne; }
 
     /*
      * @dev returns accumulated balance of stopped validators
