@@ -79,14 +79,3 @@ def main():
             0xb5f69d8528c028c659042424e859ebacee21f79891bc30801d31d742aae2f360f30f18fd815ef6ba9f39d9af0190652d10d7fa2d6e418414c69389de479adfba5021b2b6503653107f3192dccd5a9fcad6cba065cd32d3e55431fef0c46aecb9,
         {'from': owner, 'gas': GAS_LIMIT}
     )
-
-    transparent_staking.mint({'from':owner, 'value': '1 ether', 'gas': GAS_LIMIT})
-    transparent_staking.pushBeacon(1, '1.1 ethers', time.time(), {'from':owner})
-    transparent_xeth.approve(transparent_staking, '10000 ethers', {'from': owner})
-    transparent_staking.redeemFromValidators('1 ethers', {'from':owner})
-    #transparent_staking.validatorStopped([0],{'from':accounts[0],'value':'32.33 ethers'})
-    transparent_staking.stoppedBalance()
-    transparent_staking.exchangeRatio()
-
-
-
