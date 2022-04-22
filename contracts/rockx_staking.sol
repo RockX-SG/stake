@@ -70,7 +70,7 @@ contract RockXStaking is Initializable, PausableUpgradeable, AccessControlUpgrad
     
     // credentials, pushed by owner
     ValidatorCredential [] private validatorRegistry;
-    mapping(bytes32 => bool) pubkeyIndices;
+    mapping(bytes32 => bool) private pubkeyIndices;
 
     // next validator id
     uint256 private nextValidatorId;
@@ -94,16 +94,16 @@ contract RockXStaking is Initializable, PausableUpgradeable, AccessControlUpgrad
     mapping(address=>uint256) private userDebts;    // debts from user's perspective
 
     // track revenue from validators to form exchange ratio
-    uint256 public accountedUserRevenue;    // accounted shared user revenue
-    uint256 public accountedManagerRevenue; // accounted manager's revenue
+    uint256 private accountedUserRevenue;    // accounted shared user revenue
+    uint256 private accountedManagerRevenue; // accounted manager's revenue
 
     // revenue related variables
     // track beacon validator & balance
-    uint256 public beaconValidatorSnapshot;
-    uint256 public beaconBalanceSnapshot;
+    uint256 private beaconValidatorSnapshot;
+    uint256 private beaconBalanceSnapshot;
 
     // track stopped validators
-    uint256 public stoppedBalance;          // the balance snapshot of those stopped validators
+    uint256 private accStoppedBalance;      // track accumulated balance of stopped validators
     uint256 private lastStopTimestamp;      // record timestamp of last stop
     bytes [] private stoppedValidators;     // track stopped validator pubkey
 
@@ -300,7 +300,7 @@ contract RockXStaking is Initializable, PausableUpgradeable, AccessControlUpgrad
         }
 
         // take snapshot of current balances & validators,including stopped ones
-        beaconBalanceSnapshot = _beaconBalance + stoppedBalance; 
+        beaconBalanceSnapshot = _beaconBalance + accStoppedBalance; 
         beaconValidatorSnapshot = _beaconValidators + stoppedValidators.length;
 
         // the actual increase in balance is the reward
@@ -327,7 +327,7 @@ contract RockXStaking is Initializable, PausableUpgradeable, AccessControlUpgrad
             validatorRegistry[stoppedIDs[i]].stopped = true;
             stoppedValidators.push(validatorRegistry[stoppedIDs[i]].pubkey);
         }
-        stoppedBalance += msg.value;
+        accStoppedBalance += msg.value;
         
         // record timestamp to avoid expired pushBeacon transaction
         lastStopTimestamp = block.timestamp;
@@ -374,6 +374,31 @@ contract RockXStaking is Initializable, PausableUpgradeable, AccessControlUpgrad
      * @dev return the amount of ethers that could be swapped instantly
      */
     function getSwapPool() external view returns (uint256) { return swapPool; }
+
+    /**
+     * @dev returns the accounted user revenue
+     */
+    function getAccountedUserRevenue() external view returns (uint256) { return accountedUserRevenue; }
+
+    /**
+     * @dev returns the accounted manager's revenue
+     */
+    function getAccountedManagerRevenue() external view returns (uint256) { return accountedManagerRevenue; }
+
+    /*
+     * @dev returns beacon validator snapshot
+     */
+    function getBeaconValidatorSnapshot() external view returns (uint256) { return beaconValidatorSnapshot; }
+
+    /*
+     * @dev returns beacon balance snapshot
+     */
+    function getBeaconBalanceSnapshot() external view returns (uint256) { return beaconBalanceSnapshot; }
+
+    /*
+     * @dev returns accumulated balance of stopped validators
+     */
+    function getAccumulatedStoppedBalance() external view returns (uint256) { return accStoppedBalance; }
 
     /**
      * @dev return debt for an account
