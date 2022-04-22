@@ -78,8 +78,7 @@ contract RockXStaking is Initializable, PausableUpgradeable, AccessControlUpgrad
     // exchange ratio related variables
     // track user deposits & redeem (xETH mint & burn)
     // based on the variables following, the total ether balance is equal to 
-    // currentDeposited := totalDeposited - totalWithdrawed
-    // currentEthers := currentDeposited + accountedUserRevenue - totalDebts
+    // currentEthers := accDeposited - accWithdrawed + accountedUserRevenue - currentDebts [1]
     uint256 private accDeposited;           // track accumulated deposited ethers from users
     uint256 private accWithdrawed;          // track accumulated withdrawed ethers from users
     uint256 private accStaked;              // track accumulated staked ethers for validators, rounded to 32 ethers

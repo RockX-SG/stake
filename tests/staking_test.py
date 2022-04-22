@@ -2,11 +2,15 @@ import pytest
 import time
 
 from brownie import *
+from pathlib import Path
 
 GAS_LIMIT = 6721975
+deps = project.load(  Path.home() / ".brownie" / "packages" / config["dependencies"][0])
 
 @pytest.fixture
 def setup():
+    TransparentUpgradeableProxy = deps.TransparentUpgradeableProxy
+
     owner = accounts[0]
     deployer = accounts[1]
     ethDepositContract = "0x00000000219ab540356cbb839cbe05303d7705fa"
@@ -76,9 +80,6 @@ def test_mint(setup):
     user1.transfer(to=transparent_staking, amount='1 ether')
     transparent_xeth.approve(transparent_staking, '100 ether', {'from': user1})
     transparent_staking.mint({'from':user1, 'value': "1 ether"})
-    assert transparent_xeth.balanceOf(user1) == '1 ether'
-    transparent_staking.redeemUnderlying("1 ether", {'from': user1})
-    assert transparent_xeth.balanceOf(user1) == 0
     assert transparent_staking.exchangeRatio() == 1e18
 
 def test_mint32(setup):
