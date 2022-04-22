@@ -128,7 +128,7 @@ contract RockXStaking is Initializable, PausableUpgradeable, AccessControlUpgrad
      * @dev only phase
      */
     modifier onlyPhase(uint256 requiredPhase) {
-        require(requiredPhase >= phase, "PHASE_MISMATCH");
+        require(phase >= requiredPhase, "PHASE_MISMATCH");
         _;
     }
 
@@ -175,7 +175,6 @@ contract RockXStaking is Initializable, PausableUpgradeable, AccessControlUpgrad
         require(depositSize > 0, "INVALID_DEPOSIT_SIZE");
         DEPOSIT_SIZE = depositSize;
     }
-
 
     /**
      * @dev phase switch
@@ -496,7 +495,7 @@ contract RockXStaking is Initializable, PausableUpgradeable, AccessControlUpgrad
     /**
      * @dev mint xETH with ETH
      */
-    function mint() external payable nonReentrant whenNotPaused {
+    function mint(uint256 minToMint) external payable nonReentrant whenNotPaused {
         // only from EOA
         require(!msg.sender.isContract() && msg.sender == tx.origin);
         require(msg.value > 0, "MINT_ZERO");
@@ -513,6 +512,8 @@ contract RockXStaking is Initializable, PausableUpgradeable, AccessControlUpgrad
         uint256 amountXETH = IERC20(xETHAddress).totalSupply();
         uint256 currentEthers = _currentEthers();
         uint256 toMint = msg.value;  // default exchange ratio 1:1
+        require(toMint >= minToMint, "EXCEEDED_SLIPPAGE");
+
         if (currentEthers > 0) { // avert division overflow
             toMint = amountXETH * msg.value / currentEthers;
         }
@@ -539,13 +540,14 @@ contract RockXStaking is Initializable, PausableUpgradeable, AccessControlUpgrad
      * 
      * redeem keeps the ratio invariant
      */
-    function redeemFromValidators(uint256 ethersToRedeem) external nonReentrant onlyPhase(1) {
+    function redeemFromValidators(uint256 ethersToRedeem, uint256 maxToBurn) external nonReentrant onlyPhase(1) {
         // only from EOA
         require(!msg.sender.isContract() && msg.sender == tx.origin);
         require(ethersToRedeem % DEPOSIT_SIZE == 0, "REDEEM_NOT_IN_32ETHERS");
 
         uint256 totalXETH = IERC20(xETHAddress).totalSupply();
         uint256 xETHToBurn = totalXETH * ethersToRedeem / _currentEthers();
+        require(xETHToBurn <= maxToBurn, "EXCEEDED_SLIPPAGE");
         
         // transfer xETH from sender & burn
         IERC20(xETHAddress).safeTransferFrom(msg.sender, address(this), xETHToBurn);
@@ -579,14 +581,15 @@ contract RockXStaking is Initializable, PausableUpgradeable, AccessControlUpgrad
      *
      * redeem keeps the ratio invariant
      */
-    function redeemUnderlying(uint256 ethersToRedeem) external nonReentrant {
+    function redeemUnderlying(uint256 ethersToRedeem, uint256 maxToBurn) external nonReentrant {
         // only from EOA
         require(!msg.sender.isContract() && msg.sender == tx.origin);
         require(swapPool >= ethersToRedeem, "INSUFFICIENT_ETHERS");
 
         uint256 totalXETH = IERC20(xETHAddress).totalSupply();
         uint256 xETHToBurn = totalXETH * ethersToRedeem / _currentEthers();
-        
+        require(xETHToBurn <= maxToBurn, "EXCEEDED_SLIPPAGE");
+
         // transfer xETH from sender & burn
         IERC20(xETHAddress).safeTransferFrom(msg.sender, address(this), xETHToBurn);
         IMintableContract(xETHAddress).burn(xETHToBurn);
@@ -611,13 +614,14 @@ contract RockXStaking is Initializable, PausableUpgradeable, AccessControlUpgrad
      *
      * redeem keeps the ratio invariant
      */
-    function redeem(uint256 xETHToBurn) external nonReentrant {
+    function redeem(uint256 xETHToBurn, uint256 minToRedeem) external nonReentrant {
         // only from EOA
         require(!msg.sender.isContract() && msg.sender == tx.origin);
          
         uint256 totalXETH = IERC20(xETHAddress).totalSupply();
         uint256 ethersToRedeem = _currentEthers() * xETHToBurn / totalXETH;
         require(swapPool >= ethersToRedeem, "INSUFFICIENT_ETHERS");
+        require(ethersToRedeem >= minToRedeem, "EXCEEDED_SLIPPAGE");
 
         // transfer xETH from sender & burn
         IERC20(xETHAddress).safeTransferFrom(msg.sender, address(this), xETHToBurn);
