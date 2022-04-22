@@ -78,11 +78,14 @@ contract RockXStaking is Initializable, PausableUpgradeable, AccessControlUpgrad
     // exchange ratio related variables
     // track user deposits & redeem (xETH mint & burn)
     // based on the variables following, the total ether balance is equal to 
-    //  totalDeposited + accountedUserRevenue - totalDebts
-    uint256 public totalDeposited;          // track total deposited ethers from users
-    uint256 public totalStaked;             // track total staked ethers for validators, rounded to 32 ethers
-    uint256 public totalDebts;              // track total debts unpaied
-    uint256 public swapPool;                // track swappable ethers for redeem()/redeemUnderlying()
+    // currentDeposited := totalDeposited - totalWithdrawed
+    // currentEthers := currentDeposited + accountedUserRevenue - totalDebts
+    uint256 private accDeposited;           // track accumulated deposited ethers from users
+    uint256 private accWithdrawed;          // track accumulated withdrawed ethers from users
+    uint256 private accStaked;              // track accumulated staked ethers for validators, rounded to 32 ethers
+
+    uint256 private currentDebts;           // track current unpaid debts
+    uint256 private swapPool;               // track swappable ethers for redeem()/redeemUnderlying()
 
     // FIFO of debts from redeemFromValidators
     mapping(uint256=>Debt) private etherDebts;
@@ -348,6 +351,31 @@ contract RockXStaking is Initializable, PausableUpgradeable, AccessControlUpgrad
      */
 
     /**
+     * @dev return accumulated deposited ethers
+     */
+    function getAccumulatedDeposited() external view returns (uint256) { return  accDeposited; }
+
+    /**
+     * @dev return accumulated withdrawed ethers
+     */
+    function getAccumulatedWithdrawed() external view returns (uint256) { return  accWithdrawed; }
+
+    /**
+     * @dev return accumulated staked ethers
+     */
+    function getAccumulatedStaked() external view returns (uint256) { return  accStaked; }
+
+    /**
+     * @dev return current debts
+     */
+    function getCurrentDebts() external view returns (uint256) { return currentDebts; }
+    
+    /**
+     * @dev return the amount of ethers that could be swapped instantly
+     */
+    function getSwapPool() external view returns (uint256) { return swapPool; }
+
+    /**
      * @dev return debt for an account
      */
     function debtOf(address account) external view returns (uint256) {
@@ -451,7 +479,7 @@ contract RockXStaking is Initializable, PausableUpgradeable, AccessControlUpgrad
         // amount XETH to mint = xETH * (msg.value/current_ethers)
         //
         // For every user operation related to ETH, xETH is minted or burned, so the swap ratio is bounded to:
-        // (Total User Deposited Ethers + Validator Revenue - Total User Withdrawed Ethers - Total Ether Debts) / total xETH supply
+        // (TotalDeposited - TotalWithdrawed + Validator Revenue - Total Ether Debts) / total xETH supply
         // 
         // 
         uint256 amountXETH = IERC20(xETHAddress).totalSupply();
@@ -465,10 +493,10 @@ contract RockXStaking is Initializable, PausableUpgradeable, AccessControlUpgrad
 
         // pay debts in priority
         uint256 debtPaied = _payDebts(msg.value);
-        totalDeposited += msg.value - debtPaied; 
+        accDeposited += msg.value - debtPaied; 
 
         // spin up n nodes
-        uint256 numValidators = (totalDeposited - totalStaked) / DEPOSIT_SIZE;
+        uint256 numValidators = (accDeposited - accStaked) / DEPOSIT_SIZE;
         for (uint256 i = 0;i<numValidators;i++) {
             _spinup();
         }
@@ -507,7 +535,7 @@ contract RockXStaking is Initializable, PausableUpgradeable, AccessControlUpgrad
             userDebts[msg.sender] += debt;
 
             // total debts increased
-            totalDebts += debt;
+            currentDebts += debt;
 
             // log
             emit DebtQueued(msg.sender, debt);
@@ -539,6 +567,9 @@ contract RockXStaking is Initializable, PausableUpgradeable, AccessControlUpgrad
         payable(msg.sender).sendValue(ethersToRedeem);
         swapPool -= ethersToRedeem;
 
+        // record withdrawed ethers
+        accWithdrawed += ethersToRedeem;
+
         // emit amount withdrawed
         emit Redeemed(xETHToBurn, ethersToRedeem);
     }
@@ -567,6 +598,9 @@ contract RockXStaking is Initializable, PausableUpgradeable, AccessControlUpgrad
         // send ethers back to sender
         payable(msg.sender).sendValue(ethersToRedeem);
         swapPool -= ethersToRedeem;
+
+        // record withdrawed ethers
+        accWithdrawed += ethersToRedeem;
 
         // emit amount withdrawed
         emit Redeemed(xETHToBurn, ethersToRedeem);
@@ -622,7 +656,8 @@ contract RockXStaking is Initializable, PausableUpgradeable, AccessControlUpgrad
             }
         }
         
-        totalDebts -= amountPaied;
+        currentDebts -= amountPaied;
+        accWithdrawed += amountPaied;
     }
 
     /**
@@ -640,7 +675,7 @@ contract RockXStaking is Initializable, PausableUpgradeable, AccessControlUpgrad
      * @dev returns totalDeposited + accountedUserRevenue - totalDebts
      */
     function _currentEthers() internal view returns(uint256) {
-        return totalDeposited + accountedUserRevenue - totalDebts;
+        return accDeposited - accWithdrawed + accountedUserRevenue - currentDebts;
     }
 
     /**
@@ -657,7 +692,7 @@ contract RockXStaking is Initializable, PausableUpgradeable, AccessControlUpgrad
         ValidatorCredential memory cred = validatorRegistry[nextValidatorId];
         _stake(cred.pubkey, cred.signature);
 
-        totalStaked += DEPOSIT_SIZE;
+        accStaked += DEPOSIT_SIZE;
         nextValidatorId++;        
     }
 
