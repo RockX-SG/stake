@@ -203,6 +203,7 @@ contract RockXStaking is Initializable, PausableUpgradeable, AccessControlUpgrad
     function replaceValidator(uint256 index, bytes calldata pubkey, bytes calldata signature) external onlyRole(OPERATOR_ROLE) {
         require(index < validatorRegistry.length, "OUT_OF_RANGE");
         require(index < nextValidatorId, "ALREADY_ACTIVATED");
+        require(pubkey.length == PUBKEY_LENGTH, "INCONSISTENT_PUBKEY_LEN");
         require(signature.length == SIGNATURE_LENGTH, "INCONSISTENT_SIG_LEN");
 
         // mark old pub key to false
@@ -223,6 +224,8 @@ contract RockXStaking is Initializable, PausableUpgradeable, AccessControlUpgrad
         require(pubkeys.length == signatures.length, "LENGTH_NOT_EQUAL");
         uint256 n = pubkeys.length;
         for(uint256 i=0;i<n;i++) {
+            require(pubkeys[i].length == PUBKEY_LENGTH, "INCONSISTENT_PUBKEY_LEN");
+            require(signatures[i].length == SIGNATURE_LENGTH, "INCONSISTENT_SIG_LEN");
             bytes32 pubkeyHash = keccak256(pubkeys[i]);
             require(!pubkeyIndices[pubkeyHash], "DUPLICATED_PUBKEY");
             validatorRegistry.push(ValidatorCredential({pubkey:pubkeys[i], signature:signatures[i], stopped:false}));
@@ -729,68 +732,49 @@ contract RockXStaking is Initializable, PausableUpgradeable, AccessControlUpgrad
     }
 
     /**
-    * @dev Invokes a deposit call to the official Deposit contract
-    */
-    function _stake(bytes memory _pubkey, bytes memory _signature) internal {
+     * @dev Invokes a deposit call to the official Deposit contract
+     */
+    function _stake(bytes memory pubkey, bytes memory signature) internal {
         require(withdrawalCredentials != bytes32(0x0), "WITHDRAWAL_CREDENTIALS_NOT_SET");
-         // The following computations and Merkle tree-ization will make official Deposit contract happy
         uint256 value = DEPOSIT_SIZE;
-        uint256 depositAmount = value / DEPOSIT_AMOUNT_UNIT;
+        uint256 depositAmount = DEPOSIT_SIZE / DEPOSIT_AMOUNT_UNIT;
         assert(depositAmount * DEPOSIT_AMOUNT_UNIT == value);    // properly rounded
 
-        // Compute deposit data root (`DepositData` hash tree root) according to deposit_contract.sol
-        bytes32 pubkeyRoot = sha256(_pad64(_pubkey));
-        bytes32 signatureRoot = sha256(
-            abi.encodePacked(
-                sha256(BytesLib.slice(_signature, 0, 64)),
-                sha256(_pad64(BytesLib.slice(_signature, 64, SIGNATURE_LENGTH - 64)))
-            )
-        );
-        bytes32 depositDataRoot = sha256(
-            abi.encodePacked(
-                sha256(abi.encodePacked(pubkeyRoot, withdrawalCredentials)),
-                sha256(abi.encodePacked(_toLittleEndian64(depositAmount), signatureRoot))
-            )
-        );
+        // Compute deposit data root (`DepositData` hash tree root)
+        // https://etherscan.io/address/0x00000000219ab540356cbb839cbe05303d7705fa#code
+        bytes32 pubkey_root = sha256(abi.encodePacked(pubkey, bytes16(0)));
+        bytes32 signature_root = sha256(abi.encodePacked(
+            sha256(BytesLib.slice(signature, 0, 64)),
+            sha256(abi.encodePacked(BytesLib.slice(signature, 64, SIGNATURE_LENGTH - 64), bytes32(0)))
+        ));
         
+        bytes memory amount = to_little_endian_64(uint64(depositAmount));
+
+        bytes32 depositDataRoot = sha256(abi.encodePacked(
+            sha256(abi.encodePacked(pubkey_root, withdrawalCredentials)),
+            sha256(abi.encodePacked(amount, bytes24(0), signature_root))
+        ));
 
         IDepositContract(ethDepositContract).deposit{value:DEPOSIT_SIZE} (
-            _pubkey, abi.encodePacked(withdrawalCredentials), _signature, depositDataRoot);
-
+            pubkey, abi.encodePacked(withdrawalCredentials), signature, depositDataRoot);
     }
 
     /**
-      * @dev Padding memory array with zeroes up to 64 bytes on the right
-      * @param _b Memory array of size 32 .. 64
-      */
-    function _pad64(bytes memory _b) internal pure returns (bytes memory) {
-        assert(_b.length >= 32 && _b.length <= 64);
-        if (64 == _b.length)
-            return _b;
-
-        bytes memory zero32 = new bytes(32);
-        assembly { mstore(add(zero32, 0x20), 0) }
-
-        if (32 == _b.length)
-            return BytesLib.concat(_b, zero32);
-        else
-            return BytesLib.concat(_b, BytesLib.slice(zero32, 0, uint256(64) - _b.length));
-    }
-
-    /**
-      * @dev Converting value to little endian bytes and padding up to 32 bytes on the right
-      * @param _value Number less than `2**64` for compatibility reasons
-      */
-    function _toLittleEndian64(uint256 _value) internal pure returns (uint256 result) {
-        result = 0;
-        uint256 temp_value = _value;
-        for (uint256 i = 0; i < 8; ++i) {
-            result = (result << 8) | (temp_value & 0xFF);
-            temp_value >>= 8;
-        }
-
-        assert(0 == temp_value);    // fully converted
-        result <<= (24 * 8);
+     * @dev to little endian
+     * https://etherscan.io/address/0x00000000219ab540356cbb839cbe05303d7705fa#code
+     */
+    function to_little_endian_64(uint64 value) internal pure returns (bytes memory ret) {
+        ret = new bytes(8);
+        bytes8 bytesValue = bytes8(value);
+        // Byteswapping during copying to bytes.
+        ret[0] = bytesValue[7];
+        ret[1] = bytesValue[6];
+        ret[2] = bytesValue[5];
+        ret[3] = bytesValue[4];
+        ret[4] = bytesValue[3];
+        ret[5] = bytesValue[2];
+        ret[6] = bytesValue[1];
+        ret[7] = bytesValue[0];
     }
 
     /**
