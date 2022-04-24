@@ -96,7 +96,6 @@ def setup():
 
 def test_mint(setup):
     user1 = accounts[2]
-    user1.transfer(to=transparent_staking, amount='1 ether')
     transparent_xeth.approve(transparent_staking, '100 ether', {'from': user1})
     transparent_staking.mint(0, {'from':user1, 'value': "1 ether"})
     assert transparent_staking.exchangeRatio() == 1e18
@@ -124,7 +123,6 @@ def test_beacon(setup):
     expectedExchangeRatio = 1009000000000000000
     # some ethers to redeem
     user1 = accounts[2]
-    user1.transfer(to=transparent_staking, amount='50 ether')
 
     oracle = accounts[3]
     transparent_staking.mint(0, {'from':oracle, 'value': "32 ether"})
