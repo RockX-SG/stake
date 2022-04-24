@@ -518,8 +518,6 @@ contract RockXStaking is Initializable, PausableUpgradeable, AccessControlUpgrad
      * @dev mint xETH with ETH
      */
     function mint(uint256 minToMint) external payable nonReentrant whenNotPaused {
-        // only from EOA
-        require(!msg.sender.isContract() && msg.sender == tx.origin);
         require(msg.value > 0, "MINT_ZERO");
 
         // mint xETH while keep the exchange ratio invariant
@@ -563,8 +561,6 @@ contract RockXStaking is Initializable, PausableUpgradeable, AccessControlUpgrad
      * redeem keeps the ratio invariant
      */
     function redeemFromValidators(uint256 ethersToRedeem, uint256 maxToBurn) external nonReentrant onlyPhase(1) {
-        // only from EOA
-        require(!msg.sender.isContract() && msg.sender == tx.origin);
         require(ethersToRedeem % DEPOSIT_SIZE == 0, "REDEEM_NOT_IN_32ETHERS");
 
         uint256 totalXETH = IERC20(xETHAddress).totalSupply();
@@ -604,8 +600,6 @@ contract RockXStaking is Initializable, PausableUpgradeable, AccessControlUpgrad
      * redeem keeps the ratio invariant
      */
     function redeemUnderlying(uint256 ethersToRedeem, uint256 maxToBurn) external nonReentrant {
-        // only from EOA
-        require(!msg.sender.isContract() && msg.sender == tx.origin);
         require(swapPool >= ethersToRedeem, "INSUFFICIENT_ETHERS");
 
         uint256 totalXETH = IERC20(xETHAddress).totalSupply();
@@ -637,9 +631,6 @@ contract RockXStaking is Initializable, PausableUpgradeable, AccessControlUpgrad
      * redeem keeps the ratio invariant
      */
     function redeem(uint256 xETHToBurn, uint256 minToRedeem) external nonReentrant {
-        // only from EOA
-        require(!msg.sender.isContract() && msg.sender == tx.origin);
-         
         uint256 totalXETH = IERC20(xETHAddress).totalSupply();
         uint256 ethersToRedeem = currentReserve() * xETHToBurn / totalXETH;
         require(swapPool >= ethersToRedeem, "INSUFFICIENT_ETHERS");
