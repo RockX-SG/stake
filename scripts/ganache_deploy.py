@@ -36,8 +36,19 @@ def main():
             {'from': deployer, 'gas': GAS_LIMIT}
             )
 
-    transparent_xeth = Contract.from_abi("RockXETH", xETH_contract.address, RockXETH.abi)
+    debt_contract = RockXDebts.deploy(
+            {'from': deployer, 'gas': GAS_LIMIT}
+            )
+
+    debt_proxy = TransparentUpgradeableProxy.deploy(
+            debt_contract, deployer, b'',
+            {'from': deployer, 'gas': GAS_LIMIT}
+            )
+
+
+    transparent_xeth = Contract.from_abi("RockXETH", xETH_proxy.address, RockXETH.abi)
     transparent_staking = Contract.from_abi("RockXStaking",staking_proxy.address, RockXStaking.abi)
+    transparent_debt  = Contract.from_abi("RockXDebts", debt_proxy.address, RockXDebts.abi)
 
     transparent_xeth.initialize(
             {'from': owner, 'gas': GAS_LIMIT}
@@ -58,6 +69,11 @@ def main():
 
     transparent_staking.setETHDepositContract(
             ethDepositContract,
+            {'from': owner, 'gas': GAS_LIMIT}
+            ) 
+
+    transparent_staking.setDebtContract(
+            transparent_debt,
             {'from': owner, 'gas': GAS_LIMIT}
             ) 
 
@@ -82,8 +98,8 @@ def main():
     transparent_xeth.approve(transparent_staking, '10000 ethers', {'from': owner})
 
     #transparent_staking.pushBeacon(1, '32.32 ethers', time.time(), {'from':owner})
-    #transparent_staking.redeemFromValidators('32 ethers', '33 ethers', {'from':owner})
-    #transparent_staking.validatorStopped([0],{'from':accounts[0],'value':'32.33 ethers'})
+    transparent_staking.redeemFromValidators('32 ethers', '33 ethers', {'from':owner})
+    transparent_staking.validatorStopped([0],{'from':accounts[0],'value':'32.33 ethers'})
     #transparent_staking.getAccumulatedStoppedBalance()
     #transparent_staking.exchangeRatio()
     #tx = transparent_staking.mint('32 ether', {'from':owner, 'value': '32 ether'})

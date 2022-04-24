@@ -64,6 +64,7 @@ contract RockXStaking is Initializable, PausableUpgradeable, AccessControlUpgrad
     uint256 private DEPOSIT_SIZE; 			// deposit_size adjustable via func
     address public ethDepositContract;      // ETH 2.0 Deposit contract
     address public xETHAddress;             // xETH token address
+    address public debtContract;            // debt contract for user to pull ethers
 
     uint256 public managerFeeShare;         // manager's fee in 1/1000
     bytes32 public withdrawalCredentials;   // WithdrawCredential for all validator
@@ -263,6 +264,16 @@ contract RockXStaking is Initializable, PausableUpgradeable, AccessControlUpgrad
     }
 
     /**
+     * @dev set debt contract
+     */
+    function setDebtContract(address _debtContract) external onlyRole(DEFAULT_ADMIN_ROLE) {
+        debtContract = _debtContract;
+
+        emit DebtContractSet(_debtContract);
+    }
+
+
+    /**
      @dev set withdraw credential to receive revenue, usually this should be the contract itself.
      */
     function setWithdrawCredential(bytes32 withdrawalCredentials_) external onlyRole(DEFAULT_ADMIN_ROLE) {
@@ -323,6 +334,7 @@ contract RockXStaking is Initializable, PausableUpgradeable, AccessControlUpgrad
         require(stoppedIDs.length > 0, "EMPTY_CALLDATA");
         require(stoppedIDs.length + stoppedValidators.length <= nextValidatorId, "REPORTED_MORE_STOPPED_VALIDATORS");
         require(msg.value >= stoppedIDs.length * DEPOSIT_SIZE, "RETURNED_LESS_ETHERS"); 
+        require(address(debtContract) != address(0x0), "DEBT_CONTRACT_NOT_SET");
 
         // record stopped validators snapshot.
         for (uint i=0;i<stoppedIDs.length;i++) {
@@ -686,8 +698,8 @@ contract RockXStaking is Initializable, PausableUpgradeable, AccessControlUpgrad
             userDebts[debt.account] -= toPay;
             amountPaied += toPay;
 
-            // money
-            payable(debt.account).sendValue(toPay);
+            // transfer money to debt contract
+            IRockXDebts(debtContract).pay{value:toPay}(debt.account);
 
             // log
             emit DebtPaid(debt.account, toPay);
@@ -798,4 +810,5 @@ contract RockXStaking is Initializable, PausableUpgradeable, AccessControlUpgrad
     event DebtPaid(address creditor, uint256 amountEther);
     event XETHContractSet(address addr);
     event DepositContractSet(address addr);
+    event DebtContractSet(address addr);
 }
