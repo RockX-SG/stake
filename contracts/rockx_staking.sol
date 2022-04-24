@@ -686,9 +686,6 @@ contract RockXStaking is Initializable, PausableUpgradeable, AccessControlUpgrad
             // transfer money to debt contract
             IRockXDebts(debtContract).pay{value:toPay}(debt.account);
 
-            // log
-            emit DebtPaid(debt.account, toPay);
-
             // dequeue if cleared 
             if (debt.amount == 0) {
                 _dequeueDebt();
@@ -791,7 +788,6 @@ contract RockXStaking is Initializable, PausableUpgradeable, AccessControlUpgrad
     event RedeemFromValidator(uint256 amountXETH, uint256 amountETH);
     event WithdrawCredentialSet(bytes32 withdrawCredential);
     event DebtQueued(address creditor, uint256 amountEther);
-    event DebtPaid(address creditor, uint256 amountEther);
     event XETHContractSet(address addr);
     event DepositContractSet(address addr);
     event DebtContractSet(address addr);
