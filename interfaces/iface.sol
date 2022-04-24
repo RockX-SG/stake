@@ -42,3 +42,9 @@ interface IDepositContract {
     /// @return The deposit count encoded as a little endian 64-bit number.
     function get_deposit_count() external view returns (bytes memory);
 }
+
+interface IRockXDebts {
+    function pay(address account) external payable;
+    function claim(uint256 amount) external;
+    function balanceOf(address account) external view returns(uint256);
+}
