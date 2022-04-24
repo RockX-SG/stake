@@ -327,7 +327,6 @@ contract RockXStaking is Initializable, PausableUpgradeable, AccessControlUpgrad
         require(stoppedIDs.length > 0, "EMPTY_CALLDATA");
         require(stoppedIDs.length + stoppedValidators.length <= nextValidatorId, "REPORTED_MORE_STOPPED_VALIDATORS");
         require(msg.value >= stoppedIDs.length * DEPOSIT_SIZE, "RETURNED_LESS_ETHERS"); 
-        require(address(debtContract) != address(0x0), "DEBT_CONTRACT_NOT_SET");
 
         // record stopped validators snapshot.
         for (uint i=0;i<stoppedIDs.length;i++) {
@@ -667,6 +666,8 @@ contract RockXStaking is Initializable, PausableUpgradeable, AccessControlUpgrad
      * @dev pay debts for a given amount
      */
     function _payDebts(uint256 total) internal returns(uint256 amountPaied) {
+        require(address(debtContract) != address(0x0), "DEBT_CONTRACT_NOT_SET");
+
         // ethers to pay
         for (uint i=firstDebt;i<=lastDebt;i++) {
             if (total == 0) {
@@ -688,7 +689,7 @@ contract RockXStaking is Initializable, PausableUpgradeable, AccessControlUpgrad
             // log
             emit DebtPaid(debt.account, toPay);
 
-            // untrack 
+            // dequeue if cleared 
             if (debt.amount == 0) {
                 _dequeueDebt();
             }
