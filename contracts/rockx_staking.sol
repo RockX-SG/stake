@@ -119,13 +119,6 @@ contract RockXStaking is Initializable, PausableUpgradeable, AccessControlUpgrad
      */
 
     /**
-     * @dev receive revenue
-     */
-    receive() external payable {
-        emit RewardReceived(msg.value);
-    }
-
-    /**
      * @dev only phase
      */
     modifier onlyPhase(uint256 requiredPhase) {
@@ -790,7 +783,6 @@ contract RockXStaking is Initializable, PausableUpgradeable, AccessControlUpgrad
     event ValidatorActivated(uint256 node_id);
     event ValidatorStopped(uint256 [] stoppedIDs);
     event RevenueAccounted(uint256 amount);
-    event RewardReceived(uint256 amount);
     event ManagerAccountSet(address account);
     event ManagerFeeSet(uint256 milli);
     event ManagerFeeWithdrawed(uint256 amount, address);
