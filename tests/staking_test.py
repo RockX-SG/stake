@@ -116,8 +116,10 @@ def test_redeem(setup):
     assert transparent_staking.debtOf(user1) == '24 ether'
     assert transparent_debt.balanceOf(user1) == '8 ether'
 
+    lastBalance = user1.balance()
     transparent_debt.claim('8 ether', {'from':user1})
     assert transparent_debt.balanceOf(user1) == 0
+    assert user1.balance() - lastBalance == '8 ether'
 
 def test_beacon(setup):
     expectedExchangeRatio = 1009000000000000000

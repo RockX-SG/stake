@@ -12,7 +12,6 @@ import "@openzeppelin/contracts-upgradeable/security/ReentrancyGuardUpgradeable.
 contract RockXDebts is IRockXDebts, Initializable, PausableUpgradeable, ReentrancyGuardUpgradeable, OwnableUpgradeable {
     using SafeERC20 for IERC20;
     using Address for address payable;
-    using Address for address;
 
     mapping(address=>uint256) private balances;
 
@@ -39,8 +38,9 @@ contract RockXDebts is IRockXDebts, Initializable, PausableUpgradeable, Reentran
      * @dev claim 
      */
     function claim(uint256 amount) external override nonReentrant {
-        require(balances[msg.sender] >= amount, "INSUFFICIENT_AMOUNT");
+        require(balances[msg.sender] >= amount, "INSUFFICIENT_BALANCE");
         balances[msg.sender] -= amount;
+        payable(msg.sender).sendValue(amount);
 
         // log
         emit Claimed(msg.sender, amount);
@@ -49,7 +49,7 @@ contract RockXDebts is IRockXDebts, Initializable, PausableUpgradeable, Reentran
     /**
      * @dev balance of claimable debts
      */
-    function balanceOf(address account) external override view returns(uint256) { return balances[account];}
+    function balanceOf(address account) external override view returns(uint256) { return balances[account]; }
 
     event Paied(address account, uint256 amount);
     event Claimed(address account, uint256 amount);
