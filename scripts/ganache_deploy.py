@@ -36,19 +36,19 @@ def main():
             {'from': deployer, 'gas': GAS_LIMIT}
             )
 
-    debt_contract = RockXDebts.deploy(
+    redeem_contract = RockXRedeem.deploy(
             {'from': deployer, 'gas': GAS_LIMIT}
             )
 
-    debt_proxy = TransparentUpgradeableProxy.deploy(
-            debt_contract, deployer, b'',
+    redeem_proxy = TransparentUpgradeableProxy.deploy(
+            redeem_contract, deployer, b'',
             {'from': deployer, 'gas': GAS_LIMIT}
             )
 
 
     transparent_xeth = Contract.from_abi("RockXETH", xETH_proxy.address, RockXETH.abi)
     transparent_staking = Contract.from_abi("RockXStaking",staking_proxy.address, RockXStaking.abi)
-    transparent_debt  = Contract.from_abi("RockXDebts", debt_proxy.address, RockXDebts.abi)
+    transparent_redeem  = Contract.from_abi("RockXRedeem", redeem_proxy.address, RockXRedeem.abi)
 
     transparent_xeth.initialize(
             {'from': owner, 'gas': GAS_LIMIT}
@@ -72,8 +72,8 @@ def main():
             {'from': owner, 'gas': GAS_LIMIT}
             ) 
 
-    transparent_staking.setDebtContract(
-            transparent_debt,
+    transparent_staking.setRedeemContract(
+            transparent_redeem,
             {'from': owner, 'gas': GAS_LIMIT}
             ) 
 

@@ -61,10 +61,10 @@ contract RockXStaking is Initializable, PausableUpgradeable, AccessControlUpgrad
     uint256 private constant SIGNATURE_LENGTH = 96;
     uint256 private constant PUBKEY_LENGTH = 48;
     
-    uint256 private DEPOSIT_SIZE; 			// deposit_size adjustable via func
+    uint256 private DEPOSIT_SIZE;           // deposit_size adjustable via func
     address public ethDepositContract;      // ETH 2.0 Deposit contract
     address public xETHAddress;             // xETH token address
-    address public debtContract;            // debt contract for user to pull ethers
+    address public redeemContract;          // redeeming contract for user to pull ethers
 
     uint256 public managerFeeShare;         // manager's fee in 1/1000
     bytes32 public withdrawalCredentials;   // WithdrawCredential for all validator
@@ -257,12 +257,12 @@ contract RockXStaking is Initializable, PausableUpgradeable, AccessControlUpgrad
     }
 
     /**
-     * @dev set debt contract
+     * @dev set redeem contract
      */
-    function setDebtContract(address _debtContract) external onlyRole(DEFAULT_ADMIN_ROLE) {
-        debtContract = _debtContract;
+    function setRedeemContract(address _redeemContract) external onlyRole(DEFAULT_ADMIN_ROLE) {
+        redeemContract = _redeemContract;
 
-        emit DebtContractSet(_debtContract);
+        emit RedeemContractSet(_redeemContract);
     }
 
 
@@ -666,7 +666,7 @@ contract RockXStaking is Initializable, PausableUpgradeable, AccessControlUpgrad
      * @dev pay debts for a given amount
      */
     function _payDebts(uint256 total) internal returns(uint256 amountPaied) {
-        require(address(debtContract) != address(0x0), "DEBT_CONTRACT_NOT_SET");
+        require(address(redeemContract) != address(0x0), "DEBT_CONTRACT_NOT_SET");
 
         // ethers to pay
         for (uint i=firstDebt;i<=lastDebt;i++) {
@@ -684,7 +684,7 @@ contract RockXStaking is Initializable, PausableUpgradeable, AccessControlUpgrad
             amountPaied += toPay;
 
             // transfer money to debt contract
-            IRockXDebts(debtContract).pay{value:toPay}(debt.account);
+            IRockXRedeem(redeemContract).pay{value:toPay}(debt.account);
 
             // dequeue if cleared 
             if (debt.amount == 0) {
@@ -790,5 +790,5 @@ contract RockXStaking is Initializable, PausableUpgradeable, AccessControlUpgrad
     event DebtQueued(address creditor, uint256 amountEther);
     event XETHContractSet(address addr);
     event DepositContractSet(address addr);
-    event DebtContractSet(address addr);
+    event RedeemContractSet(address addr);
 }
