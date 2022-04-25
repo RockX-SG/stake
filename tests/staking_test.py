@@ -36,12 +36,12 @@ def setup():
         {'from': deployer, 'gas': GAS_LIMIT}
     )
 
-    debt_contract = RockXDebts.deploy(
+    redeem_contract = RockXRedeem.deploy(
             {'from': deployer, 'gas': GAS_LIMIT}
             )
 
-    debt_proxy = TransparentUpgradeableProxy.deploy(
-            debt_contract, deployer, b'',
+    redeem_proxy = TransparentUpgradeableProxy.deploy(
+            redeem_contract, deployer, b'',
             {'from': deployer, 'gas': GAS_LIMIT}
             )
 
@@ -51,8 +51,8 @@ def setup():
     global transparent_staking
     transparent_staking = Contract.from_abi("RockXStaking",staking_proxy.address, RockXStaking.abi)
 
-    global transparent_debt
-    transparent_debt = Contract.from_abi("RockXDebts", debt_proxy.address, RockXDebts.abi)
+    global transparent_redeem
+    transparent_redeem = Contract.from_abi("RockXRedeem", redeem_proxy.address, RockXRedeem.abi)
 
     transparent_xeth.initialize(
         {'from': owner, 'gas': GAS_LIMIT}
@@ -81,8 +81,8 @@ def setup():
         {'from': owner, 'gas': GAS_LIMIT}
     )
 
-    transparent_staking.setDebtContract(
-        transparent_debt,
+    transparent_staking.setRedeemContract(
+        transparent_redeem,
         {'from': owner, 'gas': GAS_LIMIT}
     ) 
 
@@ -114,11 +114,11 @@ def test_redeem(setup):
 
     transparent_staking.mint(0, {'from':user2, 'value': "8 ether"})
     assert transparent_staking.debtOf(user1) == '24 ether'
-    assert transparent_debt.balanceOf(user1) == '8 ether'
+    assert transparent_redeem.balanceOf(user1) == '8 ether'
 
     lastBalance = user1.balance()
-    transparent_debt.claim('8 ether', {'from':user1})
-    assert transparent_debt.balanceOf(user1) == 0
+    transparent_redeem.claim('8 ether', {'from':user1})
+    assert transparent_redeem.balanceOf(user1) == 0
     assert user1.balance() - lastBalance == '8 ether'
 
 def test_beacon(setup):
