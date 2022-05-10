@@ -363,7 +363,9 @@ contract RockXStaking is Initializable, PausableUpgradeable, AccessControlUpgrad
      * @dev returns current reserve of ethers
      */
     function currentReserve() public view returns(uint256) {
-        return accDeposited - accWithdrawed + accountedUserRevenue - currentDebts;
+        // form: accDeposited - accWithdrawed + accountedUserRevenue - currentDebts;
+        // rearranged to avert underflow
+        return accDeposited + accountedUserRevenue - accWithdrawed - currentDebts;
     }
 
     /**
