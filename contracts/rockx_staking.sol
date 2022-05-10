@@ -301,13 +301,14 @@ contract RockXStaking is Initializable, PausableUpgradeable, AccessControlUpgrad
             rewardBase += newValidators * DEPOSIT_SIZE;
         }
 
-        // step 2. calc rewards
+        // step 2. calc rewards, this also considers stoppedBalance for stopped validators
+        //  current alive balance + those stopped validator balance >= reward base
         if (_aliveBalance + stoppedBalance > rewardBase) {
             uint256 rewards = _aliveBalance + stoppedBalance - rewardBase;
             _distributeRewards(rewards);
         }
 
-        // step 3. update accValidators & reportedValidatorBalance
+        // step 3. update reportedValidators & reportedValidatorBalance
         // take snapshot of current balances & validators
         // reset the stoppedBalance to 0
         reportedValidatorBalance = _aliveBalance; 
