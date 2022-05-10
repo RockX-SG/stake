@@ -155,7 +155,7 @@ contract RockXStaking is Initializable, PausableUpgradeable, AccessControlUpgrad
         _grantRole(MANAGER_ROLE, msg.sender);
 
         // init default values
-        managerFeeShare = 100;
+        managerFeeShare = 5;
         firstDebt = 1;
         lastDebt = 0;
         phase = 0;
