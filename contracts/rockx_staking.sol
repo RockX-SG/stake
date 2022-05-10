@@ -337,10 +337,10 @@ contract RockXStaking is Initializable, PausableUpgradeable, AccessControlUpgrad
         lastStopTimestamp = block.timestamp;
 
         // pay debt
-        uint256 paied = _payDebts(msg.value);
+        uint256 paid = _payDebts(msg.value);
 
         // the remaining ethers are aggregated to accDeposited
-        accDeposited += msg.value - paied;
+        accDeposited += msg.value - paid;
 
         // log
         emit ValidatorStopped(stoppedIDs);
@@ -508,7 +508,7 @@ contract RockXStaking is Initializable, PausableUpgradeable, AccessControlUpgrad
         // 
         uint256 amountXETH = IERC20(xETHAddress).totalSupply();
         uint256 currentEthers = currentReserve();
-        uint256 toMint = msg.value;  // default exchange ratio 1:1
+        uint256 toMint = 1 * msg.value;  // default exchange ratio 1:1
         require(toMint >= minToMint, "EXCEEDED_SLIPPAGE");
 
         if (currentEthers > 0) { // avert division overflow
@@ -517,9 +517,9 @@ contract RockXStaking is Initializable, PausableUpgradeable, AccessControlUpgrad
         // mint xETH
         IMintableContract(xETHAddress).mint(msg.sender, toMint);
 
-        // pay debts in priority
-        uint256 debtPaied = _payDebts(msg.value);
-        accDeposited += msg.value - debtPaied; 
+        // ethers to mint to pay debts in priority
+        uint256 debtPaid = _payDebts(msg.value);
+        accDeposited += msg.value - debtPaid; 
 
         // spin up n nodes
         uint256 numValidators = (accDeposited - accStaked) / DEPOSIT_SIZE;
@@ -650,7 +650,7 @@ contract RockXStaking is Initializable, PausableUpgradeable, AccessControlUpgrad
     /**
      * @dev pay debts for a given amount
      */
-    function _payDebts(uint256 total) internal returns(uint256 amountPaied) {
+    function _payDebts(uint256 total) internal returns(uint256 amountPaid) {
         require(address(redeemContract) != address(0x0), "DEBT_CONTRACT_NOT_SET");
 
         // ethers to pay
@@ -666,7 +666,7 @@ contract RockXStaking is Initializable, PausableUpgradeable, AccessControlUpgrad
             debt.amount -= toPay;
             total -= toPay;
             userDebts[debt.account] -= toPay;
-            amountPaied += toPay;
+            amountPaid += toPay;
 
             // transfer money to debt contract
             IRockXRedeem(redeemContract).pay{value:toPay}(debt.account);
@@ -677,8 +677,8 @@ contract RockXStaking is Initializable, PausableUpgradeable, AccessControlUpgrad
             }
         }
         
-        currentDebts -= amountPaied;
-        accWithdrawed += amountPaied;
+        currentDebts -= amountPaid;
+        accWithdrawed += amountPaid;
     }
 
     /**
