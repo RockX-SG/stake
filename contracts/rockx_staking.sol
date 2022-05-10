@@ -102,6 +102,7 @@ contract RockXStaking is Initializable, PausableUpgradeable, AccessControlUpgrad
     uint256 private reportedValidatorBalance;
 
     // track stopped validators
+    uint256 private stoppedBalance;         // track balance of stopped validator casued by validatorStopped
     uint256 private lastStopTimestamp;      // record timestamp of last stop
     bytes [] private stoppedValidators;     // track stopped validator pubkey
 
@@ -286,7 +287,8 @@ contract RockXStaking is Initializable, PausableUpgradeable, AccessControlUpgrad
      */
     function pushBeacon(uint256 _aliveValidators, uint256 _aliveBalance, uint256 ts) external onlyRole(ORACLE_ROLE) {
         require(_aliveValidators + stoppedValidators.length <= nextValidatorId, "REPORTED_MORE_DEPOSITED");
-        require(_aliveValidators >= reportedValidators, "REPORTED_INSUFFICIENT_VALIDATORS");
+        require(_aliveBalance + stoppedBalance >= reportedValidatorBalance, "INSUFFICIENT_BALANCE");
+        require(_aliveValidators >= reportedValidators, "INSUFFICIENT_VALIDATORS");
         require(_aliveBalance >= _aliveValidators * DEPOSIT_SIZE, "REPORTED_LESS_VALUE");
         require(ts > lastStopTimestamp, "REPORTED_EXPIRED_TIMESTAMP");
 
@@ -299,40 +301,41 @@ contract RockXStaking is Initializable, PausableUpgradeable, AccessControlUpgrad
             rewardBase += newValidators * DEPOSIT_SIZE;
         }
 
-        // step 2. update accValidators & reportedValidatorBalance
-        // take snapshot of current balances & validators,including stopped ones
-        reportedValidatorBalance = _aliveBalance; 
-        reportedValidators = _aliveValidators;
-
-        // step 3. calc rewards
-        // the actual increase in balance is the reward
-        if (reportedValidatorBalance > rewardBase) {
-            uint256 rewards = reportedValidatorBalance - rewardBase;
+        // step 2. calc rewards
+        if (_aliveBalance + stoppedBalance > rewardBase) {
+            uint256 rewards = _aliveBalance + stoppedBalance - rewardBase;
             _distributeRewards(rewards);
         }
+
+        // step 3. update accValidators & reportedValidatorBalance
+        // take snapshot of current balances & validators
+        // reset the stoppedBalance to 0
+        reportedValidatorBalance = _aliveBalance; 
+        reportedValidators = _aliveValidators;
+        stoppedBalance = 0;
     }
 
     /**
      * @dev operator stops validator and return ethers staked along with revenue;
      * the overall balance will be stored in this contract
      */
-    function validatorStopped(uint256 [] calldata stoppedIDs) external payable nonReentrant onlyRole(OPERATOR_ROLE) {
-        require(stoppedIDs.length > 0, "EMPTY_CALLDATA");
-        require(stoppedIDs.length + stoppedValidators.length <= nextValidatorId, "REPORTED_MORE_STOPPED_VALIDATORS");
-        require(msg.value >= stoppedIDs.length * DEPOSIT_SIZE, "RETURNED_LESS_ETHERS"); 
+    function validatorStopped(uint256 [] calldata _stoppedIDs) external payable nonReentrant onlyRole(OPERATOR_ROLE) {
+        require(_stoppedIDs.length > 0, "EMPTY_CALLDATA");
+        require(_stoppedIDs.length + stoppedValidators.length <= nextValidatorId, "REPORTED_MORE_STOPPED_VALIDATORS");
+        require(msg.value >= _stoppedIDs.length * DEPOSIT_SIZE, "RETURNED_LESS_ETHERS"); 
 
         // record stopped validators snapshot.
-        for (uint i=0;i<stoppedIDs.length;i++) {
-            require(stoppedIDs[i] < nextValidatorId, "ID_OUT_OF_RANGE");
-            require(!validatorRegistry[stoppedIDs[i]].stopped, "ID_ALREADY_STOPPED");
+        for (uint i=0;i<_stoppedIDs.length;i++) {
+            require(_stoppedIDs[i] < nextValidatorId, "ID_OUT_OF_RANGE");
+            require(!validatorRegistry[_stoppedIDs[i]].stopped, "ID_ALREADY_STOPPED");
 
-            validatorRegistry[stoppedIDs[i]].stopped = true;
-            stoppedValidators.push(validatorRegistry[stoppedIDs[i]].pubkey);
+            validatorRegistry[_stoppedIDs[i]].stopped = true;
+            stoppedValidators.push(validatorRegistry[_stoppedIDs[i]].pubkey);
         }
 
         // rebase reward snapshot
-        reportedValidatorBalance -= msg.value;
-        reportedValidators -= stoppedIDs.length;
+        stoppedBalance += msg.value;
+        reportedValidators -= _stoppedIDs.length;
         
         // record timestamp to avoid expired pushBeacon transaction
         lastStopTimestamp = block.timestamp;
@@ -344,7 +347,7 @@ contract RockXStaking is Initializable, PausableUpgradeable, AccessControlUpgrad
         accDeposited += msg.value - paid;
 
         // log
-        emit ValidatorStopped(stoppedIDs);
+        emit ValidatorStopped(_stoppedIDs);
     }
 
     /**
