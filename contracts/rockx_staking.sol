@@ -103,7 +103,6 @@ contract RockXStaking is Initializable, PausableUpgradeable, AccessControlUpgrad
     uint256 private accValidatorBalance;
 
     // track stopped validators
-    uint256 private accStoppedBalance;      // track accumulated balance of stopped validators
     uint256 private lastStopTimestamp;      // record timestamp of last stop
     bytes [] private stoppedValidators;     // track stopped validator pubkey
 
@@ -292,9 +291,8 @@ contract RockXStaking is Initializable, PausableUpgradeable, AccessControlUpgrad
      */
     function pushBeacon(uint256 _aliveValidators, uint256 _aliveBalance, uint256 ts) external onlyRole(ORACLE_ROLE) {
         require(_aliveValidators + stoppedValidators.length <= nextValidatorId, "REPORTED_MORE_DEPOSITED");
-        require(_aliveValidators + stoppedValidators.length >= accValidators, "REPORTED_DECREASING_VALIDATORS");
+        require(_aliveValidators + stoppedValidators.length >= accValidators, "REPORTED_INSUFFICIENT_VALIDATORS");
         require(_aliveBalance >= _aliveValidators * DEPOSIT_SIZE, "REPORTED_LESS_VALUE");
-        //require(block.timestamp >= ts, "REPORTED_CLOCK_DRIFT");
         require(ts > lastStopTimestamp, "REPORTED_EXPIRED_TIMESTAMP");
 
         // step 1. check if new validator launched
@@ -308,7 +306,7 @@ contract RockXStaking is Initializable, PausableUpgradeable, AccessControlUpgrad
 
         // step 2. update accValidators
         // take snapshot of current balances & validators,including stopped ones
-        accValidatorBalance = _aliveBalance + accStoppedBalance; 
+        accValidatorBalance = _aliveBalance; 
         accValidators = _aliveValidators + stoppedValidators.length;
 
         // step 3. calc rewards
@@ -336,7 +334,9 @@ contract RockXStaking is Initializable, PausableUpgradeable, AccessControlUpgrad
             validatorRegistry[stoppedIDs[i]].stopped = true;
             stoppedValidators.push(validatorRegistry[stoppedIDs[i]].pubkey);
         }
-        accStoppedBalance += msg.value;
+
+        // rebase reward snapshot
+        accValidatorBalance -= msg.value;
         
         // record timestamp to avoid expired pushBeacon transaction
         lastStopTimestamp = block.timestamp;
@@ -410,11 +410,6 @@ contract RockXStaking is Initializable, PausableUpgradeable, AccessControlUpgrad
      * @dev returns accumulated balance snapshot
      */
     function getAccumulatedValidatorBalance() external view returns (uint256) { return accValidatorBalance; }
-
-    /*
-     * @dev returns accumulated balance of stopped validators
-     */
-    function getAccumulatedStoppedBalance() external view returns (uint256) { return accStoppedBalance; }
 
     /**
      * @dev return debt for an account
