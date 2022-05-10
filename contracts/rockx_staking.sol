@@ -80,9 +80,8 @@ contract RockXStaking is Initializable, PausableUpgradeable, AccessControlUpgrad
     // track user deposits & redeem (xETH mint & burn)
     // based on the variables following, the total ether balance is equal to 
     // currentEthers := accDeposited - accWithdrawed + accountedUserRevenue - currentDebts [1]
-    uint256 private accDeposited;           // track accumulated deposited ethers from users
-    uint256 private accWithdrawed;          // track accumulated withdrawed ethers from users
-    uint256 private accStaked;              // track accumulated staked ethers for validators, rounded to 32 ethers
+    uint256 private totalPending;           // track pending ethers awaiting to be staked to validators
+    uint256 private totalStaked;            // track current staked ethers for validators, rounded to 32 ethers
 
     uint256 private currentDebts;           // track current unpaid debts
 
@@ -344,8 +343,11 @@ contract RockXStaking is Initializable, PausableUpgradeable, AccessControlUpgrad
         // pay debt
         uint256 paid = _payDebts(msg.value);
 
-        // the remaining ethers are aggregated to accDeposited
-        accDeposited += msg.value - paid;
+        // the remaining ethers are aggregated to totalPending
+        totalPending += msg.value - paid;
+
+        // track total staked ethers
+        totalStaked -= _stoppedIDs.length * DEPOSIT_SIZE;
 
         // log
         emit ValidatorStopped(_stoppedIDs);
@@ -363,25 +365,14 @@ contract RockXStaking is Initializable, PausableUpgradeable, AccessControlUpgrad
      * @dev returns current reserve of ethers
      */
     function currentReserve() public view returns(uint256) {
-        // form: accDeposited - accWithdrawed + accountedUserRevenue - currentDebts;
+        // form: totalPending + totalStaked + accountedUserRevenue - currentDebts;
         // rearranged to avert underflow
-        return accDeposited + accountedUserRevenue - accWithdrawed - currentDebts;
+        return totalPending + totalStaked + accountedUserRevenue - currentDebts;
     }
-
     /**
-     * @dev return accumulated deposited ethers
+     * @dev return pending ethers
      */
-    function getAccumulatedDeposited() external view returns (uint256) { return  accDeposited; }
-
-    /**
-     * @dev return accumulated withdrawed ethers
-     */
-    function getAccumulatedWithdrawed() external view returns (uint256) { return  accWithdrawed; }
-
-    /**
-     * @dev return accumulated staked ethers
-     */
-    function getAccumulatedStaked() external view returns (uint256) { return  accStaked; }
+    function getPendingEthers() external view returns (uint256) { return totalPending; }
 
     /**
      * @dev return current debts
@@ -526,10 +517,10 @@ contract RockXStaking is Initializable, PausableUpgradeable, AccessControlUpgrad
 
         // ethers to mint to pay debts in priority
         uint256 debtPaid = _payDebts(msg.value);
-        accDeposited += msg.value - debtPaid; 
+        totalPending += msg.value - debtPaid; 
 
         // spin up n nodes
-        uint256 numValidators = (accDeposited - accStaked) / DEPOSIT_SIZE;
+        uint256 numValidators = totalPending / DEPOSIT_SIZE;
         for (uint256 i = 0;i<numValidators;i++) {
             _spinup();
         }
@@ -556,8 +547,8 @@ contract RockXStaking is Initializable, PausableUpgradeable, AccessControlUpgrad
         IMintableContract(xETHAddress).burn(xETHToBurn);
 
         // pay debts from swap pool at first
-        uint256 paid = _payDebts(accDeposited - accStaked);
-        accDeposited -= paid;
+        uint256 paid = _payDebts(totalPending);
+        totalPending -= paid;
 
         // check if there is debt remaining
         uint256 debt = ethersToRedeem - paid;
@@ -584,7 +575,7 @@ contract RockXStaking is Initializable, PausableUpgradeable, AccessControlUpgrad
      * redeem keeps the ratio invariant
      */
     function redeemUnderlying(uint256 ethersToRedeem, uint256 maxToBurn) external nonReentrant {
-        require(accDeposited - accStaked >= ethersToRedeem, "INSUFFICIENT_ETHERS");
+        require(totalPending >= ethersToRedeem, "INSUFFICIENT_ETHERS");
 
         uint256 totalXETH = IERC20(xETHAddress).totalSupply();
         uint256 xETHToBurn = totalXETH * ethersToRedeem / currentReserve();
@@ -596,10 +587,7 @@ contract RockXStaking is Initializable, PausableUpgradeable, AccessControlUpgrad
 
         // send ethers back to sender
         payable(msg.sender).sendValue(ethersToRedeem);
-        accDeposited -= ethersToRedeem;
-
-        // record withdrawed ethers
-        accWithdrawed += ethersToRedeem;
+        totalPending -= ethersToRedeem;
 
         // emit amount withdrawed
         emit Redeemed(xETHToBurn, ethersToRedeem);
@@ -617,7 +605,7 @@ contract RockXStaking is Initializable, PausableUpgradeable, AccessControlUpgrad
     function redeem(uint256 xETHToBurn, uint256 minToRedeem) external nonReentrant {
         uint256 totalXETH = IERC20(xETHAddress).totalSupply();
         uint256 ethersToRedeem = currentReserve() * xETHToBurn / totalXETH;
-        require(accDeposited - accStaked >= ethersToRedeem, "INSUFFICIENT_ETHERS");
+        require(totalPending >= ethersToRedeem, "INSUFFICIENT_ETHERS");
         require(ethersToRedeem >= minToRedeem, "EXCEEDED_SLIPPAGE");
 
         // transfer xETH from sender & burn
@@ -626,11 +614,7 @@ contract RockXStaking is Initializable, PausableUpgradeable, AccessControlUpgrad
 
         // send ethers back to sender
         payable(msg.sender).sendValue(ethersToRedeem);
-        accDeposited -= ethersToRedeem;
-
-        // record withdrawed ethers
-        accWithdrawed += ethersToRedeem;
-
+        totalPending -= ethersToRedeem;
         // emit amount withdrawed
         emit Redeemed(xETHToBurn, ethersToRedeem);
     }
@@ -685,7 +669,6 @@ contract RockXStaking is Initializable, PausableUpgradeable, AccessControlUpgrad
         }
         
         currentDebts -= amountPaid;
-        accWithdrawed += amountPaid;
     }
 
     /**
@@ -712,9 +695,11 @@ contract RockXStaking is Initializable, PausableUpgradeable, AccessControlUpgrad
          // load credential
         ValidatorCredential memory cred = validatorRegistry[nextValidatorId];
         _stake(cred.pubkey, cred.signature);
-
-        accStaked += DEPOSIT_SIZE;
         nextValidatorId++;        
+
+        // track total staked & total pending ethers
+        totalStaked += DEPOSIT_SIZE;
+        totalPending -= DEPOSIT_SIZE;
     }
 
     /**
