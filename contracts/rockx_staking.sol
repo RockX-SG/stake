@@ -98,7 +98,7 @@ contract RockXStaking is Initializable, PausableUpgradeable, AccessControlUpgrad
 
     // revenue related variables
     // track beacon validator & balance
-    uint256 private accValidators;
+    uint256 private reportedValidators;
     uint256 private reportedValidatorBalance;
 
     // track stopped validators
@@ -286,23 +286,23 @@ contract RockXStaking is Initializable, PausableUpgradeable, AccessControlUpgrad
      */
     function pushBeacon(uint256 _aliveValidators, uint256 _aliveBalance, uint256 ts) external onlyRole(ORACLE_ROLE) {
         require(_aliveValidators + stoppedValidators.length <= nextValidatorId, "REPORTED_MORE_DEPOSITED");
-        require(_aliveValidators + stoppedValidators.length >= accValidators, "REPORTED_INSUFFICIENT_VALIDATORS");
+        require(_aliveValidators >= reportedValidators, "REPORTED_INSUFFICIENT_VALIDATORS");
         require(_aliveBalance >= _aliveValidators * DEPOSIT_SIZE, "REPORTED_LESS_VALUE");
         require(ts > lastStopTimestamp, "REPORTED_EXPIRED_TIMESTAMP");
 
         // step 1. check if new validator launched
         // and adjust rewardBase to include the new validators value
         uint256 rewardBase = reportedValidatorBalance;
-        if (_aliveValidators + stoppedValidators.length > accValidators) {         
+        if (_aliveValidators > reportedValidators) {         
             // newly appeared validators
-            uint256 newValidators = _aliveValidators + stoppedValidators.length - accValidators;
+            uint256 newValidators = _aliveValidators - reportedValidators;
             rewardBase += newValidators * DEPOSIT_SIZE;
         }
 
         // step 2. update accValidators & reportedValidatorBalance
         // take snapshot of current balances & validators,including stopped ones
         reportedValidatorBalance = _aliveBalance; 
-        accValidators = _aliveValidators + stoppedValidators.length;
+        reportedValidators = _aliveValidators;
 
         // step 3. calc rewards
         // the actual increase in balance is the reward
@@ -332,6 +332,7 @@ contract RockXStaking is Initializable, PausableUpgradeable, AccessControlUpgrad
 
         // rebase reward snapshot
         reportedValidatorBalance -= msg.value;
+        reportedValidators -= stoppedIDs.length;
         
         // record timestamp to avoid expired pushBeacon transaction
         lastStopTimestamp = block.timestamp;
@@ -394,7 +395,7 @@ contract RockXStaking is Initializable, PausableUpgradeable, AccessControlUpgrad
     /*
      * @dev returns accumulated beacon validators
      */
-    function getAccumulatedValidators() external view returns (uint256) { return accValidators; }
+    function getReportedValidators() external view returns (uint256) { return reportedValidators; }
 
     /*
      * @dev returns reported validator balance snapshot
