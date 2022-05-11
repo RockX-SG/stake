@@ -545,23 +545,18 @@ contract RockXStaking is Initializable, PausableUpgradeable, AccessControlUpgrad
         IERC20(xETHAddress).safeTransferFrom(msg.sender, address(this), xETHToBurn);
         IMintableContract(xETHAddress).burn(xETHToBurn);
 
-        // pay debts from swap pool at first
-        uint256 paid = _payDebts(totalPending);
-        totalPending -= paid;
+        // track ether debts
+        _enqueueDebt(msg.sender, ethersToRedeem);
+        userDebts[msg.sender] += ethersToRedeem;
 
-        // check if there is debt remaining
-        uint256 debt = ethersToRedeem - paid;
-        if (debt > 0) {
-            // track ether debts
-            _enqueueDebt(msg.sender, debt);
-            userDebts[msg.sender] += debt;
+        // total debts increased
+        totalDebts += ethersToRedeem;
 
-            // total debts increased
-            totalDebts += debt;
+        // log
+        emit DebtQueued(msg.sender, ethersToRedeem);
 
-            // log
-            emit DebtQueued(msg.sender, debt);
-        }
+        // try to pay debts from swap pool
+        totalPending -= _payDebts(totalPending);
     }
 
     /**
