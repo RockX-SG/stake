@@ -122,7 +122,7 @@ def test_redeem(setup):
     assert user1.balance() - lastBalance == '8 ether'
 
 def test_beacon(setup):
-    expectedExchangeRatio = 1009000000000000000
+    expectedExchangeRatio = 1009950000000000000 
     # some ethers to redeem
     user1 = accounts[2]
 
