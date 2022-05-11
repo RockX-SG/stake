@@ -274,10 +274,11 @@ contract RockXStaking is Initializable, PausableUpgradeable, AccessControlUpgrad
     /**
      * @dev manager withdraw fees
      */
-    function withdrawManagerFee(address to) external nonReentrant onlyRole(MANAGER_ROLE)  {
-        payable(to).sendValue(accountedManagerRevenue);
-        emit ManagerFeeWithdrawed(accountedManagerRevenue, to);
-        accountedManagerRevenue = 0;
+    function withdrawManagerFee(uint256 amount, address to) external nonReentrant onlyRole(MANAGER_ROLE)  {
+        require(amount <= accountedManagerRevenue, "INSUFFICIENT_REVENUE");
+        payable(to).sendValue(amount);
+        accountedManagerRevenue -= amount;
+        emit ManagerFeeWithdrawed(amount, to);
     }
 
     /**
