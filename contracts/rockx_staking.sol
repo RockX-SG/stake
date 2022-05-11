@@ -82,8 +82,7 @@ contract RockXStaking is Initializable, PausableUpgradeable, AccessControlUpgrad
     // currentEthers := accDeposited - accWithdrawed + accountedUserRevenue - currentDebts [1]
     uint256 private totalPending;           // track pending ethers awaiting to be staked to validators
     uint256 private totalStaked;            // track current staked ethers for validators, rounded to 32 ethers
-
-    uint256 private currentDebts;           // track current unpaid debts
+    uint256 private totalDebts;             // track current unpaid debts
 
     // FIFO of debts from redeemFromValidators
     mapping(uint256=>Debt) private etherDebts;
@@ -365,10 +364,9 @@ contract RockXStaking is Initializable, PausableUpgradeable, AccessControlUpgrad
      * @dev returns current reserve of ethers
      */
     function currentReserve() public view returns(uint256) {
-        // form: totalPending + totalStaked + accountedUserRevenue - currentDebts;
-        // rearranged to avert underflow
-        return totalPending + totalStaked + accountedUserRevenue - currentDebts;
+        return totalPending + totalStaked + accountedUserRevenue - totalDebts;
     }
+
     /**
      * @dev return pending ethers
      */
@@ -377,7 +375,7 @@ contract RockXStaking is Initializable, PausableUpgradeable, AccessControlUpgrad
     /**
      * @dev return current debts
      */
-    function getCurrentDebts() external view returns (uint256) { return currentDebts; }
+    function getCurrentDebts() external view returns (uint256) { return totalDebts; }
 
     /**
      * @dev returns the accounted user revenue
@@ -558,7 +556,7 @@ contract RockXStaking is Initializable, PausableUpgradeable, AccessControlUpgrad
             userDebts[msg.sender] += debt;
 
             // total debts increased
-            currentDebts += debt;
+            totalDebts += debt;
 
             // log
             emit DebtQueued(msg.sender, debt);
@@ -668,7 +666,7 @@ contract RockXStaking is Initializable, PausableUpgradeable, AccessControlUpgrad
             }
         }
         
-        currentDebts -= amountPaid;
+        totalDebts -= amountPaid;
     }
 
     /**
