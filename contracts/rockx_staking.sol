@@ -107,8 +107,8 @@ contract RockXStaking is Initializable, PausableUpgradeable, AccessControlUpgrad
     // phase switch from 0 to 1
     uint256 private phase;
 
-    // tiny amount swap switch
-    bool tinySwapEnabled;
+    // instant swap switch
+    bool private instantSwapEnabled;
 
     /** 
      * ======================================================================================
@@ -129,8 +129,8 @@ contract RockXStaking is Initializable, PausableUpgradeable, AccessControlUpgrad
     /**
      * @dev only tiny swap enabled
      */
-    modifier onlyTinySwapEnabled() {
-        require(tinySwapEnabled, "tiny swap not enabled");
+    modifier onlyInstantSwapEnabled() {
+        require(instantSwapEnabled, "tiny swap not enabled");
         _;
     }
 
@@ -187,10 +187,10 @@ contract RockXStaking is Initializable, PausableUpgradeable, AccessControlUpgrad
     }
 
     /**
-     * @dev phase switch
+     * @dev instant swap switch
      */
-    function switchTinySwap(bool enable) external onlyRole(DEFAULT_ADMIN_ROLE) {
-        tinySwapEnabled = enable;
+    function switchInstantSwap(bool enable) external onlyRole(DEFAULT_ADMIN_ROLE) {
+        instantSwapEnabled = enable;
     }
 
     /**
@@ -578,7 +578,7 @@ contract RockXStaking is Initializable, PausableUpgradeable, AccessControlUpgrad
      *
      * redeem keeps the ratio invariant
      */
-    function redeemUnderlying(uint256 ethersToRedeem, uint256 maxToBurn) external nonReentrant onlyTinySwapEnabled {
+    function redeemUnderlying(uint256 ethersToRedeem, uint256 maxToBurn) external nonReentrant onlyInstantSwapEnabled {
         require(totalPending >= ethersToRedeem, "INSUFFICIENT_ETHERS");
 
         uint256 totalXETH = IERC20(xETHAddress).totalSupply();
@@ -606,7 +606,7 @@ contract RockXStaking is Initializable, PausableUpgradeable, AccessControlUpgrad
      *
      * redeem keeps the ratio invariant
      */
-    function redeem(uint256 xETHToBurn, uint256 minToRedeem) external nonReentrant onlyTinySwapEnabled {
+    function redeem(uint256 xETHToBurn, uint256 minToRedeem) external nonReentrant onlyInstantSwapEnabled {
         uint256 totalXETH = IERC20(xETHAddress).totalSupply();
         uint256 ethersToRedeem = currentReserve() * xETHToBurn / totalXETH;
         require(totalPending >= ethersToRedeem, "INSUFFICIENT_ETHERS");
