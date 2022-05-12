@@ -130,7 +130,7 @@ contract RockXStaking is Initializable, PausableUpgradeable, AccessControlUpgrad
      * @dev only tiny swap enabled
      */
     modifier onlyInstantSwapEnabled() {
-        require(instantSwapEnabled, "tiny swap not enabled");
+        require(instantSwapEnabled, "INSTANT_SWAP_DISABLED");
         _;
     }
 
