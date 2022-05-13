@@ -523,7 +523,7 @@ contract RockXStaking is Initializable, PausableUpgradeable, AccessControlUpgrad
         uint256 amountXETH = IERC20(xETHAddress).totalSupply();
         uint256 currentEthers = currentReserve();
         uint256 toMint = 1 * msg.value;  // default exchange ratio 1:1
-        require(toMint >= minToMint, "EXCEEDED_SLIPPAGE");
+        require(toMint >= minToMint, "EXCHANGE_RATIO_MISMATCH");
 
         if (currentEthers > 0) { // avert division overflow
             toMint = amountXETH * msg.value / currentEthers;
@@ -556,7 +556,7 @@ contract RockXStaking is Initializable, PausableUpgradeable, AccessControlUpgrad
 
         uint256 totalXETH = IERC20(xETHAddress).totalSupply();
         uint256 xETHToBurn = totalXETH * ethersToRedeem / currentReserve();
-        require(xETHToBurn <= maxToBurn, "EXCEEDED_SLIPPAGE");
+        require(xETHToBurn <= maxToBurn, "EXCHANGE_RATIO_MISMATCH");
         
         // transfer xETH from sender & burn
         IERC20(xETHAddress).safeTransferFrom(msg.sender, address(this), xETHToBurn);
@@ -583,7 +583,7 @@ contract RockXStaking is Initializable, PausableUpgradeable, AccessControlUpgrad
 
         uint256 totalXETH = IERC20(xETHAddress).totalSupply();
         uint256 xETHToBurn = totalXETH * ethersToRedeem / currentReserve();
-        require(xETHToBurn <= maxToBurn, "EXCEEDED_SLIPPAGE");
+        require(xETHToBurn <= maxToBurn, "EXCHANGE_RATIO_MISMATCH");
 
         // transfer xETH from sender & burn
         IERC20(xETHAddress).safeTransferFrom(msg.sender, address(this), xETHToBurn);
@@ -610,7 +610,7 @@ contract RockXStaking is Initializable, PausableUpgradeable, AccessControlUpgrad
         uint256 totalXETH = IERC20(xETHAddress).totalSupply();
         uint256 ethersToRedeem = currentReserve() * xETHToBurn / totalXETH;
         require(totalPending >= ethersToRedeem, "INSUFFICIENT_ETHERS");
-        require(ethersToRedeem >= minToRedeem, "EXCEEDED_SLIPPAGE");
+        require(ethersToRedeem >= minToRedeem, "EXCHANGE_RATIO_MISMATCH");
 
         // transfer xETH from sender & burn
         IERC20(xETHAddress).safeTransferFrom(msg.sender, address(this), xETHToBurn);
