@@ -508,7 +508,8 @@ contract RockXStaking is Initializable, PausableUpgradeable, AccessControlUpgrad
     /**
      * @dev mint xETH with ETH
      */
-    function mint(uint256 minToMint) external payable nonReentrant whenNotPaused {
+    function mint(uint256 minToMint, uint256 deadline) external payable nonReentrant whenNotPaused {
+        require(block.timestamp < deadline, "TRANSACTION_EXPIRED");
         require(msg.value > 0, "MINT_ZERO");
 
         // mint xETH while keep the exchange ratio invariant
@@ -551,7 +552,8 @@ contract RockXStaking is Initializable, PausableUpgradeable, AccessControlUpgrad
      * 
      * redeem keeps the ratio invariant
      */
-    function redeemFromValidators(uint256 ethersToRedeem, uint256 maxToBurn) external nonReentrant onlyPhase(1) {
+    function redeemFromValidators(uint256 ethersToRedeem, uint256 maxToBurn, uint256 deadline) external nonReentrant onlyPhase(1) {
+        require(block.timestamp < deadline, "TRANSACTION_EXPIRED");
         require(ethersToRedeem % DEPOSIT_SIZE == 0, "REDEEM_NOT_IN_32ETHERS");
 
         uint256 totalXETH = IERC20(xETHAddress).totalSupply();
@@ -578,7 +580,8 @@ contract RockXStaking is Initializable, PausableUpgradeable, AccessControlUpgrad
      *
      * redeem keeps the ratio invariant
      */
-    function redeemUnderlying(uint256 ethersToRedeem, uint256 maxToBurn) external nonReentrant onlyInstantSwapEnabled {
+    function redeemUnderlying(uint256 ethersToRedeem, uint256 maxToBurn, uint256 deadline) external nonReentrant onlyInstantSwapEnabled {
+        require(block.timestamp < deadline, "TRANSACTION_EXPIRED");
         require(totalPending >= ethersToRedeem, "INSUFFICIENT_ETHERS");
 
         uint256 totalXETH = IERC20(xETHAddress).totalSupply();
@@ -606,7 +609,8 @@ contract RockXStaking is Initializable, PausableUpgradeable, AccessControlUpgrad
      *
      * redeem keeps the ratio invariant
      */
-    function redeem(uint256 xETHToBurn, uint256 minToRedeem) external nonReentrant onlyInstantSwapEnabled {
+    function redeem(uint256 xETHToBurn, uint256 minToRedeem, uint256 deadline) external nonReentrant onlyInstantSwapEnabled {
+        require(block.timestamp < deadline, "TRANSACTION_EXPIRED");
         uint256 totalXETH = IERC20(xETHAddress).totalSupply();
         uint256 ethersToRedeem = currentReserve() * xETHToBurn / totalXETH;
         require(totalPending >= ethersToRedeem, "INSUFFICIENT_ETHERS");

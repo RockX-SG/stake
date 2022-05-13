@@ -97,22 +97,22 @@ def setup():
 def test_mint(setup):
     user1 = accounts[2]
     transparent_xeth.approve(transparent_staking, '100 ether', {'from': user1})
-    transparent_staking.mint(0, {'from':user1, 'value': "1 ether"})
+    transparent_staking.mint(0, time.time() + 600, {'from':user1, 'value': "1 ether"})
     assert transparent_staking.exchangeRatio() == 1e18
 
 def test_redeem(setup):
     user1 = accounts[2]
     user2 = accounts[3]
-    transparent_staking.mint(0, {'from':user1, 'value': "32 ether"})
+    transparent_staking.mint(0, time.time() + 600, {'from':user1, 'value': "32 ether"})
     assert transparent_xeth.balanceOf(user1) == '32 ether'
     
     transparent_xeth.approve(transparent_staking, '100 ether', {'from': user1})
-    transparent_staking.redeemFromValidators("32 ether", "32 ether", {'from': user1})
+    transparent_staking.redeemFromValidators("32 ether", "32 ether", time.time() + 600, {'from': user1})
     assert transparent_staking.debtOf(user1) == '32 ether'
     assert transparent_staking.exchangeRatio() == 1e18
     assert transparent_xeth.balanceOf(user1) == 0
 
-    transparent_staking.mint(0, {'from':user2, 'value': "8 ether"})
+    transparent_staking.mint(0, time.time() + 600, {'from':user2, 'value': "8 ether"})
     assert transparent_staking.debtOf(user1) == '24 ether'
     assert transparent_redeem.balanceOf(user1) == '8 ether'
 
@@ -127,7 +127,7 @@ def test_beacon(setup):
     user1 = accounts[2]
 
     oracle = accounts[3]
-    transparent_staking.mint(0, {'from':oracle, 'value': "32 ether"})
+    transparent_staking.mint(0, time.time() + 600, {'from':oracle, 'value': "32 ether"})
     assert transparent_xeth.balanceOf(oracle) == '32 ether'
 
     transparent_staking.grantRole(transparent_staking.ORACLE_ROLE(), oracle, {'from': accounts[0]})
