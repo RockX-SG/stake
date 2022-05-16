@@ -38,13 +38,14 @@ import "@openzeppelin/contracts-upgradeable/security/ReentrancyGuardUpgradeable.
  *          ExchangeRatio = TotalXETH / CurrentReserve
  *
  * Rule 1: For every mint operation, the ethers pays debt in priority, the reset will be put in TotalPending
- * Rule 2: At any time TotalPending has more than 32 Ethers, It will be staked, TotalPending
- *          moves to TotalStaked and keeps TotalPending less than 32 Ether
+  
+ * Rule 2: (function mint) At any time TotalPending has more than 32 Ethers, It will be staked, TotalPending
+ *          moves to TotalStaked and keeps TotalPending less than 32 Ether.
  *
  *          TotalPending = TotalPending - [TotalPending/32ETH] * 32ETH
  *          TotalStaked = TotalStaked + [TotalPending/32ETH] * 32ETH
  *
- * Rule 3: Whenever a validator stopped, all value pays debts in priority, and:(validatorStopped)
+ * Rule 3: (function validatorStopped) Whenever a validator stopped, all value pays debts in priority, then:
  *  
  *          valueStopped:               The value returned from current validator stop call
  *          validatorStopped:           The count of validator stopped
@@ -56,13 +57,15 @@ import "@openzeppelin/contracts-upgradeable/security/ReentrancyGuardUpgradeable.
  *          StoppedBalance = StoppedBalance + validatorStopped
  *          ReportedValidators = ReportedValidators - validatorStopped
  *
- * Rule 4.1: Oracle push balance, rebase if new validator is alive(pushBeacon)
+ * Rule 4.1: (function pushBeacon) Oracle push balance, rebase if new validator is alive:
+ *
  *          aliveValidator:             The count of validators alive
  *          
  *          IF aliveValidator > ReportedValidators THEN
  *              RewardBase = RewardBase + (aliveValidator - ReportedValidators) * 32 ETH
  *
- * Rule 4.2: Oracle push balance, revenue calculation(pushBeacon)
+ * Rule 4.2: (function pushBeacon) Oracle push balance, revenue calculation:
+ *
  *          aliveBalance:               The balance of current alive validators
  *
  *          revenue := aliveBalance + StoppedBalance - RewardBase
