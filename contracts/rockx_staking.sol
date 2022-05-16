@@ -10,6 +10,63 @@ import "@openzeppelin/contracts-upgradeable/security/PausableUpgradeable.sol";
 import "@openzeppelin/contracts-upgradeable/security/ReentrancyGuardUpgradeable.sol";
 
 
+/**
+ * @title RockX Ethereum 2.0 Staking Contract
+ *
+ * Formula in this contract:
+ * 
+ * Term:
+ *  ExchangeRatio:              Exchange Ratio of xETH to ETH, normally > 1.0
+ *  TotalXETH:                  Total Circulation Supply of xETH
+ *  TotalStaked:                Total User Ethers Staked to Validators
+ *  TotalDebts:                 Total unpaid debts(generated from redeemFromValidators), 
+                                awaiting to be paid by turn off validators to clean debts.
+ *  TotalPending:               Pending Ethers(<32 Ethers), awaiting to be staked
+ *
+ *  AccountedUserRevenue:       Overall Revenue which belongs to all xETH holders
+ *  ReportedValidators:         Latest Reported Validator Count
+ *  ReportedValidatorBalance:   Latest Reported Validator Overall Balance
+ *  StoppedBalance:             The overall balance at the time of validator stops
+ *  CurrentReserve:             Assets Under Management
+ *
+ * Lemma 1: (AUM)
+ *
+ *          CurrentReserve := TotalPending + TotalStaked + AccountedUserRevenue - TotalDebts
+ *
+ * Lemma 2: (Exchange Ratio)
+ *
+ *          ExchangeRatio := TotalXETH / CurrentReserve
+ *
+ * Rule 1: For every mint operation, the ethers pays debt in priority, the reset will be put in TotalPending
+ * Rule 2: At any time TotalPending has more than 32 Ethers, It will be staked, TotalPending
+ *          moves to TotalStaked and keeps TotalPending less than 32 Ether
+ *
+ *          TotalPending = TotalPending - (ethers to stake)
+ *          TotalStaked = TotalStaked + (ethers to stake)
+ *
+ * Rule 3: Whenever a validator stopped, all value pays debts in priority, and:(validatorStopped)
+ *  
+ *          valueStopped:               The value returned from current validator stop call
+ *          validatorStopped:           The count of validator stopped
+ *          
+ *          TotalPending = TotalPending + (valueStopped - TotalDebts)
+ *          TotalStaked = TotalStaked - validatorStopped * 32 ETH
+ *          StoppedBalance = StoppedBalance + validatorStopped
+ *          ReportedValidators = ReportedValidators - validatorStopped
+ *
+ * Rule 4: Rebase if new validator is alive(pushBeacon)
+ *          aliveValidator:             The count of validators alive
+ *          
+ *          IF (aliveValidator > ReportedValidators) THEN
+ *          RewardBase = RewardBase + (aliveValidator - ReportedValidators) * 32 ETH
+ *
+ * Rule 5: Oracle push balance of alive validators(pushBeacon)
+ *          aliveBalance:               The balance of current alive validators
+ *
+ *          revenue := aliveBalance + StoppedBalance - ReportedValidatorBalance
+ *          AccountedUserRevenue = AccountedUserRevenue + revenue * (1000 - managerFeeShare) / 1000
+ *
+ */
 contract RockXStaking is Initializable, PausableUpgradeable, AccessControlUpgradeable, ReentrancyGuardUpgradeable {
     using SafeERC20 for IERC20;
     using Address for address payable;
@@ -460,7 +517,7 @@ contract RockXStaking is Initializable, PausableUpgradeable, AccessControlUpgrad
             return 1 * MULTIPLIER;
         }
 
-        uint256 ratio = currentReserve() * MULTIPLIER / xETHAmount;
+        uint256 ratio = xETHAmount * MULTIPLIER / currentReserve();
         return ratio;
     }
 
