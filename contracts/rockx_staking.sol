@@ -57,7 +57,7 @@ import "@openzeppelin/contracts-upgradeable/security/ReentrancyGuardUpgradeable.
  *          TotalPending = TotalPending + Max(0, valueStopped - TotalDebts)
  * 
  *          TotalStaked = TotalStaked - validatorStopped * 32 ETH
- *          StoppedBalance = StoppedBalance + validatorStopped
+ *          StoppedBalance = StoppedBalance + valueStopped
  *          ReportedValidators = ReportedValidators - validatorStopped
  *
  * Rule 4.1: (function pushBeacon) Oracle push balance, rebase if new validator is alive:
