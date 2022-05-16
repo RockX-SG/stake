@@ -42,6 +42,7 @@ import "@openzeppelin/contracts-upgradeable/security/ReentrancyGuardUpgradeable.
  *
  *          TotalDebts = TotalDebts - Min(ethersToMint, TotalDebts)
  *          TotalPending = TotalPending + Max(0, ethersToMint - TotalDebts)
+ *          TotalXETH = TotalXETH + ethersToMint / ExchangeRatio
  *
  * Rule 2: (function mint) At any time TotalPending has more than 32 Ethers, It will be staked, TotalPending
  *          moves to TotalStaked and keeps TotalPending less than 32 Ether.
