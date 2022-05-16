@@ -16,7 +16,7 @@ import "@openzeppelin/contracts-upgradeable/security/ReentrancyGuardUpgradeable.
  * Description:
  * 
  * Term:
- *  ExchangeRatio:              Exchange Ratio of xETH to ETH, normally > 1.0
+ *  ExchangeRatio:              Exchange Ratio of xETH to ETH, normally >= 1.0
  *  TotalXETH:                  Total Circulation Supply of xETH
  *  TotalStaked:                Total User Ethers Staked to Validators
  *  TotalDebts:                 Total unpaid debts(generated from redeemFromValidators), 
@@ -35,14 +35,14 @@ import "@openzeppelin/contracts-upgradeable/security/ReentrancyGuardUpgradeable.
  *
  * Lemma 2: (Exchange Ratio)
  *
- *          ExchangeRatio = TotalXETH / CurrentReserve
+ *          ExchangeRatio = CurrentReserve / TotalXETH
  *
  * Rule 1: (function mint) For every mint operation, the ethers pays debt in priority, the reset will be put in TotalPending
  *          ethersToMint:               The amount user deposits
  *
  *          TotalDebts = TotalDebts - Min(ethersToMint, TotalDebts)
  *          TotalPending = TotalPending + Max(0, ethersToMint - TotalDebts)
- *          TotalXETH = TotalXETH + ethersToMint / ExchangeRatio
+ *          TotalXETH = TotalXETH + ethersToMint * ExchangeRatio
  *
  * Rule 2: (function mint) At any time TotalPending has more than 32 Ethers, It will be staked, TotalPending
  *          moves to TotalStaked and keeps TotalPending less than 32 Ether.
@@ -518,7 +518,7 @@ contract RockXStaking is Initializable, PausableUpgradeable, AccessControlUpgrad
     }
 
     /**
-     * @dev return exchange ratio of xETH:ETH, multiplied by 1e18
+     * @dev return exchange ratio of , multiplied by 1e18
      */
     function exchangeRatio() external view returns (uint256) {
         uint256 xETHAmount = IERC20(xETHAddress).totalSupply();
@@ -526,7 +526,7 @@ contract RockXStaking is Initializable, PausableUpgradeable, AccessControlUpgrad
             return 1 * MULTIPLIER;
         }
 
-        uint256 ratio = xETHAmount * MULTIPLIER / currentReserve();
+        uint256 ratio = currentReserve() * MULTIPLIER / xETHAmount;
         return ratio;
     }
 
