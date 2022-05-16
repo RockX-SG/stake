@@ -405,7 +405,7 @@ contract RockXStaking is Initializable, PausableUpgradeable, AccessControlUpgrad
      * the overall balance will be stored in this contract
      */
     function validatorStopped(uint256 [] calldata _stoppedIDs, uint256 _stoppedBalance) external nonReentrant onlyRole(OPERATOR_ROLE) {
-        require(currentEthersReceived >= _stoppedBalance, "PUSH_REVENUE_BEFORE_STOP_NOTIFY");
+        require(currentEthersReceived >= _stoppedBalance, "INSUFFICIENT_REVENUE_PUSHED");
         require(_stoppedIDs.length > 0, "EMPTY_CALLDATA");
         require(_stoppedIDs.length + stoppedValidators.length <= nextValidatorId, "REPORTED_MORE_STOPPED_VALIDATORS");
         require(_stoppedBalance >= _stoppedIDs.length * DEPOSIT_SIZE, "RETURNED_LESS_ETHERS"); 
