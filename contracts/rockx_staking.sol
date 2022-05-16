@@ -20,7 +20,7 @@ import "@openzeppelin/contracts-upgradeable/security/ReentrancyGuardUpgradeable.
  *  TotalXETH:                  Total Circulation Supply of xETH
  *  TotalStaked:                Total User Ethers Staked to Validators
  *  TotalDebts:                 Total unpaid debts(generated from redeemFromValidators), 
-                                awaiting to be paid by turn off validators to clean debts.
+ *                              awaiting to be paid by turn off validators to clean debts.
  *  TotalPending:               Pending Ethers(<32 Ethers), awaiting to be staked
  *
  *  AccountedUserRevenue:       Overall Revenue which belongs to all xETH holders
@@ -155,8 +155,8 @@ contract RockXStaking is Initializable, PausableUpgradeable, AccessControlUpgrad
     mapping(address=>uint256) private userDebts;    // debts from user's perspective
 
     // track revenue from validators to form exchange ratio
-    uint256 private accountedUserRevenue;    // accounted shared user revenue
-    uint256 private accountedManagerRevenue; // accounted manager's revenue
+    uint256 private accountedUserRevenue;           // accounted shared user revenue
+    uint256 private accountedManagerRevenue;        // accounted manager's revenue
 
     // revenue related variables
     // track beacon validator & balance
@@ -181,6 +181,8 @@ contract RockXStaking is Initializable, PausableUpgradeable, AccessControlUpgrad
      * 
      * ======================================================================================
      */
+
+    receive() external payable { }
 
     /**
      * @dev only phase
