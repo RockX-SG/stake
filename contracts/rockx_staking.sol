@@ -39,10 +39,9 @@ import "@openzeppelin/contracts-upgradeable/security/ReentrancyGuardUpgradeable.
  *
  * Rule 1: (function mint) For every mint operation, the ethers pays debt in priority, the reset will be put in TotalPending
  *          ethersToMint:               The amount user deposits
- *          IF TotalDebts > 0 THEN
- *              TotalDebts = TotalDebts - Min(ethersToMint, TotalDebts)
  *
- *          TotalPending = TotalPending + Min(0, ethersToMint - TotalDebts)
+ *          TotalDebts = TotalDebts - Min(ethersToMint, TotalDebts)
+ *          TotalPending = TotalPending + Max(0, ethersToMint - TotalDebts)
  *
  * Rule 2: (function mint) At any time TotalPending has more than 32 Ethers, It will be staked, TotalPending
  *          moves to TotalStaked and keeps TotalPending less than 32 Ether.
@@ -55,8 +54,7 @@ import "@openzeppelin/contracts-upgradeable/security/ReentrancyGuardUpgradeable.
  *          valueStopped:               The value returned from current validator stop call
  *          validatorStopped:           The count of validator stopped
  *          
- *          IF valueStopped > TotalDebts THEN
- *              TotalPending = TotalPending + (valueStopped - TotalDebts)
+ *          TotalPending = TotalPending + Min(0, valueStopped - TotalDebts)
  * 
  *          TotalStaked = TotalStaked - validatorStopped * 32 ETH
  *          StoppedBalance = StoppedBalance + validatorStopped
@@ -66,8 +64,7 @@ import "@openzeppelin/contracts-upgradeable/security/ReentrancyGuardUpgradeable.
  *
  *          aliveValidator:             The count of validators alive
  *          
- *          IF aliveValidator > ReportedValidators THEN
- *              RewardBase = RewardBase + (aliveValidator - ReportedValidators) * 32 ETH
+ *          RewardBase = RewardBase + Max(0, aliveValidator - ReportedValidators) * 32 ETH
  *
  * Rule 4.2: (function pushBeacon) Oracle push balance, revenue calculation:
  *
