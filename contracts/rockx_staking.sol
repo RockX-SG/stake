@@ -54,7 +54,7 @@ import "@openzeppelin/contracts-upgradeable/security/ReentrancyGuardUpgradeable.
  *          valueStopped:               The value returned from current validator stop call
  *          validatorStopped:           The count of validator stopped
  *          
- *          TotalPending = TotalPending + Min(0, valueStopped - TotalDebts)
+ *          TotalPending = TotalPending + Max(0, valueStopped - TotalDebts)
  * 
  *          TotalStaked = TotalStaked - validatorStopped * 32 ETH
  *          StoppedBalance = StoppedBalance + validatorStopped
