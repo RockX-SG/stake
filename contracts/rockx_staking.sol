@@ -37,13 +37,18 @@ import "@openzeppelin/contracts-upgradeable/security/ReentrancyGuardUpgradeable.
  *
  *          ExchangeRatio = TotalXETH / CurrentReserve
  *
- * Rule 1: For every mint operation, the ethers pays debt in priority, the reset will be put in TotalPending
-  
+ * Rule 1: (function mint) For every mint operation, the ethers pays debt in priority, the reset will be put in TotalPending
+ *          ethersToMint:               The amount user deposits
+ *          IF TotalDebts > 0 THEN
+ *              TotalDebts = TotalDebts - Min(ethersToMint, TotalDebts)
+ *
+ *          TotalPending = TotalPending + Min(0, ethersToMint - TotalDebts)
+ *
  * Rule 2: (function mint) At any time TotalPending has more than 32 Ethers, It will be staked, TotalPending
  *          moves to TotalStaked and keeps TotalPending less than 32 Ether.
  *
- *          TotalPending = TotalPending - [TotalPending/32ETH] * 32ETH
- *          TotalStaked = TotalStaked + [TotalPending/32ETH] * 32ETH
+ *          TotalPending = TotalPending - ⌊TotalPending/32ETH⌋ * 32ETH
+ *          TotalStaked = TotalStaked + ⌊TotalPending/32ETH⌋ * 32ETH
  *
  * Rule 3: (function validatorStopped) Whenever a validator stopped, all value pays debts in priority, then:
  *  
