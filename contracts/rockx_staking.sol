@@ -50,7 +50,6 @@ import "@openzeppelin/contracts-upgradeable/security/ReentrancyGuardUpgradeable.
  *          TotalStaked = TotalStaked + ⌊TotalPending/32ETH⌋ * 32ETH
  *
  * Rule 3: (function validatorStopped) Whenever a validator stopped, all value pays debts in priority, then:
- *  
  *          valueStopped:               The value returned from current validator stop call
  *          validatorStopped:           The count of validator stopped
  *          
@@ -61,13 +60,11 @@ import "@openzeppelin/contracts-upgradeable/security/ReentrancyGuardUpgradeable.
  *          ReportedValidators = ReportedValidators - validatorStopped
  *
  * Rule 4.1: (function pushBeacon) Oracle push balance, rebase if new validator is alive:
- *
  *          aliveValidator:             The count of validators alive
  *          
  *          RewardBase = RewardBase + Max(0, aliveValidator - ReportedValidators) * 32 ETH
  *
  * Rule 4.2: (function pushBeacon) Oracle push balance, revenue calculation:
- *
  *          aliveBalance:               The balance of current alive validators
  *
  *          revenue := aliveBalance + StoppedBalance - RewardBase
