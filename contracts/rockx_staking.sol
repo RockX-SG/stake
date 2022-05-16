@@ -157,6 +157,7 @@ contract RockXStaking is Initializable, PausableUpgradeable, AccessControlUpgrad
     // track revenue from validators to form exchange ratio
     uint256 private accountedUserRevenue;           // accounted shared user revenue
     uint256 private accountedManagerRevenue;        // accounted manager's revenue
+    uint256 private currentEthersReceived;          // ethers received(from validator)
 
     // revenue related variables
     // track beacon validator & balance
@@ -182,7 +183,7 @@ contract RockXStaking is Initializable, PausableUpgradeable, AccessControlUpgrad
      * ======================================================================================
      */
 
-    receive() external payable { }
+    receive() external payable { currentEthersReceived += msg.value; }
 
     /**
      * @dev only phase
@@ -402,10 +403,11 @@ contract RockXStaking is Initializable, PausableUpgradeable, AccessControlUpgrad
      * @dev operator stops validator and return ethers staked along with revenue;
      * the overall balance will be stored in this contract
      */
-    function validatorStopped(uint256 [] calldata _stoppedIDs) external payable nonReentrant onlyRole(OPERATOR_ROLE) {
+    function validatorStopped(uint256 [] calldata _stoppedIDs, uint256 _stoppedBalance) external nonReentrant onlyRole(OPERATOR_ROLE) {
+        require(currentEthersReceived >= _stoppedBalance, "PUSH_REVENUE_BEFORE_STOP_NOTIFY");
         require(_stoppedIDs.length > 0, "EMPTY_CALLDATA");
         require(_stoppedIDs.length + stoppedValidators.length <= nextValidatorId, "REPORTED_MORE_STOPPED_VALIDATORS");
-        require(msg.value >= _stoppedIDs.length * DEPOSIT_SIZE, "RETURNED_LESS_ETHERS"); 
+        require(_stoppedBalance >= _stoppedIDs.length * DEPOSIT_SIZE, "RETURNED_LESS_ETHERS"); 
 
         // record stopped validators snapshot.
         for (uint i=0;i<_stoppedIDs.length;i++) {
@@ -417,20 +419,23 @@ contract RockXStaking is Initializable, PausableUpgradeable, AccessControlUpgrad
         }
 
         // rebase reward snapshot
-        stoppedBalance += msg.value;
+        stoppedBalance += _stoppedBalance;
         reportedValidators -= _stoppedIDs.length;
         
         // record timestamp to avoid expired pushBeacon transaction
         lastStopTimestamp = block.timestamp;
 
         // pay debt
-        uint256 paid = _payDebts(msg.value);
+        uint256 paid = _payDebts(_stoppedBalance);
 
         // the remaining ethers are aggregated to totalPending
-        totalPending += msg.value - paid;
+        totalPending += _stoppedBalance - paid;
 
         // track total staked ethers
         totalStaked -= _stoppedIDs.length * DEPOSIT_SIZE;
+
+        // substract debt paid from currentEthersReceived 
+        currentEthersReceived -= paid;
 
         // log
         emit ValidatorStopped(_stoppedIDs);
@@ -450,6 +455,11 @@ contract RockXStaking is Initializable, PausableUpgradeable, AccessControlUpgrad
     function currentReserve() public view returns(uint256) {
         return totalPending + totalStaked + accountedUserRevenue - totalDebts;
     }
+
+    /**
+     * @dev return current ethers received
+     */
+    function getCurrentEthersReceived() external view returns (uint256) { return currentEthersReceived; }
 
     /**
      * @dev return pending ethers
