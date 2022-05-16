@@ -59,8 +59,8 @@ import "@openzeppelin/contracts-upgradeable/security/ReentrancyGuardUpgradeable.
  * Rule 4.1: Oracle push balance, rebase if new validator is alive(pushBeacon)
  *          aliveValidator:             The count of validators alive
  *          
- *          IF (aliveValidator > ReportedValidators) THEN
- *          RewardBase = RewardBase + (aliveValidator - ReportedValidators) * 32 ETH
+ *          IF aliveValidator > ReportedValidators THEN
+ *              RewardBase = RewardBase + (aliveValidator - ReportedValidators) * 32 ETH
  *
  * Rule 4.2: Oracle push balance, revenue calculation(pushBeacon)
  *          aliveBalance:               The balance of current alive validators
