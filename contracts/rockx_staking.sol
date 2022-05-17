@@ -159,7 +159,6 @@ contract RockXStaking is Initializable, PausableUpgradeable, AccessControlUpgrad
     // track revenue from validators to form exchange ratio
     uint256 private accountedUserRevenue;           // accounted shared user revenue
     uint256 private accountedManagerRevenue;        // accounted manager's revenue
-    uint256 private currentEthersReceived;          // ethers received(from validator)
 
     // revenue related variables
     // track beacon validator & balance
@@ -186,7 +185,7 @@ contract RockXStaking is Initializable, PausableUpgradeable, AccessControlUpgrad
      * ======================================================================================
      */
 
-    receive() external payable { currentEthersReceived += msg.value; }
+    receive() external payable { }
 
     /**
      * @dev only phase
@@ -363,7 +362,7 @@ contract RockXStaking is Initializable, PausableUpgradeable, AccessControlUpgrad
      */
     function withdrawManagerFee(uint256 amount, address to) external nonReentrant onlyRole(MANAGER_ROLE)  {
         require(amount <= accountedManagerRevenue, "INSUFFICIENT_REVENUE");
-        require(amount <= currentEthersReceived, "INSUFFICIENT_ETHERS");
+        require(amount <= _currentEthersReceived(), "INSUFFICIENT_ETHERS");
         payable(to).sendValue(amount);
         accountedManagerRevenue -= amount;
         emit ManagerFeeWithdrawed(amount, to);
@@ -373,7 +372,7 @@ contract RockXStaking is Initializable, PausableUpgradeable, AccessControlUpgrad
      * @dev report revenue has withdrawed from validator into this contract
      */
     function pushRevenueWithdrawed(uint256 amount) external nonReentrant onlyRole(OPERATOR_ROLE)  {
-        require(amount <= currentEthersReceived, "INSUFFICIENT_ETHERS");
+        require(amount <= _currentEthersReceived(), "INSUFFICIENT_ETHERS");
         revenueWithdrawed += amount;
         emit RevenueWithdrawedFromValidator(amount);
     }
@@ -418,7 +417,7 @@ contract RockXStaking is Initializable, PausableUpgradeable, AccessControlUpgrad
      * the overall balance will be stored in this contract
      */
     function validatorStopped(uint256 [] calldata _stoppedIDs, uint256 _stoppedBalance) external nonReentrant onlyRole(OPERATOR_ROLE) {
-        require(currentEthersReceived >= _stoppedBalance, "INSUFFICIENT_REVENUE_PUSHED");
+        require(_currentEthersReceived() >= _stoppedBalance, "INSUFFICIENT_REVENUE_PUSHED");
         require(_stoppedIDs.length > 0, "EMPTY_CALLDATA");
         require(_stoppedIDs.length + stoppedValidators.length <= nextValidatorId, "REPORTED_MORE_STOPPED_VALIDATORS");
         require(_stoppedBalance >= _stoppedIDs.length * DEPOSIT_SIZE, "RETURNED_LESS_ETHERS"); 
@@ -448,9 +447,6 @@ contract RockXStaking is Initializable, PausableUpgradeable, AccessControlUpgrad
         // track total staked ethers
         totalStaked -= _stoppedIDs.length * DEPOSIT_SIZE;
 
-        // substract debt paid from currentEthersReceived 
-        currentEthersReceived -= paid;
-
         // log
         emit ValidatorStopped(_stoppedIDs);
     }
@@ -469,11 +465,6 @@ contract RockXStaking is Initializable, PausableUpgradeable, AccessControlUpgrad
     function currentReserve() public view returns(uint256) {
         return totalPending + totalStaked + accountedUserRevenue - totalDebts;
     }
-
-    /**
-     * @dev return current ethers received
-     */
-    function getCurrentEthersReceived() external view returns (uint256) { return currentEthersReceived; }
 
     /**
      * @dev return current revenue withdrawed from validator
@@ -734,6 +725,10 @@ contract RockXStaking is Initializable, PausableUpgradeable, AccessControlUpgrad
      * 
      * ======================================================================================
      */
+    function _currentEthersReceived() internal view returns(uint256) {
+        return address(this).balance - totalPending;
+    }
+    
     function _enqueueDebt(address account, uint256 amount) internal {
         // debt is paid in FIFO queue
         lastDebt += 1;
