@@ -26,8 +26,8 @@ import "@openzeppelin/contracts-upgradeable/security/ReentrancyGuardUpgradeable.
  *  AccountedUserRevenue:       Overall Revenue which belongs to all xETH holders
  *  ReportedValidators:         Latest Reported Validator Count
  *  ReportedValidatorBalance:   Latest Reported Validator Overall Balance
- *  StoppedBalance:             The balance at the time of validator stops, reset to 0 in next pushBeacon
- *  RevenueWithdrawed:          The amount withdrawed from validator, reset to 0 in next pushBeacon
+ *  StoppedBalance:             The balance at the time of validator stops recently, reset to 0 in next pushBeacon
+ *  RevenueWithdrawed:          The amount withdrawed recently from validator, reset to 0 in next pushBeacon
  *  CurrentReserve:             Assets Under Management
  *
  * Lemma 1: (AUM)
@@ -167,10 +167,10 @@ contract RockXStaking is Initializable, PausableUpgradeable, AccessControlUpgrad
     uint256 private reportedValidatorBalance;
 
     // track stopped validators
-    uint256 private revenueWithdrawedFromValidator;         // track revenue withdraw from validator to this contract
-    uint256 private stoppedBalance;                         // track balance of stopped validator casued by validatorStopped
-    uint256 private lastStopTimestamp;                      // record timestamp of last stop
-    bytes [] private stoppedValidators;                     // track stopped validator pubkey
+    uint256 private revenueWithdrawed;              // track revenue withdraw from validator to this contract
+    uint256 private stoppedBalance;                 // track balance of stopped validator casued by validatorStopped
+    uint256 private lastStopTimestamp;              // record timestamp of last stop
+    bytes [] private stoppedValidators;             // track stopped validator pubkey
 
     // phase switch from 0 to 1
     uint256 private phase;
@@ -374,7 +374,7 @@ contract RockXStaking is Initializable, PausableUpgradeable, AccessControlUpgrad
      */
     function pushRevenueWithdrawed(uint256 amount) external nonReentrant onlyRole(OPERATOR_ROLE)  {
         require(amount <= currentEthersReceived, "INSUFFICIENT_ETHERS");
-        revenueWithdrawedFromValidator += amount;
+        revenueWithdrawed += amount;
         emit RevenueWithdrawedFromValidator(amount);
     }
 
@@ -399,8 +399,8 @@ contract RockXStaking is Initializable, PausableUpgradeable, AccessControlUpgrad
 
         // step 2. calc rewards, this also considers stoppedBalance for stopped validators
         //  current alive balance + those stopped validator balance >= reward base
-        if (_aliveBalance + stoppedBalance + revenueWithdrawedFromValidator > rewardBase) {
-            uint256 rewards = _aliveBalance + stoppedBalance + revenueWithdrawedFromValidator - rewardBase;
+        if (_aliveBalance + stoppedBalance + revenueWithdrawed > rewardBase) {
+            uint256 rewards = _aliveBalance + stoppedBalance + revenueWithdrawed - rewardBase;
             _distributeRewards(rewards);
         }
 
@@ -410,7 +410,7 @@ contract RockXStaking is Initializable, PausableUpgradeable, AccessControlUpgrad
         reportedValidatorBalance = _aliveBalance; 
         reportedValidators = _aliveValidators;
         stoppedBalance = 0;
-        revenueWithdrawedFromValidator = 0;
+        revenueWithdrawed = 0;
     }
 
     /**
@@ -474,6 +474,16 @@ contract RockXStaking is Initializable, PausableUpgradeable, AccessControlUpgrad
      * @dev return current ethers received
      */
     function getCurrentEthersReceived() external view returns (uint256) { return currentEthersReceived; }
+
+    /**
+     * @dev return current revenue withdrawed from validator
+     */
+    function getCurrentRevenueWithdrawed() external view returns (uint256) { return revenueWithdrawed; }
+
+    /**
+     * @dev return current stopped balance
+     */
+    function getCurrentStoppedBalance() external view returns (uint256) { return stoppedBalance; }
 
     /**
      * @dev return pending ethers
