@@ -165,9 +165,10 @@ contract RockXStaking is Initializable, PausableUpgradeable, AccessControlUpgrad
     uint256 private reportedValidatorBalance;
 
     // track stopped validators
-    uint256 private stoppedBalance;         // track balance of stopped validator casued by validatorStopped
-    uint256 private lastStopTimestamp;      // record timestamp of last stop
-    bytes [] private stoppedValidators;     // track stopped validator pubkey
+    uint256 private revenueWithdrawedFromValidator;         // track revenue withdraw from validator to this contract
+    uint256 private stoppedBalance;                         // track balance of stopped validator casued by validatorStopped
+    uint256 private lastStopTimestamp;                      // record timestamp of last stop
+    bytes [] private stoppedValidators;                     // track stopped validator pubkey
 
     // phase switch from 0 to 1
     uint256 private phase;
@@ -367,6 +368,15 @@ contract RockXStaking is Initializable, PausableUpgradeable, AccessControlUpgrad
     }
 
     /**
+     * @dev report revenue has withdrawed from validator into this contract
+     */
+    function pushRevenueWithdrawed(uint256 amount) external nonReentrant onlyRole(OPERATOR_ROLE)  {
+        require(amount <= currentEthersReceived, "INSUFFICIENT_ETHERS");
+        revenueWithdrawedFromValidator += amount;
+        emit RevenueWithdrawedFromValidator(amount);
+    }
+
+    /**
      * @dev report validators count and total balance
      */
     function pushBeacon(uint256 _aliveValidators, uint256 _aliveBalance, uint256 ts) external onlyRole(ORACLE_ROLE) {
@@ -387,8 +397,8 @@ contract RockXStaking is Initializable, PausableUpgradeable, AccessControlUpgrad
 
         // step 2. calc rewards, this also considers stoppedBalance for stopped validators
         //  current alive balance + those stopped validator balance >= reward base
-        if (_aliveBalance + stoppedBalance > rewardBase) {
-            uint256 rewards = _aliveBalance + stoppedBalance - rewardBase;
+        if (_aliveBalance + stoppedBalance + revenueWithdrawedFromValidator > rewardBase) {
+            uint256 rewards = _aliveBalance + stoppedBalance + revenueWithdrawedFromValidator - rewardBase;
             _distributeRewards(rewards);
         }
 
@@ -398,6 +408,7 @@ contract RockXStaking is Initializable, PausableUpgradeable, AccessControlUpgrad
         reportedValidatorBalance = _aliveBalance; 
         reportedValidators = _aliveValidators;
         stoppedBalance = 0;
+        revenueWithdrawedFromValidator = 0;
     }
 
     /**
@@ -852,6 +863,7 @@ contract RockXStaking is Initializable, PausableUpgradeable, AccessControlUpgrad
     event ValidatorActivated(uint256 node_id);
     event ValidatorStopped(uint256 [] stoppedIDs);
     event RevenueAccounted(uint256 amount);
+    event RevenueWithdrawedFromValidator(uint256 amount);
     event ManagerAccountSet(address account);
     event ManagerFeeSet(uint256 milli);
     event ManagerFeeWithdrawed(uint256 amount, address);
