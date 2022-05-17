@@ -26,7 +26,8 @@ import "@openzeppelin/contracts-upgradeable/security/ReentrancyGuardUpgradeable.
  *  AccountedUserRevenue:       Overall Revenue which belongs to all xETH holders
  *  ReportedValidators:         Latest Reported Validator Count
  *  ReportedValidatorBalance:   Latest Reported Validator Overall Balance
- *  StoppedBalance:             The overall balance at the time of validator stops
+ *  StoppedBalance:             The balance at the time of validator stops, reset to 0 in next pushBeacon
+ *  RevenueWithdrawed:          The amount withdrawed from validator, reset to 0 in next pushBeacon
  *  CurrentReserve:             Assets Under Management
  *
  * Lemma 1: (AUM)
@@ -67,9 +68,10 @@ import "@openzeppelin/contracts-upgradeable/security/ReentrancyGuardUpgradeable.
  * Rule 4.2: (function pushBeacon) Oracle push balance, revenue calculation:
  *          aliveBalance:               The balance of current alive validators
  *
- *          r := aliveBalance + StoppedBalance - RewardBase
+ *          r := aliveBalance + StoppedBalance + RevenueWithdrawed - RewardBase
  *          AccountedUserRevenue = AccountedUserRevenue + r * (1000 - managerFeeShare) / 1000
  *          StoppedBalance = 0
+ *          RevenueWithdrawed = 0
  *          ReportedValidators = aliveValidator
  *          ReportedValidatorBalance = aliveBalance
  *
