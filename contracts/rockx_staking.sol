@@ -60,12 +60,19 @@ import "@openzeppelin/contracts-upgradeable/security/ReentrancyGuardUpgradeable.
  *          StoppedBalance = StoppedBalance + valueStopped
  *          ReportedValidators = ReportedValidators - validatorStopped
  *
- * Rule 4.1: (function pushBeacon) Oracle push balance, rebase if new validator is alive:
+ * Rule 4: (function pushRevenueWithdrawed) the revenue amount withdrawed from validator to this contract is 
+ *          pushed from operator, meanwhile, the ethers are transfered elsewhere to this contract.
+ * 
+ *          amount:                     the amount withdrawed from validator to this contract
+ *      
+ *          RevenueWithdrawed = RevenueWithdrawed + amount
+ *
+ * Rule 5.1: (function pushBeacon) Oracle push balance, rebase if new validator is alive:
  *          aliveValidator:             The count of validators alive
  *          
  *          RewardBase = ReportedValidatorBalance + Max(0, aliveValidator - ReportedValidators) * 32 ETH
  *
- * Rule 4.2: (function pushBeacon) Oracle push balance, revenue calculation:
+ * Rule 5.2: (function pushBeacon) Oracle push balance, revenue calculation:
  *          aliveBalance:               The balance of current alive validators
  *
  *          r := aliveBalance + StoppedBalance + RevenueWithdrawed - RewardBase
