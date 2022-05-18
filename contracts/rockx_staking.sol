@@ -26,8 +26,7 @@ import "@openzeppelin/contracts-upgradeable/security/ReentrancyGuardUpgradeable.
  *  AccountedUserRevenue:       Overall Revenue which belongs to all xETH holders
  *  ReportedValidators:         Latest Reported Validator Count
  *  ReportedValidatorBalance:   Latest Reported Validator Overall Balance
- *  StoppedBalance:             The balance at the time of validator stops recently, reset to 0 in next pushBeacon
- *  RevenueWithdrawed:          The amount withdrawed recently from validator, reset to 0 in next pushBeacon
+ *  AmountReceived:             The Amount this contract receives recently.
  *  CurrentReserve:             Assets Under Management
  *
  * Lemma 1: (AUM)
@@ -52,33 +51,25 @@ import "@openzeppelin/contracts-upgradeable/security/ReentrancyGuardUpgradeable.
  *          TotalStaked = TotalStaked + ⌊TotalPending/32ETH⌋ * 32ETH
  *
  * Rule 3: (function validatorStopped) Whenever a validator stopped, all value pays debts in priority, then:
- *          valueStopped:               The value returned from current validator stop call
+ *          valueStopped:               The value sent-back via receive() funtion
  *          validatorStopped:           The count of validator stopped
  *          
+ *          AmountReceived = AmountReceived + valueStopped
  *          TotalPending = TotalPending + Max(0, valueStopped - TotalDebts)
  *          TotalStaked = TotalStaked - validatorStopped * 32 ETH
- *          StoppedBalance = StoppedBalance + valueStopped
  *          ReportedValidators = ReportedValidators - validatorStopped
  *
- * Rule 4: (function pushRevenueWithdrawed) the revenue amount withdrawed from validator to this contract is 
- *          pushed from operator, meanwhile, the ethers are transfered elsewhere to this contract.
- * 
- *          amount:                     the amount withdrawed from validator to this contract
- *      
- *          RevenueWithdrawed = RevenueWithdrawed + amount
- *
- * Rule 5.1: (function pushBeacon) Oracle push balance, rebase if new validator is alive:
+ * Rule 4.1: (function pushBeacon) Oracle push balance, rebase if new validator is alive:
  *          aliveValidator:             The count of validators alive
  *          
  *          RewardBase = ReportedValidatorBalance + Max(0, aliveValidator - ReportedValidators) * 32 ETH
  *
- * Rule 5.2: (function pushBeacon) Oracle push balance, revenue calculation:
+ * Rule 4.2: (function pushBeacon) Oracle push balance, revenue calculation:
  *          aliveBalance:               The balance of current alive validators
  *
- *          r := aliveBalance + StoppedBalance + RevenueWithdrawed - RewardBase
+ *          r := aliveBalance + AmountReceived - RewardBase
  *          AccountedUserRevenue = AccountedUserRevenue + r * (1000 - managerFeeShare) / 1000
- *          StoppedBalance = 0
- *          RevenueWithdrawed = 0
+ *          AmountReceived = 0
  *          ReportedValidators = aliveValidator
  *          ReportedValidatorBalance = aliveBalance
  *
@@ -173,8 +164,7 @@ contract RockXStaking is Initializable, PausableUpgradeable, AccessControlUpgrad
     uint256 private reportedValidatorBalance;
 
     // track stopped validators
-    uint256 private revenueWithdrawed;              // track revenue withdraw from validator to this contract
-    uint256 private stoppedBalance;                 // track balance of stopped validator casued by validatorStopped
+    uint256 private amountReceived;                 // track recently received (un-accounted) value into this contract
     uint256 private lastStopTimestamp;              // record timestamp of last stop
     bytes [] private stoppedValidators;             // track stopped validator pubkey
 
@@ -192,7 +182,9 @@ contract RockXStaking is Initializable, PausableUpgradeable, AccessControlUpgrad
      * ======================================================================================
      */
 
-    receive() external payable { }
+    receive() external payable { 
+        amountReceived += msg.value;
+    }
 
     /**
      * @dev only phase
@@ -376,20 +368,11 @@ contract RockXStaking is Initializable, PausableUpgradeable, AccessControlUpgrad
     }
 
     /**
-     * @dev report revenue has withdrawed from validator into this contract
-     */
-    function pushRevenueWithdrawed(uint256 amount) external nonReentrant onlyRole(OPERATOR_ROLE)  {
-        require(_currentEthersReceived() >= amount + stoppedBalance + revenueWithdrawed, "INSUFFICIENT_ETHERS_PUSHED");
-        revenueWithdrawed += amount;
-        emit RevenueWithdrawedFromValidator(amount);
-    }
-
-    /**
      * @dev report validators count and total balance
      */
     function pushBeacon(uint256 _aliveValidators, uint256 _aliveBalance, uint256 ts) external onlyRole(ORACLE_ROLE) {
         require(_aliveValidators + stoppedValidators.length <= nextValidatorId, "REPORTED_MORE_DEPOSITED");
-        require(_aliveBalance + stoppedBalance >= reportedValidatorBalance, "INSUFFICIENT_BALANCE");
+        require(_aliveBalance + amountReceived >= reportedValidatorBalance, "INSUFFICIENT_BALANCE");
         require(_aliveValidators >= reportedValidators, "INSUFFICIENT_VALIDATORS");
         require(_aliveBalance >= _aliveValidators * DEPOSIT_SIZE, "REPORTED_LESS_VALUE");
         require(ts > lastStopTimestamp, "REPORTED_EXPIRED_TIMESTAMP");
@@ -405,8 +388,8 @@ contract RockXStaking is Initializable, PausableUpgradeable, AccessControlUpgrad
 
         // step 2. calc rewards, this also considers stoppedBalance for stopped validators
         //  current alive balance + those stopped validator balance >= reward base
-        if (_aliveBalance + stoppedBalance + revenueWithdrawed > rewardBase) {
-            uint256 rewards = _aliveBalance + stoppedBalance + revenueWithdrawed - rewardBase;
+        if (_aliveBalance + amountReceived > rewardBase) {
+            uint256 rewards = _aliveBalance + amountReceived - rewardBase;
             _distributeRewards(rewards);
         }
 
@@ -415,19 +398,18 @@ contract RockXStaking is Initializable, PausableUpgradeable, AccessControlUpgrad
         // reset the stoppedBalance to 0
         reportedValidatorBalance = _aliveBalance; 
         reportedValidators = _aliveValidators;
-        stoppedBalance = 0;
-        revenueWithdrawed = 0;
+        amountReceived = 0;
     }
 
     /**
      * @dev operator stops validator and return ethers staked along with revenue;
      * the overall balance will be stored in this contract
      */
-    function validatorStopped(uint256 [] calldata _stoppedIDs, uint256 _stoppedBalance) external nonReentrant onlyRole(OPERATOR_ROLE) {
-        require(_currentEthersReceived() >= _stoppedBalance + stoppedBalance + revenueWithdrawed, "INSUFFICIENT_ETHERS_PUSHED");
+    function validatorStopped(uint256 [] calldata _stoppedIDs) external nonReentrant onlyRole(OPERATOR_ROLE) {
+        uint256 amountUnstaked = _stoppedIDs.length * DEPOSIT_SIZE;
+        require(_currentEthersReceived() >= amountUnstaked, "INSUFFICIENT_ETHERS_PUSHED");
         require(_stoppedIDs.length > 0, "EMPTY_CALLDATA");
         require(_stoppedIDs.length + stoppedValidators.length <= nextValidatorId, "REPORTED_MORE_STOPPED_VALIDATORS");
-        require(_stoppedBalance >= _stoppedIDs.length * DEPOSIT_SIZE, "RETURNED_LESS_ETHERS"); 
 
         // record stopped validators snapshot.
         for (uint i=0;i<_stoppedIDs.length;i++) {
@@ -439,17 +421,16 @@ contract RockXStaking is Initializable, PausableUpgradeable, AccessControlUpgrad
         }
 
         // rebase reward snapshot
-        stoppedBalance += _stoppedBalance;
         reportedValidators -= _stoppedIDs.length;
         
         // record timestamp to avoid expired pushBeacon transaction
         lastStopTimestamp = block.timestamp;
 
         // pay debt
-        uint256 paid = _payDebts(_stoppedBalance);
+        uint256 paid = _payDebts(amountUnstaked);
 
         // the remaining ethers are aggregated to totalPending
-        totalPending += _stoppedBalance - paid;
+        totalPending += amountUnstaked - paid;
 
         // track total staked ethers
         totalStaked -= _stoppedIDs.length * DEPOSIT_SIZE;
@@ -474,14 +455,9 @@ contract RockXStaking is Initializable, PausableUpgradeable, AccessControlUpgrad
     }
 
     /**
-     * @dev return current revenue withdrawed from validator
-     */
-    function getCurrentRevenueWithdrawed() external view returns (uint256) { return revenueWithdrawed; }
-
-    /**
      * @dev return current stopped balance
      */
-    function getCurrentStoppedBalance() external view returns (uint256) { return stoppedBalance; }
+    function getCurrenAmountReceived() external view returns (uint256) { return amountReceived; }
 
     /**
      * @dev return pending ethers
