@@ -368,7 +368,7 @@ contract RockXStaking is Initializable, PausableUpgradeable, AccessControlUpgrad
      * @dev manager withdraw fees
      */
     function withdrawManagerFee(uint256 amount, address to) external nonReentrant onlyRole(MANAGER_ROLE)  {
-        require(amount <= accountedManagerRevenue, "INSUFFICIENT_REVENUE");
+        require(amount <= accountedManagerRevenue, "WITHDRAW_EXCEEDED_MANAGER_REVENUE");
         require(amount <= _currentEthersReceived(), "INSUFFICIENT_ETHERS");
         payable(to).sendValue(amount);
         accountedManagerRevenue -= amount;
@@ -379,7 +379,7 @@ contract RockXStaking is Initializable, PausableUpgradeable, AccessControlUpgrad
      * @dev report revenue has withdrawed from validator into this contract
      */
     function pushRevenueWithdrawed(uint256 amount) external nonReentrant onlyRole(OPERATOR_ROLE)  {
-        require(amount <= _currentEthersReceived(), "INSUFFICIENT_ETHERS");
+        require(_currentEthersReceived() >= amount + stoppedBalance + revenueWithdrawed, "INSUFFICIENT_ETHERS_PUSHED");
         revenueWithdrawed += amount;
         emit RevenueWithdrawedFromValidator(amount);
     }
@@ -389,7 +389,7 @@ contract RockXStaking is Initializable, PausableUpgradeable, AccessControlUpgrad
      */
     function pushBeacon(uint256 _aliveValidators, uint256 _aliveBalance, uint256 ts) external onlyRole(ORACLE_ROLE) {
         require(_aliveValidators + stoppedValidators.length <= nextValidatorId, "REPORTED_MORE_DEPOSITED");
-        require(_aliveBalance + stoppedBalance + revenueWithdrawed >= reportedValidatorBalance, "INSUFFICIENT_BALANCE");
+        require(_aliveBalance + stoppedBalance >= reportedValidatorBalance, "INSUFFICIENT_BALANCE");
         require(_aliveValidators >= reportedValidators, "INSUFFICIENT_VALIDATORS");
         require(_aliveBalance >= _aliveValidators * DEPOSIT_SIZE, "REPORTED_LESS_VALUE");
         require(ts > lastStopTimestamp, "REPORTED_EXPIRED_TIMESTAMP");
@@ -424,7 +424,7 @@ contract RockXStaking is Initializable, PausableUpgradeable, AccessControlUpgrad
      * the overall balance will be stored in this contract
      */
     function validatorStopped(uint256 [] calldata _stoppedIDs, uint256 _stoppedBalance) external nonReentrant onlyRole(OPERATOR_ROLE) {
-        require(_currentEthersReceived() >= _stoppedBalance, "INSUFFICIENT_REVENUE_PUSHED");
+        require(_currentEthersReceived() >= _stoppedBalance + stoppedBalance + revenueWithdrawed, "INSUFFICIENT_ETHERS_PUSHED");
         require(_stoppedIDs.length > 0, "EMPTY_CALLDATA");
         require(_stoppedIDs.length + stoppedValidators.length <= nextValidatorId, "REPORTED_MORE_STOPPED_VALIDATORS");
         require(_stoppedBalance >= _stoppedIDs.length * DEPOSIT_SIZE, "RETURNED_LESS_ETHERS"); 
