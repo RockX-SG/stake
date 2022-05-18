@@ -610,22 +610,14 @@ contract RockXStaking is Initializable, PausableUpgradeable, AccessControlUpgrad
         require(block.timestamp < deadline, "TRANSACTION_EXPIRED");
         require(msg.value > 0, "MINT_ZERO");
 
-        // mint xETH while keep the exchange ratio invariant
-        //
-        // reserve := accDeposited - accWithdrawed + accountedUserRevenue - currentDebts
-        // amount XETH to mint = xETH * (msg.value/reserve)
-        //
-        // For every user operation related to ETH, xETH is minted or burned, so the swap ratio is bounded to:
-        // (TotalDeposited - TotalWithdrawed + Validator Revenue - Total Ether Debts) / total xETH supply
-        // 
-        // 
-        uint256 amountXETH = IERC20(xETHAddress).totalSupply();
-        uint256 currentEthers = currentReserve();
+        // mint xETH while keeping the exchange ratio invariant
+        uint256 totalXETH = IERC20(xETHAddress).totalSupply();
+        uint256 totalEthers = currentReserve();
         uint256 toMint = 1 * msg.value;  // default exchange ratio 1:1
         require(toMint >= minToMint, "EXCHANGE_RATIO_MISMATCH");
 
-        if (currentEthers > 0) { // avert division overflow
-            toMint = amountXETH * msg.value / currentEthers;
+        if (totalEthers > 0) { // avert division overflow
+            toMint = totalXETH * msg.value / totalEthers;
         }
         // mint xETH
         IMintableContract(xETHAddress).mint(msg.sender, toMint);
