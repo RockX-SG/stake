@@ -22,6 +22,7 @@ import "@openzeppelin/contracts-upgradeable/security/ReentrancyGuardUpgradeable.
  *  TotalDebts:                 Total unpaid debts(generated from redeemFromValidators), 
  *                              awaiting to be paid by turn off validators to clean debts.
  *  TotalPending:               Pending Ethers(<32 Ethers), awaiting to be staked
+ *  RewardDebts:                The amount re-staked into TotalPending
  *
  *  AccountedUserRevenue:       Overall Revenue which belongs to all xETH holders
  *  ReportedValidators:         Latest Reported Validator Count
@@ -31,7 +32,7 @@ import "@openzeppelin/contracts-upgradeable/security/ReentrancyGuardUpgradeable.
  *
  * Lemma 1: (AUM)
  *
- *          CurrentReserve = TotalPending + TotalStaked + AccountedUserRevenue - TotalDebts
+ *          CurrentReserve = TotalPending + TotalStaked + AccountedUserRevenue - TotalDebts - RewardDebts
  *
  * Lemma 2: (Exchange Ratio)
  *
@@ -52,10 +53,13 @@ import "@openzeppelin/contracts-upgradeable/security/ReentrancyGuardUpgradeable.
  *
  * Rule 3: (function validatorStopped) Whenever a validator stopped, all value pays debts in priority, then:
  *          valueStopped:               The value sent-back via receive() funtion
+ *          amountUnstaked:             The amount of unstaked node (base 32ethers)
  *          validatorStopped:           The count of validator stopped
  *          
+ *          incrRewardDebt := valueStopped - amountUnstaked
+ *          RewardDebts = RewardDebt + incrRewardDebt
  *          AmountReceived = AmountReceived + valueStopped
- *          TotalPending = TotalPending + Max(0, valueStopped - TotalDebts)
+ *          TotalPending = TotalPending + Max(0, amountUnstaked - TotalDebts) + incrRewardDebt
  *          TotalStaked = TotalStaked - validatorStopped * 32 ETH
  *          ReportedValidators = ReportedValidators - validatorStopped
  *
