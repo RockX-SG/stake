@@ -142,8 +142,6 @@ contract RockXStaking is Initializable, PausableUpgradeable, AccessControlUpgrad
 
     // exchange ratio related variables
     // track user deposits & redeem (xETH mint & burn)
-    // based on the variables following, the total ether balance is equal to 
-    // currentEthers := accDeposited - accWithdrawed + accountedUserRevenue - currentDebts [1]
     uint256 private totalPending;           // track pending ethers awaiting to be staked to validators
     uint256 private totalStaked;            // track current staked ethers for validators, rounded to 32 ethers
     uint256 private totalDebts;             // track current unpaid debts
@@ -157,6 +155,7 @@ contract RockXStaking is Initializable, PausableUpgradeable, AccessControlUpgrad
     // track revenue from validators to form exchange ratio
     uint256 private accountedUserRevenue;           // accounted shared user revenue
     uint256 private accountedManagerRevenue;        // accounted manager's revenue
+    uint256 private rewardDebt;                     // check validatorStopped function
 
     // revenue related variables
     // track beacon validator & balance
@@ -404,9 +403,10 @@ contract RockXStaking is Initializable, PausableUpgradeable, AccessControlUpgrad
     /**
      * @dev operator notify some validators stopped
      */
-    function validatorStopped(uint256 [] calldata _stoppedIDs) external nonReentrant onlyRole(OPERATOR_ROLE) {
+    function validatorStopped(uint256 [] calldata _stoppedIDs, uint256 _stoppedBalance) external nonReentrant onlyRole(OPERATOR_ROLE) {
         uint256 amountUnstaked = _stoppedIDs.length * DEPOSIT_SIZE;
-        require(_currentEthersReceived() >= amountUnstaked, "INSUFFICIENT_ETHERS_PUSHED");
+        require(_currentEthersReceived() >= _stoppedBalance, "INSUFFICIENT_ETHERS_PUSHED");
+        require(_stoppedBalance >= amountUnstaked, "INSUFFICIENT_ETHERS_STOPPED");
         require(_stoppedIDs.length > 0, "EMPTY_CALLDATA");
         require(_stoppedIDs.length + stoppedValidators.length <= nextValidatorId, "REPORTED_MORE_STOPPED_VALIDATORS");
 
@@ -428,21 +428,37 @@ contract RockXStaking is Initializable, PausableUpgradeable, AccessControlUpgrad
 
         // NOTE(x) The following procedure MUST keep currentReserve unchanged:
         // 
-        // (totalPending + amountUnstaked - paid) + (totalStaked - amountUnstaked) + accountedUserRevenue - (totalDebts - paid)
+        // (totalPending + amountUnstaked - paid + rewardDebt) + (totalStaked - amountUnstaked) + accountedUserRevenue - rewardDebt - (totalDebts - paid)
         //  ==
         //  totalPending + totalStaked + accountedUserRevenue - totalDebts
         //
+        
+        // extra value;
+        uint256 incrRewardDebt = _stoppedBalance - amountUnstaked;
         // pay debt
         uint256 paid = _payDebts(amountUnstaked);
 
         // the remaining ethers are aggregated to totalPending
-        totalPending += amountUnstaked - paid;
+        totalPending += incrRewardDebt + amountUnstaked - paid;
 
         // track total staked ethers
-        totalStaked -= _stoppedIDs.length * DEPOSIT_SIZE;
+        totalStaked -= amountUnstaked;
+
+        // revenue debt
+        rewardDebt += incrRewardDebt;
+
+        // Variables Compaction
+        // compact accountedUserRevenue & rewardDebt, to avert overflow
+        if (accountedUserRevenue >= rewardDebt) {
+            accountedUserRevenue -= rewardDebt;
+            rewardDebt = 0;
+        } else {
+            rewardDebt -= accountedUserRevenue;
+            accountedUserRevenue = 0;
+        }
 
         // log
-        emit ValidatorStopped(_stoppedIDs);
+        emit ValidatorStopped(_stoppedIDs, _stoppedBalance);
     }
 
     /**
@@ -457,7 +473,7 @@ contract RockXStaking is Initializable, PausableUpgradeable, AccessControlUpgrad
      * @dev returns current reserve of ethers
      */
     function currentReserve() public view returns(uint256) {
-        return totalPending + totalStaked + accountedUserRevenue - totalDebts;
+        return totalPending + totalStaked + accountedUserRevenue - totalDebts - rewardDebt;
     }
 
     /**
@@ -849,7 +865,7 @@ contract RockXStaking is Initializable, PausableUpgradeable, AccessControlUpgrad
      * ======================================================================================
      */
     event ValidatorActivated(uint256 node_id);
-    event ValidatorStopped(uint256 [] stoppedIDs);
+    event ValidatorStopped(uint256 [] stoppedIDs, uint256 stoppedBalance);
     event RevenueAccounted(uint256 amount);
     event RevenueWithdrawedFromValidator(uint256 amount);
     event ManagerAccountSet(address account);
