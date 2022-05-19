@@ -368,7 +368,7 @@ contract RockXStaking is Initializable, PausableUpgradeable, AccessControlUpgrad
     }
 
     /**
-     * @dev report validators count and total balance
+     * @dev operator reports current alive validators count and overall balance
      */
     function pushBeacon(uint256 _aliveValidators, uint256 _aliveBalance, uint256 ts) external onlyRole(ORACLE_ROLE) {
         require(_aliveValidators + stoppedValidators.length <= nextValidatorId, "REPORTED_MORE_DEPOSITED");
@@ -402,8 +402,7 @@ contract RockXStaking is Initializable, PausableUpgradeable, AccessControlUpgrad
     }
 
     /**
-     * @dev operator stops validator and return ethers staked along with revenue;
-     * the overall balance will be stored in this contract
+     * @dev operator notify some validators stopped
      */
     function validatorStopped(uint256 [] calldata _stoppedIDs) external nonReentrant onlyRole(OPERATOR_ROLE) {
         uint256 amountUnstaked = _stoppedIDs.length * DEPOSIT_SIZE;
@@ -426,6 +425,13 @@ contract RockXStaking is Initializable, PausableUpgradeable, AccessControlUpgrad
         // record timestamp to avoid expired pushBeacon transaction
         lastStopTimestamp = block.timestamp;
 
+
+        // NOTE(x) The following procedure MUST keep currentReserve unchanged:
+        // 
+        // (totalPending + amountUnstaked - paid) + (totalStaked - amountUnstaked) + accountedUserRevenue - (totalDebts - paid)
+        //  ==
+        //  totalPending + totalStaked + accountedUserRevenue - totalDebts
+        //
         // pay debt
         uint256 paid = _payDebts(amountUnstaked);
 
