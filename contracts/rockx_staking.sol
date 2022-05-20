@@ -158,16 +158,21 @@ contract RockXStaking is Initializable, PausableUpgradeable, AccessControlUpgrad
     // track revenue from validators to form exchange ratio
     uint256 private accountedUserRevenue;           // accounted shared user revenue
     uint256 private accountedManagerRevenue;        // accounted manager's revenue
-    uint256 private rewardDebts;                     // check validatorStopped function
+    uint256 private rewardDebts;                    // check validatorStopped function
 
     // revenue related variables
     // track beacon validator & balance
     uint256 private reportedValidators;
     uint256 private reportedValidatorBalance;
 
-    // track stopped validators
+    // balance tracking
+    int256 private accountedBalance;                         // tracked balance here, 
+                                                    // balance might be negative for not accounting validators's redeeming
+
     uint256 private recentReceived;                 // track recently received (un-accounted) value into this contract
     uint256 private vectorClock;                    // a vector clock for detecting receive() & pushBeacon() causality violations
+
+    // track stopped validators
     bytes [] private stoppedValidators;             // track stopped validator pubkey
 
     // phase switch from 0 to 1
@@ -183,13 +188,7 @@ contract RockXStaking is Initializable, PausableUpgradeable, AccessControlUpgrad
      * 
      * ======================================================================================
      */
-
-    receive() external payable { 
-        recentReceived += msg.value;
-        if (msg.value > 0) {
-            vectorClock++;
-        }
-    }
+    receive() external payable { }
 
     /**
      * @dev only phase
@@ -369,16 +368,33 @@ contract RockXStaking is Initializable, PausableUpgradeable, AccessControlUpgrad
         require(amount <= accountedManagerRevenue, "WITHDRAW_EXCEEDED_MANAGER_REVENUE");
         require(amount <= _currentEthersReceived(), "INSUFFICIENT_ETHERS");
         payable(to).sendValue(amount);
+        accountedBalance -= int256(amount);
+        // track manager's revenue
         accountedManagerRevenue -= amount;
         emit ManagerFeeWithdrawed(amount, to);
+    }
+
+    /**
+     * @dev balance sync
+     */
+    function syncBalance() external onlyRole(OPERATOR_ROLE) {
+        assert(int256(address(this).balance) >= accountedBalance);
+        uint256 diff = uint256(int256(address(this).balance) - accountedBalance);
+        if (diff > 0) {
+            accountedBalance = int256(address(this).balance);
+            recentReceived += diff;
+            vectorClock++;
+            emit BalanceSynced(diff);
+        }
     }
 
     /**
      * @dev operator reports current alive validators count and overall balance
      */
     function pushBeacon(uint256 _aliveValidators, uint256 _aliveBalance, uint256 clock) external onlyRole(ORACLE_ROLE) {
+        require(int256(address(this).balance) == accountedBalance, "SYNC_BALANCE");
         require(_aliveValidators + stoppedValidators.length <= nextValidatorId, "REPORTED_MORE_DEPOSITED");
-        require(_aliveBalance + recentReceived >= reportedValidatorBalance, "INSUFFICIENT_BALANCE");
+        require(_aliveBalance + uint256(recentReceived) >= reportedValidatorBalance, "INSUFFICIENT_BALANCE");
         require(_aliveValidators >= reportedValidators, "INSUFFICIENT_VALIDATORS");
         require(_aliveBalance >= _aliveValidators * DEPOSIT_SIZE, "REPORTED_LESS_VALUE");
         require(vectorClock == clock, "CASUALITY_VIOLATION");
@@ -402,7 +418,7 @@ contract RockXStaking is Initializable, PausableUpgradeable, AccessControlUpgrad
 
         // step 3. update reportedValidators & reportedValidatorBalance
         // take snapshot of current balances & validators
-        // reset the stoppedBalance to 0
+        // reset the recentReceived to 0
         reportedValidatorBalance = _aliveBalance; 
         reportedValidators = _aliveValidators;
         recentReceived = 0;
@@ -482,10 +498,10 @@ contract RockXStaking is Initializable, PausableUpgradeable, AccessControlUpgrad
      */
     function getVectorClock() external view returns(uint256) { return vectorClock; }
 
-    /**
-     * @dev return recent received balance
+    /*
+     * @dev returns current accounted balance
      */
-    function getRecentReceived() external view returns (uint256) { return recentReceived; }
+    function getAccountedBalance() external view returns(int256) { return accountedBalance; }
 
     /**
      * @dev return pending ethers
@@ -613,6 +629,9 @@ contract RockXStaking is Initializable, PausableUpgradeable, AccessControlUpgrad
     function mint(uint256 minToMint, uint256 deadline) external payable nonReentrant whenNotPaused {
         require(block.timestamp < deadline, "TRANSACTION_EXPIRED");
         require(msg.value > 0, "MINT_ZERO");
+        
+        // track balance
+        accountedBalance += int256(msg.value);
 
         // mint xETH while keeping the exchange ratio invariant
         uint256 totalXETH = IERC20(xETHAddress).totalSupply();
@@ -689,6 +708,9 @@ contract RockXStaking is Initializable, PausableUpgradeable, AccessControlUpgrad
         // send ethers back to sender
         payable(msg.sender).sendValue(ethersToRedeem);
         totalPending -= ethersToRedeem;
+        
+        // track balance
+        accountedBalance -= int256(ethersToRedeem);
 
         // emit amount withdrawed
         emit Redeemed(xETHToBurn, ethersToRedeem);
@@ -717,6 +739,10 @@ contract RockXStaking is Initializable, PausableUpgradeable, AccessControlUpgrad
         // send ethers back to sender
         payable(msg.sender).sendValue(ethersToRedeem);
         totalPending -= ethersToRedeem;
+
+        // track balance
+        accountedBalance -= int256(ethersToRedeem);
+
         // emit amount withdrawed
         emit Redeemed(xETHToBurn, ethersToRedeem);
     }
@@ -731,7 +757,7 @@ contract RockXStaking is Initializable, PausableUpgradeable, AccessControlUpgrad
     function _currentEthersReceived() internal view returns(uint256) {
         return address(this).balance - totalPending;
     }
-    
+        
     function _enqueueDebt(address account, uint256 amount) internal {
         // debt is paid in FIFO queue
         lastDebt += 1;
@@ -784,6 +810,9 @@ contract RockXStaking is Initializable, PausableUpgradeable, AccessControlUpgrad
         }
         
         totalDebts -= amountPaid;
+        
+        // track balance
+        accountedBalance -= int256(amountPaid);
     }
 
     /**
@@ -843,6 +872,9 @@ contract RockXStaking is Initializable, PausableUpgradeable, AccessControlUpgrad
 
         IDepositContract(ethDepositContract).deposit{value:DEPOSIT_SIZE} (
             pubkey, abi.encodePacked(withdrawalCredentials), signature, depositDataRoot);
+
+        // track balance
+        accountedBalance -= int256(DEPOSIT_SIZE);
     }
 
     /**
@@ -884,4 +916,5 @@ contract RockXStaking is Initializable, PausableUpgradeable, AccessControlUpgrad
     event XETHContractSet(address addr);
     event DepositContractSet(address addr);
     event RedeemContractSet(address addr);
+    event BalanceSynced(uint256 diff);
 }
