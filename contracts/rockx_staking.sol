@@ -375,7 +375,7 @@ contract RockXStaking is Initializable, PausableUpgradeable, AccessControlUpgrad
     }
 
     /**
-     * @dev balance sync
+     * @dev balance sync, also moves the vector clock if it has different value
      */
     function syncBalance() external onlyRole(OPERATOR_ROLE) {
         assert(int256(address(this).balance) >= accountedBalance);
@@ -392,32 +392,32 @@ contract RockXStaking is Initializable, PausableUpgradeable, AccessControlUpgrad
      * @dev operator reports current alive validators count and overall balance
      */
     function pushBeacon(uint256 _aliveValidators, uint256 _aliveBalance, uint256 clock) external onlyRole(ORACLE_ROLE) {
-        require(int256(address(this).balance) == accountedBalance, "SYNC_BALANCE");
-        require(_aliveValidators + stoppedValidators.length <= nextValidatorId, "REPORTED_MORE_DEPOSITED");
-        require(_aliveBalance + uint256(recentReceived) >= reportedValidatorBalance, "INSUFFICIENT_BALANCE");
-        require(_aliveValidators >= reportedValidators, "INSUFFICIENT_VALIDATORS");
-        require(_aliveBalance >= _aliveValidators * DEPOSIT_SIZE, "REPORTED_LESS_VALUE");
+        require(int256(address(this).balance) == accountedBalance, "BALANCE_DEVIATES");
+        require(_aliveValidators + stoppedValidators.length <= nextValidatorId, "EXCEEDS_LAUNCHED");
+        require(_aliveBalance + uint256(recentReceived) >= reportedValidatorBalance, "OVERALL_BALANCE_DECREASED");
+        require(_aliveBalance >= _aliveValidators * DEPOSIT_SIZE, "ALIVE_BALANCE_DECREASED");
         require(vectorClock == clock, "CASUALITY_VIOLATION");
         vectorClock++;
 
-        // step 1. check if new validator launched
-        // and adjust rewardBase to include the new validators value
+        // step 1. check if new validator increased
+        // and adjust rewardBase to include the new validators' value
         uint256 rewardBase = reportedValidatorBalance;
         if (_aliveValidators > reportedValidators) {         
-            // newly appeared validators
+            // newly launched validators
             uint256 newValidators = _aliveValidators - reportedValidators;
             rewardBase += newValidators * DEPOSIT_SIZE;
         }
 
-        // step 2. calc rewards, this also considers stoppedBalance for stopped validators
-        //  current alive balance + those stopped validator balance >= reward base
+        // step 2. calc rewards, this also considers recentReceived ethers from 
+        // either stopped validators or withdrawed ethers as rewards, 
+        // revenue generated if:
+        //  current alive balance + ethers from validators >= reward base
         if (_aliveBalance + recentReceived > rewardBase) {
             uint256 rewards = _aliveBalance + recentReceived - rewardBase;
             _distributeRewards(rewards);
         }
 
         // step 3. update reportedValidators & reportedValidatorBalance
-        // take snapshot of current balances & validators
         // reset the recentReceived to 0
         reportedValidatorBalance = _aliveBalance; 
         reportedValidators = _aliveValidators;
