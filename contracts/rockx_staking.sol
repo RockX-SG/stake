@@ -168,7 +168,7 @@ contract RockXStaking is Initializable, PausableUpgradeable, AccessControlUpgrad
 
     // track stopped validators
     uint256 private recentReceived;                 // track recently received (un-accounted) value into this contract
-    uint256 private recentReceivedTs;               // track recent value receiving timstamp
+    uint256 private vectorClock;                    // a vector clock for detecting receive() & pushBeacon() causality violations
     bytes [] private stoppedValidators;             // track stopped validator pubkey
 
     // phase switch from 0 to 1
@@ -188,7 +188,7 @@ contract RockXStaking is Initializable, PausableUpgradeable, AccessControlUpgrad
     receive() external payable { 
         recentReceived += msg.value;
         if (msg.value > 0) {
-            recentReceivedTs = block.timestamp;
+            vectorClock++;
         }
     }
 
@@ -241,6 +241,7 @@ contract RockXStaking is Initializable, PausableUpgradeable, AccessControlUpgrad
         firstDebt = 1;
         lastDebt = 0;
         phase = 0;
+        vectorClock = 1;
         DEPOSIT_SIZE = 32 ether;
     }
 
@@ -376,12 +377,13 @@ contract RockXStaking is Initializable, PausableUpgradeable, AccessControlUpgrad
     /**
      * @dev operator reports current alive validators count and overall balance
      */
-    function pushBeacon(uint256 _aliveValidators, uint256 _aliveBalance, uint256 ts) external onlyRole(ORACLE_ROLE) {
+    function pushBeacon(uint256 _aliveValidators, uint256 _aliveBalance, uint256 clock) external onlyRole(ORACLE_ROLE) {
         require(_aliveValidators + stoppedValidators.length <= nextValidatorId, "REPORTED_MORE_DEPOSITED");
         require(_aliveBalance + recentReceived >= reportedValidatorBalance, "INSUFFICIENT_BALANCE");
         require(_aliveValidators >= reportedValidators, "INSUFFICIENT_VALIDATORS");
         require(_aliveBalance >= _aliveValidators * DEPOSIT_SIZE, "REPORTED_LESS_VALUE");
-        require(ts > recentReceivedTs, "RECEIVE_INVALIDATES_PUSH");
+        require(vectorClock == clock, "CASUALITY_VIOLATION");
+        vectorClock++;
 
         // step 1. check if new validator launched
         // and adjust rewardBase to include the new validators value
@@ -478,6 +480,11 @@ contract RockXStaking is Initializable, PausableUpgradeable, AccessControlUpgrad
     function currentReserve() public view returns(uint256) {
         return totalPending + totalStaked + accountedUserRevenue - totalDebts - rewardDebts;
     }
+
+    /*
+     * @dev returns current vector clock
+     */
+    function getVectorClock() external view returns(uint256) { return vectorClock; }
 
     /**
      * @dev return recent received balance
