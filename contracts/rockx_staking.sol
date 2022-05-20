@@ -61,7 +61,6 @@ import "@openzeppelin/contracts-upgradeable/security/ReentrancyGuardUpgradeable.
  *          RecentReceived = RecentReceived + valueStopped
  *          TotalPending = TotalPending + Max(0, amountUnstaked - TotalDebts) + incrRewardDebt
  *          TotalStaked = TotalStaked - validatorStopped * 32 ETH
- *          ReportedValidators = ReportedValidators - validatorStopped
  *
  * Rule 4.1: (function pushBeacon) Oracle push balance, rebase if new validator is alive:
  *          aliveValidator:             The count of validators alive
@@ -427,9 +426,6 @@ contract RockXStaking is Initializable, PausableUpgradeable, AccessControlUpgrad
             validatorRegistry[_stoppedIDs[i]].stopped = true;
             stoppedValidators.push(validatorRegistry[_stoppedIDs[i]].pubkey);
         }
-
-        // rebase reward snapshot
-        reportedValidators -= _stoppedIDs.length;
 
         // NOTE(x) The following procedure MUST keep currentReserve unchanged:
         // 
