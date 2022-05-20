@@ -131,7 +131,8 @@ def test_beacon(setup):
     assert transparent_xeth.balanceOf(oracle) == '32 ether'
 
     transparent_staking.grantRole(transparent_staking.ORACLE_ROLE(), oracle, {'from': accounts[0]})
-    transparent_staking.pushBeacon(1, '32.32 ether', int(time.time()), {'from':oracle})
+    vectorClock = transparent_staking.getVectorClock()
+    transparent_staking.pushBeacon(1, '32.32 ether', vectorClock, {'from':oracle})
 
     assert transparent_staking.exchangeRatio() == expectedExchangeRatio
 
