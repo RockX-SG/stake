@@ -17,8 +17,8 @@ import "@openzeppelin/contracts-upgradeable/security/ReentrancyGuardUpgradeable.
  * 
  * Term:
  *  ExchangeRatio:              Exchange Ratio of xETH to ETH, normally >= 1.0
- *  TotalXETH:                  Total Circulation Supply of xETH
- *  TotalStaked:                Total User Ethers Staked to Validators
+ *  TotalXETH:                  Total Supply of xETH
+ *  TotalStaked:                Total Ethers Staked to Validators
  *  TotalDebts:                 Total unpaid debts(generated from redeemFromValidators), 
  *                              awaiting to be paid by turn off validators to clean debts.
  *  TotalPending:               Pending Ethers(<32 Ethers), awaiting to be staked
@@ -27,7 +27,7 @@ import "@openzeppelin/contracts-upgradeable/security/ReentrancyGuardUpgradeable.
  *  AccountedUserRevenue:       Overall Revenue which belongs to all xETH holders
  *  ReportedValidators:         Latest Reported Validator Count
  *  ReportedValidatorBalance:   Latest Reported Validator Overall Balance
- *  AmountReceived:             The Amount this contract receives recently.
+ *  RecentReceived:             The Amount this contract receives recently.
  *  CurrentReserve:             Assets Under Management
  *
  * Lemma 1: (AUM)
@@ -58,7 +58,7 @@ import "@openzeppelin/contracts-upgradeable/security/ReentrancyGuardUpgradeable.
  *          
  *          incrRewardDebt := valueStopped - amountUnstaked
  *          RewardDebts = RewardDebt + incrRewardDebt
- *          AmountReceived = AmountReceived + valueStopped
+ *          RecentReceived = RecentReceived + valueStopped
  *          TotalPending = TotalPending + Max(0, amountUnstaked - TotalDebts) + incrRewardDebt
  *          TotalStaked = TotalStaked - validatorStopped * 32 ETH
  *          ReportedValidators = ReportedValidators - validatorStopped
@@ -71,9 +71,9 @@ import "@openzeppelin/contracts-upgradeable/security/ReentrancyGuardUpgradeable.
  * Rule 4.2: (function pushBeacon) Oracle push balance, revenue calculation:
  *          aliveBalance:               The balance of current alive validators
  *
- *          r := aliveBalance + AmountReceived - RewardBase
+ *          r := aliveBalance + RecentReceived - RewardBase
  *          AccountedUserRevenue = AccountedUserRevenue + r * (1000 - managerFeeShare) / 1000
- *          AmountReceived = 0
+ *          RecentReceived = 0
  *          ReportedValidators = aliveValidator
  *          ReportedValidatorBalance = aliveBalance
  *
@@ -159,7 +159,7 @@ contract RockXStaking is Initializable, PausableUpgradeable, AccessControlUpgrad
     // track revenue from validators to form exchange ratio
     uint256 private accountedUserRevenue;           // accounted shared user revenue
     uint256 private accountedManagerRevenue;        // accounted manager's revenue
-    uint256 private rewardDebt;                     // check validatorStopped function
+    uint256 private rewardDebts;                     // check validatorStopped function
 
     // revenue related variables
     // track beacon validator & balance
@@ -167,7 +167,7 @@ contract RockXStaking is Initializable, PausableUpgradeable, AccessControlUpgrad
     uint256 private reportedValidatorBalance;
 
     // track stopped validators
-    uint256 private amountReceived;                 // track recently received (un-accounted) value into this contract
+    uint256 private recentReceived;                 // track recently received (un-accounted) value into this contract
     uint256 private lastStopTimestamp;              // record timestamp of last stop
     bytes [] private stoppedValidators;             // track stopped validator pubkey
 
@@ -186,7 +186,7 @@ contract RockXStaking is Initializable, PausableUpgradeable, AccessControlUpgrad
      */
 
     receive() external payable { 
-        amountReceived += msg.value;
+        recentReceived += msg.value;
     }
 
     /**
@@ -375,7 +375,7 @@ contract RockXStaking is Initializable, PausableUpgradeable, AccessControlUpgrad
      */
     function pushBeacon(uint256 _aliveValidators, uint256 _aliveBalance, uint256 ts) external onlyRole(ORACLE_ROLE) {
         require(_aliveValidators + stoppedValidators.length <= nextValidatorId, "REPORTED_MORE_DEPOSITED");
-        require(_aliveBalance + amountReceived >= reportedValidatorBalance, "INSUFFICIENT_BALANCE");
+        require(_aliveBalance + recentReceived >= reportedValidatorBalance, "INSUFFICIENT_BALANCE");
         require(_aliveValidators >= reportedValidators, "INSUFFICIENT_VALIDATORS");
         require(_aliveBalance >= _aliveValidators * DEPOSIT_SIZE, "REPORTED_LESS_VALUE");
         require(ts > lastStopTimestamp, "REPORTED_EXPIRED_TIMESTAMP");
@@ -391,8 +391,8 @@ contract RockXStaking is Initializable, PausableUpgradeable, AccessControlUpgrad
 
         // step 2. calc rewards, this also considers stoppedBalance for stopped validators
         //  current alive balance + those stopped validator balance >= reward base
-        if (_aliveBalance + amountReceived > rewardBase) {
-            uint256 rewards = _aliveBalance + amountReceived - rewardBase;
+        if (_aliveBalance + recentReceived > rewardBase) {
+            uint256 rewards = _aliveBalance + recentReceived - rewardBase;
             _distributeRewards(rewards);
         }
 
@@ -401,7 +401,7 @@ contract RockXStaking is Initializable, PausableUpgradeable, AccessControlUpgrad
         // reset the stoppedBalance to 0
         reportedValidatorBalance = _aliveBalance; 
         reportedValidators = _aliveValidators;
-        amountReceived = 0;
+        recentReceived = 0;
     }
 
     /**
@@ -449,15 +449,15 @@ contract RockXStaking is Initializable, PausableUpgradeable, AccessControlUpgrad
         totalStaked -= amountUnstaked;
 
         // revenue debt
-        rewardDebt += incrRewardDebt;
+        rewardDebts += incrRewardDebt;
 
         // Variables Compaction
         // compact accountedUserRevenue & rewardDebt, to avert overflow
-        if (accountedUserRevenue >= rewardDebt) {
-            accountedUserRevenue -= rewardDebt;
-            rewardDebt = 0;
+        if (accountedUserRevenue >= rewardDebts) {
+            accountedUserRevenue -= rewardDebts;
+            rewardDebts = 0;
         } else {
-            rewardDebt -= accountedUserRevenue;
+            rewardDebts -= accountedUserRevenue;
             accountedUserRevenue = 0;
         }
 
@@ -477,13 +477,13 @@ contract RockXStaking is Initializable, PausableUpgradeable, AccessControlUpgrad
      * @dev returns current reserve of ethers
      */
     function currentReserve() public view returns(uint256) {
-        return totalPending + totalStaked + accountedUserRevenue - totalDebts - rewardDebt;
+        return totalPending + totalStaked + accountedUserRevenue - totalDebts - rewardDebts;
     }
 
     /**
-     * @dev return current stopped balance
+     * @dev return recent received balance
      */
-    function getCurrenAmountReceived() external view returns (uint256) { return amountReceived; }
+    function getRecentReceived() external view returns (uint256) { return recentReceived; }
 
     /**
      * @dev return pending ethers
