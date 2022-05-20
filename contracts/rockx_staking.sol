@@ -24,7 +24,7 @@ import "@openzeppelin/contracts-upgradeable/security/ReentrancyGuardUpgradeable.
  *  TotalPending:               Pending Ethers(<32 Ethers), awaiting to be staked
  *  RewardDebts:                The amount re-staked into TotalPending
  *
- *  AccountedUserRevenue:       Overall Revenue which belongs to all xETH holders
+ *  AccountedUserRevenue:       Overall Net revenue which belongs to all xETH holders(excluded re-staked amount)
  *  ReportedValidators:         Latest Reported Validator Count
  *  ReportedValidatorBalance:   Latest Reported Validator Overall Balance
  *  RecentReceived:             The Amount this contract receives recently.
@@ -168,7 +168,7 @@ contract RockXStaking is Initializable, PausableUpgradeable, AccessControlUpgrad
 
     // track stopped validators
     uint256 private recentReceived;                 // track recently received (un-accounted) value into this contract
-    uint256 private lastStopTimestamp;              // record timestamp of last stop
+    uint256 private recentReceivedTs;               // track recent value receiving timstamp
     bytes [] private stoppedValidators;             // track stopped validator pubkey
 
     // phase switch from 0 to 1
@@ -187,6 +187,9 @@ contract RockXStaking is Initializable, PausableUpgradeable, AccessControlUpgrad
 
     receive() external payable { 
         recentReceived += msg.value;
+        if (msg.value > 0) {
+            recentReceivedTs = block.timestamp;
+        }
     }
 
     /**
@@ -378,7 +381,7 @@ contract RockXStaking is Initializable, PausableUpgradeable, AccessControlUpgrad
         require(_aliveBalance + recentReceived >= reportedValidatorBalance, "INSUFFICIENT_BALANCE");
         require(_aliveValidators >= reportedValidators, "INSUFFICIENT_VALIDATORS");
         require(_aliveBalance >= _aliveValidators * DEPOSIT_SIZE, "REPORTED_LESS_VALUE");
-        require(ts > lastStopTimestamp, "REPORTED_EXPIRED_TIMESTAMP");
+        require(ts > recentReceivedTs, "RECEIVE_INVALIDATES_PUSH");
 
         // step 1. check if new validator launched
         // and adjust rewardBase to include the new validators value
@@ -425,10 +428,6 @@ contract RockXStaking is Initializable, PausableUpgradeable, AccessControlUpgrad
 
         // rebase reward snapshot
         reportedValidators -= _stoppedIDs.length;
-        
-        // record timestamp to avoid expired pushBeacon transaction
-        lastStopTimestamp = block.timestamp;
-
 
         // NOTE(x) The following procedure MUST keep currentReserve unchanged:
         // 
