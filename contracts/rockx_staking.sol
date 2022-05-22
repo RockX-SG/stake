@@ -171,7 +171,7 @@ contract RockXStaking is Initializable, PausableUpgradeable, AccessControlUpgrad
 
     uint256 private recentReceived;                 // track recently received (un-accounted) value into this contract
     bytes32 private vectorClock;                    // a vector clock for detecting receive() & pushBeacon() causality violations
-    uint256 private vectorClockStep;                // record current vector clock step;
+    uint256 private vectorClockTicks;               // record current vector clock step;
 
     // track stopped validators
     bytes [] private stoppedValidators;             // track stopped validator pubkey
@@ -241,7 +241,7 @@ contract RockXStaking is Initializable, PausableUpgradeable, AccessControlUpgrad
         lastDebt = 0;
         phase = 0;
         DEPOSIT_SIZE = 32 ether;
-        _vectorClockMove();
+        _vectorClockTick();
     }
 
     /**
@@ -384,7 +384,7 @@ contract RockXStaking is Initializable, PausableUpgradeable, AccessControlUpgrad
         if (diff > 0) {
             accountedBalance = int256(address(this).balance);
             recentReceived += diff;
-            _vectorClockMove();
+            _vectorClockTick();
             emit BalanceSynced(diff);
         }
     }
@@ -398,7 +398,7 @@ contract RockXStaking is Initializable, PausableUpgradeable, AccessControlUpgrad
         require(_aliveBalance + uint256(recentReceived) >= reportedValidatorBalance, "OVERALL_BALANCE_DECREASED");
         require(_aliveBalance >= _aliveValidators * DEPOSIT_SIZE, "ALIVE_BALANCE_DECREASED");
         require(vectorClock == clock, "CASUALITY_VIOLATION");
-        _vectorClockMove();
+        _vectorClockTick();
 
         // step 1. check if new validator increased
         // and adjust rewardBase to include the new validators' value
@@ -756,9 +756,9 @@ contract RockXStaking is Initializable, PausableUpgradeable, AccessControlUpgrad
      * ======================================================================================
      */
 
-    function _vectorClockMove() internal {
-        vectorClockStep++;
-        vectorClock = keccak256(abi.encodePacked(block.timestamp, msg.sender, vectorClockStep));
+    function _vectorClockTick() internal {
+        vectorClockTicks++;
+        vectorClock = keccak256(abi.encodePacked(vectorClock, block.timestamp, vectorClockTicks));
     }
 
     function _currentEthersReceived() internal view returns(uint256) {
