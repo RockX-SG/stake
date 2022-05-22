@@ -166,8 +166,8 @@ contract RockXStaking is Initializable, PausableUpgradeable, AccessControlUpgrad
     uint256 private reportedValidatorBalance;
 
     // balance tracking
-    int256 private accountedBalance;                         // tracked balance here, 
-                                                    // balance might be negative for not accounting validators's redeeming
+    int256 private accountedBalance;                // tracked balance change in functions,
+                                                    // NOTE(x): balance might be negative for not accounting validators's redeeming
 
     uint256 private recentReceived;                 // track recently received (un-accounted) value into this contract
     uint256 private vectorClock;                    // a vector clock for detecting receive() & pushBeacon() causality violations
