@@ -179,9 +179,6 @@ contract RockXStaking is Initializable, PausableUpgradeable, AccessControlUpgrad
     // phase switch from 0 to 1
     uint256 private phase;
 
-    // instant swap switch
-    bool private instantSwapEnabled;
-
     /** 
      * ======================================================================================
      * 
@@ -196,14 +193,6 @@ contract RockXStaking is Initializable, PausableUpgradeable, AccessControlUpgrad
      */
     modifier onlyPhase(uint256 requiredPhase) {
         require(phase >= requiredPhase, "PHASE_MISMATCH");
-        _;
-    }
-
-    /**
-     * @dev only tiny swap enabled
-     */
-    modifier onlyInstantSwapEnabled() {
-        require(instantSwapEnabled, "INSTANT_SWAP_DISABLED");
         _;
     }
 
@@ -259,14 +248,7 @@ contract RockXStaking is Initializable, PausableUpgradeable, AccessControlUpgrad
         require (newPhase >= phase, "PHASE_ROLLBACK");
         phase = newPhase;
     }
-
-    /**
-     * @dev instant swap switch
-     */
-    function switchInstantSwap(bool enable) external onlyRole(DEFAULT_ADMIN_ROLE) {
-        instantSwapEnabled = enable;
-    }
-
+    
     /**
      * @dev register a validator
      */
@@ -645,10 +627,7 @@ contract RockXStaking is Initializable, PausableUpgradeable, AccessControlUpgrad
         }
         // mint xETH
         IMintableContract(xETHAddress).mint(msg.sender, toMint);
-
-        // ethers to mint to pay debts in priority
-        uint256 debtPaid = _payDebts(msg.value);
-        totalPending += msg.value - debtPaid; 
+        totalPending += msg.value;
 
         // spin up n nodes
         uint256 numValidators = totalPending / DEPOSIT_SIZE;
@@ -680,72 +659,6 @@ contract RockXStaking is Initializable, PausableUpgradeable, AccessControlUpgrad
 
         // queue ether debts
         _enqueueDebt(msg.sender, ethersToRedeem);
-
-        // try to pay debts from swap pool
-        totalPending -= _payDebts(totalPending);
-    }
-
-    /**
-     * @dev redeem ETH by burning xETH with current exchange ratio, 
-     * approve xETH to this contract first.
-     *
-     * amount xETH to burn:
-     *      xETH * ethers_to_redeem/current_ethers
-     *
-     * redeem keeps the ratio invariant
-     */
-    function redeemUnderlying(uint256 ethersToRedeem, uint256 maxToBurn, uint256 deadline) external nonReentrant onlyInstantSwapEnabled {
-        require(block.timestamp < deadline, "TRANSACTION_EXPIRED");
-        require(totalPending >= ethersToRedeem, "INSUFFICIENT_ETHERS");
-
-        uint256 totalXETH = IERC20(xETHAddress).totalSupply();
-        uint256 xETHToBurn = totalXETH * ethersToRedeem / currentReserve();
-        require(xETHToBurn <= maxToBurn, "EXCHANGE_RATIO_MISMATCH");
-
-        // transfer xETH from sender & burn
-        IERC20(xETHAddress).safeTransferFrom(msg.sender, address(this), xETHToBurn);
-        IMintableContract(xETHAddress).burn(xETHToBurn);
-
-        // send ethers back to sender
-        payable(msg.sender).sendValue(ethersToRedeem);
-        totalPending -= ethersToRedeem;
-        
-        // track balance
-        accountedBalance -= int256(ethersToRedeem);
-
-        // emit amount withdrawed
-        emit Redeemed(xETHToBurn, ethersToRedeem);
-    }
-
-    /**
-     * @dev redeem ETH by burning xETH with current exchange ratio, 
-     * approve xETH to this contract first.
-     * 
-     * amount ethers to return:
-     *  current_ethers * xETHToBurn/ xETH
-     *
-     * redeem keeps the ratio invariant
-     */
-    function redeem(uint256 xETHToBurn, uint256 minToRedeem, uint256 deadline) external nonReentrant onlyInstantSwapEnabled {
-        require(block.timestamp < deadline, "TRANSACTION_EXPIRED");
-        uint256 totalXETH = IERC20(xETHAddress).totalSupply();
-        uint256 ethersToRedeem = currentReserve() * xETHToBurn / totalXETH;
-        require(totalPending >= ethersToRedeem, "INSUFFICIENT_ETHERS");
-        require(ethersToRedeem >= minToRedeem, "EXCHANGE_RATIO_MISMATCH");
-
-        // transfer xETH from sender & burn
-        IERC20(xETHAddress).safeTransferFrom(msg.sender, address(this), xETHToBurn);
-        IMintableContract(xETHAddress).burn(xETHToBurn);
-
-        // send ethers back to sender
-        payable(msg.sender).sendValue(ethersToRedeem);
-        totalPending -= ethersToRedeem;
-
-        // track balance
-        accountedBalance -= int256(ethersToRedeem);
-
-        // emit amount withdrawed
-        emit Redeemed(xETHToBurn, ethersToRedeem);
     }
 
     /** 
