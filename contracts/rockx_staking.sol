@@ -170,7 +170,8 @@ contract RockXStaking is Initializable, PausableUpgradeable, AccessControlUpgrad
                                                     // NOTE(x): balance might be negative for not accounting validators's redeeming
 
     uint256 private recentReceived;                 // track recently received (un-accounted) value into this contract
-    uint256 private vectorClock;                    // a vector clock for detecting receive() & pushBeacon() causality violations
+    bytes32 private vectorClock;                    // a vector clock for detecting receive() & pushBeacon() causality violations
+    uint256 private vectorClockStep;                // record current vector clock step;
 
     // track stopped validators
     bytes [] private stoppedValidators;             // track stopped validator pubkey
@@ -239,8 +240,8 @@ contract RockXStaking is Initializable, PausableUpgradeable, AccessControlUpgrad
         firstDebt = 1;
         lastDebt = 0;
         phase = 0;
-        vectorClock = 1;
         DEPOSIT_SIZE = 32 ether;
+        _vectorClockMove();
     }
 
     /**
@@ -383,7 +384,7 @@ contract RockXStaking is Initializable, PausableUpgradeable, AccessControlUpgrad
         if (diff > 0) {
             accountedBalance = int256(address(this).balance);
             recentReceived += diff;
-            vectorClock++;
+            _vectorClockMove();
             emit BalanceSynced(diff);
         }
     }
@@ -391,13 +392,13 @@ contract RockXStaking is Initializable, PausableUpgradeable, AccessControlUpgrad
     /**
      * @dev operator reports current alive validators count and overall balance
      */
-    function pushBeacon(uint256 _aliveValidators, uint256 _aliveBalance, uint256 clock) external onlyRole(ORACLE_ROLE) {
+    function pushBeacon(uint256 _aliveValidators, uint256 _aliveBalance, bytes32 clock) external onlyRole(ORACLE_ROLE) {
         require(int256(address(this).balance) == accountedBalance, "BALANCE_DEVIATES");
         require(_aliveValidators + stoppedValidators.length <= nextValidatorId, "VALIDATOR_COUNT_MISMATCH");
         require(_aliveBalance + uint256(recentReceived) >= reportedValidatorBalance, "OVERALL_BALANCE_DECREASED");
         require(_aliveBalance >= _aliveValidators * DEPOSIT_SIZE, "ALIVE_BALANCE_DECREASED");
         require(vectorClock == clock, "CASUALITY_VIOLATION");
-        vectorClock++;
+        _vectorClockMove();
 
         // step 1. check if new validator increased
         // and adjust rewardBase to include the new validators' value
@@ -496,7 +497,7 @@ contract RockXStaking is Initializable, PausableUpgradeable, AccessControlUpgrad
     /*
      * @dev returns current vector clock
      */
-    function getVectorClock() external view returns(uint256) { return vectorClock; }
+    function getVectorClock() external view returns(bytes32) { return vectorClock; }
 
     /*
      * @dev returns current accounted balance
@@ -754,6 +755,12 @@ contract RockXStaking is Initializable, PausableUpgradeable, AccessControlUpgrad
      * 
      * ======================================================================================
      */
+
+    function _vectorClockMove() internal {
+        vectorClockStep++;
+        vectorClock = keccak256(abi.encodePacked(block.timestamp, msg.sender, vectorClockStep));
+    }
+
     function _currentEthersReceived() internal view returns(uint256) {
         return address(this).balance - totalPending;
     }
