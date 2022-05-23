@@ -347,6 +347,14 @@ contract RockXStaking is Initializable, PausableUpgradeable, AccessControlUpgrad
     } 
 
     /**
+     * @dev submit reward withdrawal tx from this contract
+     */
+    function sumbitRewardWithdrawal(uint256 amount) external nonReentrant onlyRole(MANAGER_ROLE) {
+        require(amount <= accountedManagerRevenue, "WITHDRAW_EXCEEDED_MANAGER_REVENUE");
+        revert("NOT_IMPLEMENTED");
+    }
+
+    /**
      * @dev manager withdraw fees
      */
     function withdrawManagerFee(uint256 amount, address to) external nonReentrant onlyRole(MANAGER_ROLE)  {
