@@ -410,7 +410,7 @@ contract RockXStaking is Initializable, PausableUpgradeable, AccessControlUpgrad
     /**
      * @dev operator notify some validators stopped
      */
-    function validatorStopped(uint256 [] calldata _stoppedIDs, uint256 _stoppedBalance) external nonReentrant onlyRole(OPERATOR_ROLE) {
+    function validatorStopped(uint256 [] calldata _stoppedIDs, uint256 _stoppedBalance) external nonReentrant onlyRole(ORACLE_ROLE) {
         uint256 amountUnstaked = _stoppedIDs.length * DEPOSIT_SIZE;
         require(_currentEthersReceived() >= _stoppedBalance, "INSUFFICIENT_ETHERS_PUSHED");
         require(_stoppedBalance >= amountUnstaked, "INSUFFICIENT_ETHERS_STOPPED");
