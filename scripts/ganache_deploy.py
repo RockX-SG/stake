@@ -50,6 +50,10 @@ def main():
     transparent_staking = Contract.from_abi("RockXStaking",staking_proxy.address, RockXStaking.abi)
     transparent_redeem  = Contract.from_abi("RockXRedeem", redeem_proxy.address, RockXRedeem.abi)
 
+    print("xETH address:", transparent_xeth)
+    print("RockXStaking address:", transparent_staking)
+    print("Redeem address:", transparent_redeem)
+
     transparent_xeth.initialize(
             {'from': owner, 'gas': GAS_LIMIT}
             )
