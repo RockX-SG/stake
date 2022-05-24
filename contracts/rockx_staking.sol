@@ -268,8 +268,8 @@ contract RockXStaking is Initializable, PausableUpgradeable, AccessControlUpgrad
      * @dev replace a validator in case of msitakes
      */
     function replaceValidator(uint256 index, bytes calldata pubkey, bytes calldata signature) external onlyRole(REGISTRY_ROLE) {
-        require(index < validatorRegistry.length, "OUT_OF_RANGE");
-        require(index < nextValidatorId, "ALREADY_ACTIVATED");
+        require(index < validatorRegistry.length, "ID_OUT_OF_RANGE");
+        require(index < nextValidatorId, "VALIDATOR_ALREADY_ACTIVATED");
         require(pubkey.length == PUBKEY_LENGTH, "INCONSISTENT_PUBKEY_LEN");
         require(signature.length == SIGNATURE_LENGTH, "INCONSISTENT_SIG_LEN");
 
@@ -304,7 +304,7 @@ contract RockXStaking is Initializable, PausableUpgradeable, AccessControlUpgrad
      * @dev set manager's fee in 1/1000
      */
     function setManagerFeeShare(uint256 milli) external onlyRole(DEFAULT_ADMIN_ROLE)  {
-        require(milli >=0 && milli <=1000, "OUT_OF_RANGE");
+        require(milli >=0 && milli <=1000, "SHARE_OUT_OF_RANGE");
         managerFeeShare = milli;
 
         emit ManagerFeeSet(milli);
