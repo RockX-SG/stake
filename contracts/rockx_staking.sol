@@ -624,7 +624,7 @@ contract RockXStaking is Initializable, PausableUpgradeable, AccessControlUpgrad
         require(msg.value > 0, "MINT_ZERO");
         
         // track balance
-        accountedBalance += int256(msg.value);
+        _balanceIncrease(msg.value);
 
         // mint xETH while keeping the exchange ratio invariant
         uint256 totalXETH = IERC20(xETHAddress).totalSupply();
@@ -678,6 +678,9 @@ contract RockXStaking is Initializable, PausableUpgradeable, AccessControlUpgrad
      * 
      * ======================================================================================
      */
+
+    function _balanceIncrease(uint256 amount) internal { accountedBalance += int256(amount); }
+    function _balanceDecrease(uint256 amount) internal { accountedBalance -= int256(amount); }
 
     function _vectorClockTick() internal {
         vectorClockTicks++;
@@ -742,7 +745,7 @@ contract RockXStaking is Initializable, PausableUpgradeable, AccessControlUpgrad
         totalDebts -= amountPaid;
         
         // track balance
-        accountedBalance -= int256(amountPaid);
+        _balanceDecrease(amountPaid);
     }
 
     /**
@@ -804,7 +807,7 @@ contract RockXStaking is Initializable, PausableUpgradeable, AccessControlUpgrad
             pubkey, abi.encodePacked(withdrawalCredentials), signature, depositDataRoot);
 
         // track balance
-        accountedBalance -= int256(DEPOSIT_SIZE);
+        _balanceDecrease(DEPOSIT_SIZE);
     }
 
     /**
