@@ -385,11 +385,11 @@ contract RockXStaking is Initializable, PausableUpgradeable, AccessControlUpgrad
      * @dev operator reports current alive validators count and overall balance
      */
     function pushBeacon(uint256 _aliveValidators, uint256 _aliveBalance, bytes32 clock) external onlyRole(ORACLE_ROLE) {
+        require(vectorClock == clock, "CASUALITY_VIOLATION");
         require(int256(address(this).balance) == accountedBalance, "BALANCE_DEVIATES");
         require(_aliveValidators + stoppedValidators.length <= nextValidatorId, "VALIDATOR_COUNT_MISMATCH");
         require(_aliveBalance + uint256(recentReceived) >= reportedValidatorBalance, "OVERALL_BALANCE_DECREASED");
         require(_aliveBalance >= _aliveValidators * DEPOSIT_SIZE, "ALIVE_BALANCE_DECREASED");
-        require(vectorClock == clock, "CASUALITY_VIOLATION");
         _vectorClockTick();
 
         // step 1. check if new validator increased
@@ -418,7 +418,7 @@ contract RockXStaking is Initializable, PausableUpgradeable, AccessControlUpgrad
     }
 
     /**
-     * @dev operator notify some validators stopped
+     * @dev operator notify some validators stopped, and pay the debts
      */
     function validatorStopped(uint256 [] calldata _stoppedIDs, uint256 _stoppedBalance) external nonReentrant onlyRole(OPERATOR_ROLE) {
         uint256 amountUnstaked = _stoppedIDs.length * DEPOSIT_SIZE;
@@ -445,7 +445,7 @@ contract RockXStaking is Initializable, PausableUpgradeable, AccessControlUpgrad
         
         // extra value;
         uint256 incrRewardDebt = _stoppedBalance - amountUnstaked;
-        // pay debt
+        // pay debts
         uint256 paid = _payDebts(amountUnstaked);
 
         // the remaining ethers are aggregated to totalPending
