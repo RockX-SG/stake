@@ -170,6 +170,7 @@ contract RockXStaking is Initializable, PausableUpgradeable, AccessControlUpgrad
     int256 private accountedBalance;                // tracked balance change in functions,
                                                     // NOTE(x): balance might be negative for not accounting validators's redeeming
 
+    uint256 private recentSlashed;                  // track recently slashed value
     uint256 private recentReceived;                 // track recently received (un-accounted) value into this contract
     bytes32 private vectorClock;                    // a vector clock for detecting receive() & pushBeacon() causality violations
     uint256 private vectorClockTicks;               // record current vector clock step;
@@ -337,7 +338,6 @@ contract RockXStaking is Initializable, PausableUpgradeable, AccessControlUpgrad
         emit RedeemContractSet(_redeemContract);
     }
 
-
     /**
      @dev set withdraw credential to receive revenue, usually this should be the contract itself.
      */
@@ -349,7 +349,7 @@ contract RockXStaking is Initializable, PausableUpgradeable, AccessControlUpgrad
     /**
      * @dev submit reward withdrawal tx from this contract
      */
-    function sumbitRewardWithdrawal(uint256 amount) external nonReentrant onlyRole(MANAGER_ROLE) {
+    function sumbitRewardWithdrawal(uint256 amount) external onlyRole(MANAGER_ROLE) {
         require(amount <= accountedManagerRevenue, "WITHDRAW_EXCEEDED_MANAGER_REVENUE");
         revert("NOT_IMPLEMENTED");
     }
@@ -370,7 +370,8 @@ contract RockXStaking is Initializable, PausableUpgradeable, AccessControlUpgrad
     /**
      * @dev balance sync, also moves the vector clock if it has different value
      */
-    function syncBalance() external onlyRole(ORACLE_ROLE) {
+    function syncBalance(bytes32 clock) external onlyRole(ORACLE_ROLE) {
+        require(vectorClock == clock, "CASUALITY_VIOLATION");
         assert(int256(address(this).balance) >= accountedBalance);
         uint256 diff = uint256(int256(address(this).balance) - accountedBalance);
         if (diff > 0) {
@@ -388,7 +389,7 @@ contract RockXStaking is Initializable, PausableUpgradeable, AccessControlUpgrad
         require(vectorClock == clock, "CASUALITY_VIOLATION");
         require(int256(address(this).balance) == accountedBalance, "BALANCE_DEVIATES");
         require(_aliveValidators + stoppedValidators.length <= nextValidatorId, "VALIDATOR_COUNT_MISMATCH");
-        require(_aliveBalance + uint256(recentReceived) >= reportedValidatorBalance, "OVERALL_BALANCE_DECREASED");
+        require(_aliveBalance + uint256(recentReceived) + recentSlashed >= reportedValidatorBalance, "OVERALL_BALANCE_DECREASED");
         require(_aliveBalance >= _aliveValidators * DEPOSIT_SIZE, "ALIVE_BALANCE_DECREASED");
 
         // step 1. check if new validator increased
@@ -404,8 +405,8 @@ contract RockXStaking is Initializable, PausableUpgradeable, AccessControlUpgrad
         // either stopped validators or withdrawed ethers as rewards, 
         // revenue generated if:
         //  current alive balance + ethers from validators >= reward base
-        if (_aliveBalance + recentReceived > rewardBase) {
-            uint256 rewards = _aliveBalance + recentReceived - rewardBase;
+        if (_aliveBalance + recentReceived + recentSlashed> rewardBase) {
+            uint256 rewards = _aliveBalance + recentReceived + recentSlashed - rewardBase;
             _distributeRewards(rewards);
         }
 
@@ -414,15 +415,16 @@ contract RockXStaking is Initializable, PausableUpgradeable, AccessControlUpgrad
         reportedValidatorBalance = _aliveBalance; 
         reportedValidators = _aliveValidators;
         recentReceived = 0;
+        recentSlashed = 0;
 
         // step 4. vector clock moves, make sure never use the same vector again
         _vectorClockTick();
     }
 
     /**
-     * @dev operator notify some validators stopped, and pay the debts
+     * @dev notify some validators stopped, and pay the debts
      */
-    function validatorStopped(uint256 [] calldata _stoppedIDs, uint256 _stoppedBalance) external nonReentrant onlyRole(OPERATOR_ROLE) {
+    function validatorStopped(uint256 [] calldata _stoppedIDs, uint256 _stoppedBalance) external nonReentrant onlyRole(ORACLE_ROLE) {
         uint256 amountUnstaked = _stoppedIDs.length * DEPOSIT_SIZE;
         require(_currentEthersReceived() >= _stoppedBalance, "INSUFFICIENT_ETHERS_PUSHED");
         require(_stoppedBalance >= amountUnstaked, "INSUFFICIENT_ETHERS_STOPPED");
@@ -447,6 +449,7 @@ contract RockXStaking is Initializable, PausableUpgradeable, AccessControlUpgrad
         
         // extra value;
         uint256 incrRewardDebt = _stoppedBalance - amountUnstaked;
+
         // pay debts
         uint256 paid = _payDebts(amountUnstaked);
 
@@ -471,6 +474,37 @@ contract RockXStaking is Initializable, PausableUpgradeable, AccessControlUpgrad
 
         // log
         emit ValidatorStopped(_stoppedIDs, _stoppedBalance);
+    }
+
+    /**
+     * @dev notify some validators has been slashed, turn off those stopped validator
+     */
+    function validatorSlashedStop(uint256 [] calldata _stoppedIDs, uint256 _stoppedBalance) external nonReentrant onlyRole(ORACLE_ROLE) {
+        require(_currentEthersReceived() >= _stoppedBalance, "INSUFFICIENT_ETHERS_PUSHED");
+        require(_stoppedIDs.length > 0, "EMPTY_CALLDATA");
+        require(_stoppedIDs.length + stoppedValidators.length <= nextValidatorId, "REPORTED_MORE_STOPPED_VALIDATORS");
+
+        // record stopped validators snapshot.
+        for (uint i=0;i<_stoppedIDs.length;i++) {
+            require(_stoppedIDs[i] < nextValidatorId, "ID_OUT_OF_RANGE");
+            require(!validatorRegistry[_stoppedIDs[i]].stopped, "ID_ALREADY_STOPPED");
+
+            validatorRegistry[_stoppedIDs[i]].stopped = true;
+            stoppedValidators.push(validatorRegistry[_stoppedIDs[i]].pubkey);
+        }
+
+        // here we restake the remaining ethers by putting to totalPending
+        uint256 amountUnstaked = _stoppedIDs.length * DEPOSIT_SIZE;
+        totalPending += _stoppedBalance;
+
+        // track total staked ethers
+        totalStaked -= amountUnstaked;
+
+        // record recent slashed ethers
+        recentSlashed += amountUnstaked - _stoppedBalance;
+
+        // log
+        emit ValidatorSlashedStopped(_stoppedIDs, _stoppedBalance);
     }
 
     /**
@@ -841,6 +875,7 @@ contract RockXStaking is Initializable, PausableUpgradeable, AccessControlUpgrad
     event ValidatorStopped(uint256 [] stoppedIDs, uint256 stoppedBalance);
     event RevenueAccounted(uint256 amount);
     event RevenueWithdrawedFromValidator(uint256 amount);
+    event ValidatorSlashedStopped(uint256 [] stoppedIDs, uint256 stoppedBalance);
     event ManagerAccountSet(address account);
     event ManagerFeeSet(uint256 milli);
     event ManagerFeeWithdrawed(uint256 amount, address);

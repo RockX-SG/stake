@@ -101,24 +101,30 @@ def test_mint(setup):
     assert transparent_staking.exchangeRatio() == 1e18
 
 def test_redeem(setup):
+    owner = accounts[0]
     user1 = accounts[2]
-    user2 = accounts[3]
     transparent_staking.mint(0, time.time() + 600, {'from':user1, 'value': "32 ether"})
     assert transparent_xeth.balanceOf(user1) == '32 ether'
-    
+   
+    # initiate redeem and burn xETH
     transparent_xeth.approve(transparent_staking, '100 ether', {'from': user1})
     transparent_staking.redeemFromValidators("32 ether", "32 ether", time.time() + 600, {'from': user1})
     assert transparent_staking.debtOf(user1) == '32 ether'
     assert transparent_staking.exchangeRatio() == 1e18
     assert transparent_xeth.balanceOf(user1) == 0
 
-    transparent_staking.mint(0, time.time() + 600, {'from':user2, 'value': "8 ether"})
-    assert transparent_staking.debtOf(user1) == '24 ether'
-    assert transparent_redeem.balanceOf(user1) == '8 ether'
+    # mock 8 ethers received & validator stopped
+    assert transparent_staking.debtOf(user1) == '32 ether'
+    accounts[4].transfer(transparent_staking.address, '32 ethers')
+    vectorClock = transparent_staking.getVectorClock()
+    transparent_staking.syncBalance(vectorClock, {'from':owner})
+    transparent_staking.validatorStopped([0],'32 ethers', {'from':owner})
+    assert transparent_staking.debtOf(user1) == '0 ether'
+    assert transparent_redeem.balanceOf(user1) == '32 ether'
 
     lastBalance = user1.balance()
     transparent_redeem.claim('8 ether', {'from':user1})
-    assert transparent_redeem.balanceOf(user1) == 0
+    assert transparent_redeem.balanceOf(user1) == '24 ether' 
     assert user1.balance() - lastBalance == '8 ether'
 
 def test_beacon(setup):
