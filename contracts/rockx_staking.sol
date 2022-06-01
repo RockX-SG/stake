@@ -424,10 +424,10 @@ contract RockXStaking is Initializable, PausableUpgradeable, AccessControlUpgrad
      */
     function validatorStopped(uint256 [] calldata _stoppedIDs, uint256 _stoppedBalance) external nonReentrant onlyRole(ORACLE_ROLE) {
         uint256 amountUnstaked = _stoppedIDs.length * DEPOSIT_SIZE;
-        require(_currentEthersReceived() >= _stoppedBalance, "INSUFFICIENT_ETHERS_PUSHED");
-        require(_stoppedBalance >= amountUnstaked, "INSUFFICIENT_ETHERS_STOPPED");
         require(_stoppedIDs.length > 0, "EMPTY_CALLDATA");
+        require(_stoppedBalance >= amountUnstaked, "INSUFFICIENT_ETHERS_STOPPED");
         require(_stoppedIDs.length + stoppedValidators.length <= nextValidatorId, "REPORTED_MORE_STOPPED_VALIDATORS");
+        require(_currentEthersReceived() >= _stoppedBalance, "INSUFFICIENT_ETHERS_PUSHED");
 
         // record stopped validators snapshot.
         for (uint i=0;i<_stoppedIDs.length;i++) {
@@ -478,8 +478,10 @@ contract RockXStaking is Initializable, PausableUpgradeable, AccessControlUpgrad
      * @dev notify some validators has been slashed, turn off those stopped validator
      */
     function validatorSlashedStop(uint256 [] calldata _stoppedIDs, uint256 _stoppedBalance) external nonReentrant onlyRole(ORACLE_ROLE) {
-        require(_currentEthersReceived() >= _stoppedBalance, "INSUFFICIENT_ETHERS_PUSHED");
+        uint256 amountUnstaked = _stoppedIDs.length * DEPOSIT_SIZE;
         require(_stoppedIDs.length > 0, "EMPTY_CALLDATA");
+        require(_stoppedBalance < amountUnstaked, "STOPPED_BALANCE_SUGGESTS_NOT_SLASHED");
+        require(_currentEthersReceived() >= _stoppedBalance, "INSUFFICIENT_ETHERS_PUSHED");
         require(_stoppedIDs.length + stoppedValidators.length <= nextValidatorId, "REPORTED_MORE_STOPPED_VALIDATORS");
 
         // record stopped validators snapshot.
@@ -492,7 +494,6 @@ contract RockXStaking is Initializable, PausableUpgradeable, AccessControlUpgrad
         }
 
         // here we restake the remaining ethers by putting to totalPending
-        uint256 amountUnstaked = _stoppedIDs.length * DEPOSIT_SIZE;
         totalPending += _stoppedBalance;
 
         // track total staked ethers
