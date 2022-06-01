@@ -1,0 +1,9 @@
+version: '3'
+services:
+  stake:
+    build: .
+    tty: true
+    ports:
+      - '8545:80'
+    environment:
+      - WEB3_INFURA_PROJECT_ID=${WEB3_INFURA_PROJECT_ID}
