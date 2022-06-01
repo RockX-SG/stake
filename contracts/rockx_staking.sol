@@ -678,7 +678,9 @@ contract RockXStaking is Initializable, PausableUpgradeable, AccessControlUpgrad
         // spin up n nodes
         uint256 numValidators = totalPending / DEPOSIT_SIZE;
         for (uint256 i = 0;i<numValidators;i++) {
-            _spinup();
+            if (nextValidatorId < validatorRegistry.length) {
+                _spinup();
+            }
         }
     }
 
@@ -801,9 +803,6 @@ contract RockXStaking is Initializable, PausableUpgradeable, AccessControlUpgrad
     function _spinup() internal {
         // emit a log
         emit ValidatorActivated(nextValidatorId);
-
-        // deposit to ethereum contract
-        require(nextValidatorId < validatorRegistry.length, "REGISTRY_VALIDATORS_DEPLETED");
 
          // load credential
         ValidatorCredential memory cred = validatorRegistry[nextValidatorId];
