@@ -528,6 +528,11 @@ contract RockXStaking is Initializable, PausableUpgradeable, AccessControlUpgrad
     function getAccountedBalance() external view returns(int256) { return accountedBalance; }
 
     /**
+     * @dev return total staked ethers
+     */
+    function getTotalStaked() external view returns (uint256) { return totalStaked; }
+
+    /**
      * @dev return pending ethers
      */
     function getPendingEthers() external view returns (uint256) { return totalPending; }
@@ -589,9 +594,7 @@ contract RockXStaking is Initializable, PausableUpgradeable, AccessControlUpgrad
     /**
      * @dev return next validator id
      */
-    function getNextValidatorId() external view returns (uint256) {
-        return nextValidatorId;
-    }
+    function getNextValidatorId() external view returns (uint256) { return nextValidatorId; }
 
     /**
      * @dev return exchange ratio of , multiplied by 1e18
