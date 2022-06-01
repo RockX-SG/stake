@@ -170,7 +170,6 @@ contract RockXStaking is Initializable, PausableUpgradeable, AccessControlUpgrad
     int256 private accountedBalance;                // tracked balance change in functions,
                                                     // NOTE(x): balance might be negative for not accounting validators's redeeming
 
-    uint256 private recentSlashed;                  // track recently slashed value
     uint256 private recentReceived;                 // track recently received (un-accounted) value into this contract
     bytes32 private vectorClock;                    // a vector clock for detecting receive() & pushBeacon() causality violations
     uint256 private vectorClockTicks;               // record current vector clock step;
@@ -389,7 +388,7 @@ contract RockXStaking is Initializable, PausableUpgradeable, AccessControlUpgrad
         require(vectorClock == clock, "CASUALITY_VIOLATION");
         require(int256(address(this).balance) == accountedBalance, "BALANCE_DEVIATES");
         require(_aliveValidators + stoppedValidators.length <= nextValidatorId, "VALIDATOR_COUNT_MISMATCH");
-        require(_aliveBalance + uint256(recentReceived) + recentSlashed >= reportedValidatorBalance, "OVERALL_BALANCE_DECREASED");
+        require(_aliveBalance + uint256(recentReceived) >= reportedValidatorBalance, "OVERALL_BALANCE_DECREASED");
         require(_aliveBalance >= _aliveValidators * DEPOSIT_SIZE, "ALIVE_BALANCE_DECREASED");
 
         // step 1. check if new validator increased
@@ -405,8 +404,8 @@ contract RockXStaking is Initializable, PausableUpgradeable, AccessControlUpgrad
         // either stopped validators or withdrawed ethers as rewards, 
         // revenue generated if:
         //  current alive balance + ethers from validators >= reward base
-        if (_aliveBalance + recentReceived + recentSlashed> rewardBase) {
-            uint256 rewards = _aliveBalance + recentReceived + recentSlashed - rewardBase;
+        if (_aliveBalance + recentReceived > rewardBase) {
+            uint256 rewards = _aliveBalance + recentReceived - rewardBase;
             _distributeRewards(rewards);
         }
 
@@ -415,7 +414,6 @@ contract RockXStaking is Initializable, PausableUpgradeable, AccessControlUpgrad
         reportedValidatorBalance = _aliveBalance; 
         reportedValidators = _aliveValidators;
         recentReceived = 0;
-        recentSlashed = 0;
 
         // step 4. vector clock moves, make sure never use the same vector again
         _vectorClockTick();
@@ -499,9 +497,6 @@ contract RockXStaking is Initializable, PausableUpgradeable, AccessControlUpgrad
 
         // track total staked ethers
         totalStaked -= amountUnstaked;
-
-        // record recent slashed ethers
-        recentSlashed += amountUnstaked - _stoppedBalance;
 
         // log
         emit ValidatorSlashedStopped(_stoppedIDs, _stoppedBalance);
