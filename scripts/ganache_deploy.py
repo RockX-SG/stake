@@ -114,7 +114,7 @@ def main():
     transparent_staking.pushBeacon(1, '32.32 ethers', vectorClock, {'from':owner})
     transparent_staking.redeemFromValidators('32 ethers', '33 ethers', time.time() + 600, {'from':owner})
     accounts[0].transfer(transparent_staking.address, '32.33 ethers')
-    transparent_staking.validatorStopped([0],'32.33 ethers', {'from':accounts[0]})
+    transparent_staking.validatorStopped([0x97d717d346868b9df4851684d5219f4deb4c7388ee1454c9b46837d29b40150ceeb5825d791f993b03745427b6cbe6db],'32.33 ethers', {'from':accounts[0]})
     #transparent_staking.getAccumulatedStoppedBalance()
     #transparent_staking.exchangeRatio()
     #tx = transparent_staking.mint('32 ether', {'from':owner, 'value': '32 ether'})
