@@ -118,7 +118,8 @@ def test_redeem(setup):
     accounts[4].transfer(transparent_staking.address, '32 ethers')
     vectorClock = transparent_staking.getVectorClock()
     transparent_staking.syncBalance(vectorClock, {'from':owner})
-    transparent_staking.validatorStopped([0x97d717d346868b9df4851684d5219f4deb4c7388ee1454c9b46837d29b40150ceeb5825d791f993b03745427b6cbe6db],'32 ethers', {'from':owner})
+    vectorClock = transparent_staking.getVectorClock()
+    transparent_staking.validatorStopped([0x97d717d346868b9df4851684d5219f4deb4c7388ee1454c9b46837d29b40150ceeb5825d791f993b03745427b6cbe6db],'32 ethers', vectorClock, {'from':owner})
     assert transparent_staking.debtOf(user1) == '0 ether'
     assert transparent_redeem.balanceOf(user1) == '32 ether'
 
