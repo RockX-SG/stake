@@ -392,10 +392,10 @@ contract RockXStaking is Initializable, PausableUpgradeable, AccessControlUpgrad
         // either stopped validators or withdrawed ethers as rewards, 
         // revenue generated if:
         //  current alive balance + ethers from validators >= reward base
-        // make sure we have revenue
-        require(_aliveBalance + recentReceived > rewardBase, "NOT_ENOUGH_REVENUE");
-        uint256 rewards = _aliveBalance + recentReceived - rewardBase;
-        _distributeRewards(rewards);
+        if (_aliveBalance + recentReceived > rewardBase) {
+            uint256 rewards = _aliveBalance + recentReceived - rewardBase;
+            _distributeRewards(rewards);
+        }
 
         // step 3. update reportedValidators & reportedValidatorBalance
         // reset the recentReceived to 0
@@ -410,7 +410,8 @@ contract RockXStaking is Initializable, PausableUpgradeable, AccessControlUpgrad
     /**
      * @dev notify some validators stopped, and pay the debts
      */
-    function validatorStopped(bytes [] calldata _stoppedPubKeys, uint256 _stoppedBalance) external nonReentrant onlyRole(ORACLE_ROLE) {
+    function validatorStopped(bytes [] calldata _stoppedPubKeys, uint256 _stoppedBalance, bytes32 clock) external nonReentrant onlyRole(ORACLE_ROLE) {
+        require(vectorClock == clock, "CASUALITY_VIOLATION");
         uint256 amountUnstaked = _stoppedPubKeys.length * DEPOSIT_SIZE;
         require(_stoppedPubKeys.length > 0, "EMPTY_CALLDATA");
         require(_stoppedBalance >= amountUnstaked, "INSUFFICIENT_ETHERS_STOPPED");
@@ -461,12 +462,16 @@ contract RockXStaking is Initializable, PausableUpgradeable, AccessControlUpgrad
 
         // log
         emit ValidatorStopped(_stoppedPubKeys.length, _stoppedBalance);
+
+        // vector clock moves
+        _vectorClockTick();
     }
 
     /**
      * @dev notify some validators has been slashed, turn off those stopped validator
      */
-    function validatorSlashedStop(bytes [] calldata _stoppedPubKeys, uint256 _stoppedBalance) external nonReentrant onlyRole(ORACLE_ROLE) {
+    function validatorSlashedStop(bytes [] calldata _stoppedPubKeys, uint256 _stoppedBalance, bytes32 clock) external nonReentrant onlyRole(ORACLE_ROLE) {
+        require(vectorClock == clock, "CASUALITY_VIOLATION");
         uint256 amountUnstaked = _stoppedPubKeys.length * DEPOSIT_SIZE;
         require(_stoppedPubKeys.length > 0, "EMPTY_CALLDATA");
         require(_stoppedBalance < amountUnstaked, "STOPPED_BALANCE_NOT_SLASHED");
@@ -482,7 +487,6 @@ contract RockXStaking is Initializable, PausableUpgradeable, AccessControlUpgrad
         }
         stoppedValidators += _stoppedPubKeys.length;
 
-
         // here we restake the remaining ethers by putting to totalPending
         totalPending += _stoppedBalance;
 
@@ -491,6 +495,9 @@ contract RockXStaking is Initializable, PausableUpgradeable, AccessControlUpgrad
 
         // log
         emit ValidatorSlashedStopped(_stoppedPubKeys.length, _stoppedBalance);
+        
+        // vector clock moves
+        _vectorClockTick();
     }
 
     /**
