@@ -169,6 +169,7 @@ contract RockXStaking is Initializable, PausableUpgradeable, AccessControlUpgrad
     int256 private accountedBalance;                // tracked balance change in functions,
                                                     // NOTE(x): balance might be negative for not accounting validators's redeeming
 
+    uint256 private recentSlashed;                  // track recently slashed value
     uint256 private recentReceived;                 // track recently received (un-accounted) value into this contract
     bytes32 private vectorClock;                    // a vector clock for detecting receive() & pushBeacon() causality violations
     uint256 private vectorClockTicks;               // record current vector clock step;
@@ -391,17 +392,18 @@ contract RockXStaking is Initializable, PausableUpgradeable, AccessControlUpgrad
         // step 2. calc rewards, this also considers recentReceived ethers from 
         // either stopped validators or withdrawed ethers as rewards, 
         // revenue generated if:
-        //  current alive balance + ethers from validators >= reward base
-        if (_aliveBalance + recentReceived > rewardBase) {
-            uint256 rewards = _aliveBalance + recentReceived - rewardBase;
-            _distributeRewards(rewards);
-        }
+        //  current alive balance + ethers from validators + recent slashed>= reward base
+        // make sure we have revenue
+        require(_aliveBalance + recentReceived  + recentSlashed > rewardBase, "NOT_ENOUGH_REVENUE");
+        uint256 rewards = _aliveBalance + recentReceived + recentSlashed - rewardBase;
+        _distributeRewards(rewards);
 
         // step 3. update reportedValidators & reportedValidatorBalance
         // reset the recentReceived to 0
         reportedValidatorBalance = _aliveBalance; 
         reportedValidators = _aliveValidators;
         recentReceived = 0;
+        recentSlashed = 0;
 
         // step 4. vector clock moves, make sure never use the same vector again
         _vectorClockTick();
@@ -470,12 +472,12 @@ contract RockXStaking is Initializable, PausableUpgradeable, AccessControlUpgrad
     /**
      * @dev notify some validators has been slashed, turn off those stopped validator
      */
-    function validatorSlashedStop(bytes [] calldata _stoppedPubKeys, uint256 _stoppedBalance, bytes32 clock) external nonReentrant onlyRole(ORACLE_ROLE) {
+    function validatorSlashedStop(bytes [] calldata _stoppedPubKeys, uint256 _remainingAmount, uint256 _slashedAmount, bytes32 clock) external nonReentrant onlyRole(ORACLE_ROLE) {
         require(vectorClock == clock, "CASUALITY_VIOLATION");
         uint256 amountUnstaked = _stoppedPubKeys.length * DEPOSIT_SIZE;
         require(_stoppedPubKeys.length > 0, "EMPTY_CALLDATA");
-        require(_stoppedBalance < amountUnstaked, "STOPPED_BALANCE_NOT_SLASHED");
-        require(_currentEthersReceived() >= _stoppedBalance, "INSUFFICIENT_ETHERS_PUSHED");
+        require(_slashedAmount + _remainingAmount >= amountUnstaked);
+        require(_currentEthersReceived() >= _remainingAmount, "INSUFFICIENT_ETHERS_PUSHED");
 
         // record stopped validators snapshot.
         for (uint i=0;i<_stoppedPubKeys.length;i++) {
@@ -488,13 +490,16 @@ contract RockXStaking is Initializable, PausableUpgradeable, AccessControlUpgrad
         stoppedValidators += _stoppedPubKeys.length;
 
         // here we restake the remaining ethers by putting to totalPending
-        totalPending += _stoppedBalance;
+        totalPending += _remainingAmount;
 
         // track total staked ethers
         totalStaked -= amountUnstaked;
 
+        // track recent slashed
+        recentSlashed += _slashedAmount;
+
         // log
-        emit ValidatorSlashedStopped(_stoppedPubKeys.length, _stoppedBalance);
+        emit ValidatorSlashedStopped(_stoppedPubKeys.length, _slashedAmount);
         
         // vector clock moves
         _vectorClockTick();
@@ -855,7 +860,7 @@ contract RockXStaking is Initializable, PausableUpgradeable, AccessControlUpgrad
     event ValidatorStopped(uint256 stoppedCount, uint256 stoppedBalance);
     event RevenueAccounted(uint256 amount);
     event RevenueWithdrawedFromValidator(uint256 amount);
-    event ValidatorSlashedStopped(uint256 stoppedCount, uint256 stoppedBalance);
+    event ValidatorSlashedStopped(uint256 stoppedCount, uint256 slashed);
     event ManagerAccountSet(address account);
     event ManagerFeeSet(uint256 milli);
     event ManagerFeeWithdrawed(uint256 amount, address);
