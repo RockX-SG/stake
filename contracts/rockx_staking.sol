@@ -122,13 +122,13 @@ contract RockXStaking is Initializable, PausableUpgradeable, AccessControlUpgrad
     bytes32 public constant ORACLE_ROLE = keccak256("ORACLE_ROLE");
     bytes32 public constant REGISTRY_ROLE = keccak256("REGISTRY_ROLE");
     bytes32 public constant PAUSER_ROLE = keccak256("PAUSER_ROLE");
+    uint256 public constant DEPOSIT_SIZE = 32 ether;
 
     uint256 private constant MULTIPLIER = 1e18; 
     uint256 private constant DEPOSIT_AMOUNT_UNIT = 1000000000 wei;
     uint256 private constant SIGNATURE_LENGTH = 96;
     uint256 private constant PUBKEY_LENGTH = 48;
     
-    uint256 private DEPOSIT_SIZE;           // deposit_size adjustable via func
     address public ethDepositContract;      // ETH 2.0 Deposit contract
     address public xETHAddress;             // xETH token address
     address public redeemContract;          // redeeming contract for user to pull ethers
@@ -229,16 +229,7 @@ contract RockXStaking is Initializable, PausableUpgradeable, AccessControlUpgrad
         firstDebt = 1;
         lastDebt = 0;
         phase = 0;
-        DEPOSIT_SIZE = 32 ether;
         _vectorClockTick();
-    }
-
-    /**
-     * @dev adjust deposit_size
-     */
-    function setDepositSize(uint256 depositSize) external onlyRole(DEFAULT_ADMIN_ROLE) {
-        require(depositSize > 0, "INVALID_DEPOSIT_SIZE");
-        DEPOSIT_SIZE = depositSize;
     }
 
     /**
