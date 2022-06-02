@@ -388,13 +388,12 @@ contract RockXStaking is Initializable, PausableUpgradeable, AccessControlUpgrad
             rewardBase += newValidators * DEPOSIT_SIZE;
         }
 
-        // make sure we have revenue
-        require(_aliveBalance + recentReceived > rewardBase, "NOT_ENOUGH_REVENUE");
-
         // step 2. calc rewards, this also considers recentReceived ethers from 
         // either stopped validators or withdrawed ethers as rewards, 
         // revenue generated if:
         //  current alive balance + ethers from validators >= reward base
+        // make sure we have revenue
+        require(_aliveBalance + recentReceived > rewardBase, "NOT_ENOUGH_REVENUE");
         uint256 rewards = _aliveBalance + recentReceived - rewardBase;
         _distributeRewards(rewards);
 
