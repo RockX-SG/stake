@@ -388,7 +388,6 @@ contract RockXStaking is Initializable, PausableUpgradeable, AccessControlUpgrad
         require(vectorClock == clock, "CASUALITY_VIOLATION");
         require(int256(address(this).balance) == accountedBalance, "BALANCE_DEVIATES");
         require(_aliveValidators + stoppedValidators.length <= nextValidatorId, "VALIDATOR_COUNT_MISMATCH");
-        require(_aliveBalance + uint256(recentReceived) >= reportedValidatorBalance, "OVERALL_BALANCE_DECREASED");
         require(_aliveBalance >= _aliveValidators * DEPOSIT_SIZE, "ALIVE_BALANCE_DECREASED");
 
         // step 1. check if new validator increased
@@ -407,16 +406,16 @@ contract RockXStaking is Initializable, PausableUpgradeable, AccessControlUpgrad
         if (_aliveBalance + recentReceived > rewardBase) {
             uint256 rewards = _aliveBalance + recentReceived - rewardBase;
             _distributeRewards(rewards);
+
+            // step 3. update reportedValidators & reportedValidatorBalance
+            // reset the recentReceived to 0
+            reportedValidatorBalance = _aliveBalance; 
+            reportedValidators = _aliveValidators;
+            recentReceived = 0;
+
+            // step 4. vector clock moves, make sure never use the same vector again
+            _vectorClockTick();
         }
-
-        // step 3. update reportedValidators & reportedValidatorBalance
-        // reset the recentReceived to 0
-        reportedValidatorBalance = _aliveBalance; 
-        reportedValidators = _aliveValidators;
-        recentReceived = 0;
-
-        // step 4. vector clock moves, make sure never use the same vector again
-        _vectorClockTick();
     }
 
     /**
