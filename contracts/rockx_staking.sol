@@ -38,11 +38,16 @@ import "@openzeppelin/contracts-upgradeable/security/ReentrancyGuardUpgradeable.
  *
  *          ExchangeRatio = CurrentReserve / TotalXETH
  *
- * Rule 1: (function mint) For every mint operation, the ethers pays debt in priority, the reset will be put in TotalPending
+ * Rule 1: (function mint) For every mint operation, the ethers pays debt in priority the reset will be put in TotalPending(deprecated),
  *          ethersToMint:               The amount user deposits
  *
- *          TotalDebts = TotalDebts - Min(ethersToMint, TotalDebts)
+ *          (deprecated)
+ *          TotalDebts = TotalDebts - Min(ethersToMint, TotalDebts)    
  *          TotalPending = TotalPending + Max(0, ethersToMint - TotalDebts)
+ *          TotalXETH = TotalXETH + ethersToMint / ExchangeRatio
+ *          
+ *          (updated)
+ *          TotalPending = TotalPending + ethersToMint
  *          TotalXETH = TotalXETH + ethersToMint / ExchangeRatio
  *
  * Rule 2: (function mint) At any time TotalPending has more than 32 Ethers, It will be staked, TotalPending
@@ -564,6 +569,15 @@ contract RockXStaking is Initializable, PausableUpgradeable, AccessControlUpgrad
      * @dev returns reported validator balance snapshot
      */
     function getReportedValidatorBalance() external view returns (uint256) { return reportedValidatorBalance; }
+
+    /*
+     * @dev returns recent slashed value
+     */
+    function getRecentSlashed() external view returns (uint256) { return recentSlashed; }
+    /*
+     * @dev returns recent received value
+     */
+    function getRecentReceived() external view returns (uint256) { return recentReceived; }
 
     /**
      * @dev return debt for an account
