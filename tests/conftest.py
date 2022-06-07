@@ -7,6 +7,7 @@ from pathlib import Path
 GAS_LIMIT = 6721975
 deps = project.load(  Path.home() / ".brownie" / "packages" / config["dependencies"][0])
 
+@pytest.fixture
 def setup():
     TransparentUpgradeableProxy = deps.TransparentUpgradeableProxy
 
@@ -88,4 +89,4 @@ def setup():
         {'from': owner, 'gas': GAS_LIMIT}
     )
     
-    return (transparent_xeth, transparent_staking, transparent_redeem)
+    return [transparent_xeth, transparent_staking, transparent_redeem]
