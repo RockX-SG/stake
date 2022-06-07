@@ -2,17 +2,16 @@ import pytest
 import time
 
 from brownie import *
-import setup
 
-def test_mint():
-    transparent_xeth, transparent_staking, transparent_redeem = setup.setup()
+def test_mint(setup):
+    transparent_xeth, transparent_staking, transparent_redeem = setup
     user1 = accounts[2]
     transparent_xeth.approve(transparent_staking, '100 ether', {'from': user1})
     transparent_staking.mint(0, time.time() + 600, {'from':user1, 'value': "1 ether"})
     assert transparent_staking.exchangeRatio() == 1e18
 
-def test_redeem():
-    transparent_xeth, transparent_staking, transparent_redeem = setup.setup()
+def test_redeem(setup):
+    transparent_xeth, transparent_staking, transparent_redeem = setup
     owner = accounts[0]
     user1 = accounts[2]
     transparent_staking.mint(0, time.time() + 600, {'from':user1, 'value': "32 ether"})
@@ -40,8 +39,8 @@ def test_redeem():
     assert transparent_redeem.balanceOf(user1) == '24 ether' 
     assert user1.balance() - lastBalance == '8 ether'
 
-def test_beacon():
-    transparent_xeth, transparent_staking, transparent_redeem = setup.setup()
+def test_beacon(setup):
+    transparent_xeth, transparent_staking, transparent_redeem = setup
     expectedExchangeRatio = 1009950000000000000 
     # some ethers to redeem
     user1 = accounts[2]

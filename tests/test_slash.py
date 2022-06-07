@@ -3,20 +3,19 @@ import time
 import sys
 
 from brownie import *
-import setup
 
 global transparent_xeth
 global transparent_staking
 global transparent_redeem
 
 
-def test_abc():
-    transparent_xeth, transparent_staking, transparent_redeem = setup.setup()
+def test_abc(setup):
+    transparent_xeth, transparent_staking, transparent_redeem = setup
     print(transparent_staking)
     print(transparent_xeth)
 
-def test_slash():
-    transparent_xeth, transparent_staking, transparent_redeem = setup.setup()
+def test_slash(setup):
+    transparent_xeth, transparent_staking, transparent_redeem = setup
     user1 = accounts[2]
     oracle = accounts[3]
 
