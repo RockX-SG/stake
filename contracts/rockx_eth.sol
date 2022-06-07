@@ -22,12 +22,12 @@ contract RockXETH is Initializable, ERC20Upgradeable, ERC20BurnableUpgradeable, 
     mapping(address => bool) public mintableGroup;
     
     modifier onlyMintableGroup() {
-        require(mintableGroup[msg.sender], "xETH: not in mintable group");
+        require(mintableGroup[msg.sender], "UniETH: not in mintable group");
         _;
     }
 
     function initialize() initializer public {
-        __ERC20_init("RockX ETH", "xETH");
+        __ERC20_init("RockX Universal ETH", "UniETH");
         __ERC20Burnable_init();
         __ERC20Snapshot_init();
         __Ownable_init();
@@ -104,8 +104,8 @@ contract RockXETH is Initializable, ERC20Upgradeable, ERC20BurnableUpgradeable, 
      * @notice that excessive gas consumption causes transaction revert
      */
     function batchTransfer(address[] memory recipients, uint256[] memory amounts) public {
-        require(recipients.length > 0, "xETH: least one recipient address");
-        require(recipients.length == amounts.length, "xETH: number of recipient addresses does not match the number of tokens");
+        require(recipients.length > 0, "UniETH: least one recipient address");
+        require(recipients.length == amounts.length, "UniETH: number of recipient addresses does not match the number of tokens");
 
         for(uint256 i = 0; i < recipients.length; ++i) {
             _transfer(_msgSender(), recipients[i], amounts[i]);
