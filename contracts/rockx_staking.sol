@@ -401,14 +401,23 @@ contract RockXStaking is Initializable, PausableUpgradeable, AccessControlUpgrad
         }
 
         // step 2. calc rewards, this also considers recentReceived ethers from 
-        // either stopped validators or withdrawed ethers as rewards, 
-        // at any time, revenue generated if:
+        // either stopped validators or withdrawed ethers as rewards.
         //
-        //  current alive balance + ethers from validators + recent slashed >= reward base
-        //
-        // NOTE(x): recentSlashed is accounted here, then we can adjust the basepoint to current alive balance.
+        // During two consecutive pushBeacon operation, the ethers will ONLY: 
+        //  1. staked to new validators
+        //  2. move from active validators to this contract
+        //  3. slashed and stopped then the remaining ethers returned to this contract
         // 
-        // make sure we have revenue
+        // so, at any time, revenue generated if:
+        //
+        //  current active validator balance 
+        //      + recent received from validators(since last pushBeacon) 
+        //      + recent slashed(since last pushBeacon)
+        //  >（GREATER THAN) reward base(last active validator balance + new nodes balance)
+        //
+        // NOTE(x): recentSlashed is accounted here, then we can adjust the basepoint to current alive validator balance.
+        // 
+
         require(_aliveBalance + recentReceived + recentSlashed > rewardBase, "NOT_ENOUGH_REVENUE");
         uint256 rewards = _aliveBalance + recentReceived + recentSlashed - rewardBase;
         _distributeRewards(rewards);
