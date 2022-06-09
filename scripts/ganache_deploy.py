@@ -81,15 +81,16 @@ def main():
             {'from': owner, 'gas': GAS_LIMIT}
             ) 
 
-    withdrawalCredential = ETH1_ADDRESS_WITHDRAWAL_PREFIX
-    withdrawalCredential += b'\x00' * 11
-    withdrawalCredential += bytes.fromhex(transparent_staking.address[2:])
-    print("withdrawCredential:", withdrawalCredential.hex())
+    print("default withdrawl credential:",  transparent_staking.withdrawalCredentials())
+    #withdrawalCredential = ETH1_ADDRESS_WITHDRAWAL_PREFIX
+    #withdrawalCredential += b'\x00' * 11
+    #withdrawalCredential += bytes.fromhex(transparent_staking.address[2:])
+    #print("withdrawCredential:", withdrawalCredential.hex())
 
-    transparent_staking.setWithdrawCredential(
-            withdrawalCredential,
-            {'from': owner, 'gas': GAS_LIMIT}
-            )
+    #transparent_staking.setWithdrawCredential(
+    #        withdrawalCredential,
+    #        {'from': owner, 'gas': GAS_LIMIT}
+    #        )
 
     transparent_staking.registerValidator(
             0x97d717d346868b9df4851684d5219f4deb4c7388ee1454c9b46837d29b40150ceeb5825d791f993b03745427b6cbe6db, 
