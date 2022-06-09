@@ -268,7 +268,7 @@ contract RockXStaking is Initializable, PausableUpgradeable, AccessControlUpgrad
 
         // mark old pub key to false
         bytes32 oldPubKeyHash = keccak256(oldpubkey);
-        require(pubkeyIndices[oldPubKeyHash] == 0, "PUBKEY_NOT_EXSITS");
+        require(pubkeyIndices[oldPubKeyHash] > 0, "PUBKEY_NOT_EXSITS");
         uint256 index = pubkeyIndices[oldPubKeyHash] - 1;
         delete pubkeyIndices[oldPubKeyHash];
 
@@ -666,12 +666,13 @@ contract RockXStaking is Initializable, PausableUpgradeable, AccessControlUpgrad
         uint256 totalXETH = IERC20(xETHAddress).totalSupply();
         uint256 totalEthers = currentReserve();
         uint256 toMint = 1 * msg.value;  // default exchange ratio 1:1
-        require(toMint >= minToMint, "EXCHANGE_RATIO_MISMATCH");
 
         if (totalEthers > 0) { // avert division overflow
             toMint = totalXETH * msg.value / totalEthers;
         }
+
         // mint xETH
+        require(toMint >= minToMint, "EXCHANGE_RATIO_MISMATCH");
         IMintableContract(xETHAddress).mint(msg.sender, toMint);
         totalPending += msg.value;
 
@@ -873,13 +874,10 @@ contract RockXStaking is Initializable, PausableUpgradeable, AccessControlUpgrad
     event ValidatorActivated(uint256 node_id);
     event ValidatorStopped(uint256 stoppedCount, uint256 stoppedBalance);
     event RevenueAccounted(uint256 amount);
-    event RevenueWithdrawedFromValidator(uint256 amount);
     event ValidatorSlashedStopped(uint256 stoppedCount, uint256 slashed);
     event ManagerAccountSet(address account);
     event ManagerFeeSet(uint256 milli);
     event ManagerFeeWithdrawed(uint256 amount, address);
-    event Redeemed(uint256 amountXETH, uint256 amountETH);
-    event RedeemFromValidator(uint256 amountXETH, uint256 amountETH);
     event WithdrawCredentialSet(bytes32 withdrawCredential);
     event DebtQueued(address creditor, uint256 amountEther);
     event XETHContractSet(address addr);
