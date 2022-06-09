@@ -354,7 +354,7 @@ contract RockXStaking is Initializable, PausableUpgradeable, AccessControlUpgrad
     function withdrawManagerFee(uint256 amount, address to) external nonReentrant onlyRole(MANAGER_ROLE)  {
         require(amount <= accountedManagerRevenue, "WITHDRAW_EXCEEDED_MANAGER_REVENUE");
         require(amount <= _currentEthersReceived(), "INSUFFICIENT_ETHERS");
-        
+
         accountedBalance -= int256(amount);
         accountedManagerRevenue -= amount;
         payable(to).sendValue(amount);
@@ -397,10 +397,14 @@ contract RockXStaking is Initializable, PausableUpgradeable, AccessControlUpgrad
 
         // step 2. calc rewards, this also considers recentReceived ethers from 
         // either stopped validators or withdrawed ethers as rewards, 
-        // revenue generated if:
-        //  current alive balance + ethers from validators + recent slashed>= reward base
+        // at any time, revenue generated if:
+        //
+        //  current alive balance + ethers from validators + recent slashed >= reward base
+        //
+        // NOTE(x): recentSlashed is accounted here, then we can adjust the basepoint to current alive balance.
+        // 
         // make sure we have revenue
-        require(_aliveBalance + recentReceived  + recentSlashed > rewardBase, "NOT_ENOUGH_REVENUE");
+        require(_aliveBalance + recentReceived + recentSlashed > rewardBase, "NOT_ENOUGH_REVENUE");
         uint256 rewards = _aliveBalance + recentReceived + recentSlashed - rewardBase;
         _distributeRewards(rewards);
 
