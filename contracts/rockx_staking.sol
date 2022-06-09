@@ -444,7 +444,7 @@ contract RockXStaking is Initializable, PausableUpgradeable, AccessControlUpgrad
         require(_stoppedPubKeys.length + stoppedValidators <= nextValidatorId, "REPORTED_MORE_STOPPED_VALIDATORS");
         require(_currentEthersReceived() >= _stoppedBalance, "INSUFFICIENT_ETHERS_PUSHED");
 
-        // record stopped validators snapshot.
+        // track stopped validators
         for (uint i=0;i<_stoppedPubKeys.length;i++) {
             bytes32 pubkeyHash = keccak256(_stoppedPubKeys[i]);
             require(pubkeyIndices[pubkeyHash] > 0, "PUBKEY_NOT_EXIST");
@@ -461,7 +461,9 @@ contract RockXStaking is Initializable, PausableUpgradeable, AccessControlUpgrad
         //  totalPending + totalStaked + accountedUserRevenue - totalDebts - rewardDebt
         //
         
-        // extra value;
+        // Extra value, which is more than debt clearance requirements,
+        // will be re-staked.
+        // NOTE(x): I name this value to be rewardDebts
         uint256 incrRewardDebt = _stoppedBalance - amountUnstaked;
 
         // pay debts
@@ -478,6 +480,7 @@ contract RockXStaking is Initializable, PausableUpgradeable, AccessControlUpgrad
 
         // Variables Compaction
         // compact accountedUserRevenue & rewardDebt, to avert overflow
+        // NOTE(x): a good to have optimization.
         if (accountedUserRevenue >= rewardDebts) {
             accountedUserRevenue -= rewardDebts;
             rewardDebts = 0;
@@ -503,7 +506,7 @@ contract RockXStaking is Initializable, PausableUpgradeable, AccessControlUpgrad
         require(_slashedAmount + _remainingAmount >= amountUnstaked);
         require(_currentEthersReceived() >= _remainingAmount, "INSUFFICIENT_ETHERS_PUSHED");
 
-        // record stopped validators snapshot.
+        // record slashed validators.
         for (uint i=0;i<_stoppedPubKeys.length;i++) {
             bytes32 pubkeyHash = keccak256(_stoppedPubKeys[i]);
             require(pubkeyIndices[pubkeyHash] > 0, "PUBKEY_NOT_EXIST");
