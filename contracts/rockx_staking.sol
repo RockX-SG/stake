@@ -447,9 +447,9 @@ contract RockXStaking is Initializable, PausableUpgradeable, AccessControlUpgrad
 
         // NOTE(x) The following procedure MUST keep currentReserve unchanged:
         // 
-        // (totalPending + amountUnstaked - paid + rewardDebt) + (totalStaked - amountUnstaked) + accountedUserRevenue - rewardDebt - (totalDebts - paid)
+        // (totalPending + amountUnstaked - paid + incrRewardDebt) + (totalStaked - amountUnstaked) + accountedUserRevenue - (rewardDebt + incrRewardDebt) - (totalDebts - paid)
         //  ==
-        //  totalPending + totalStaked + accountedUserRevenue - totalDebts
+        //  totalPending + totalStaked + accountedUserRevenue - totalDebts - rewardDebt
         //
         
         // extra value;
