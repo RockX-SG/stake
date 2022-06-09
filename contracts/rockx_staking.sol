@@ -236,6 +236,11 @@ contract RockXStaking is Initializable, PausableUpgradeable, AccessControlUpgrad
         lastDebt = 0;
         phase = 0;
         _vectorClockTick();
+
+        // initiate default withdrawal credential to the contract itself
+        // uint8('0x1') + 11 bytes(0) + this.address
+        bytes memory cred = abi.encodePacked(bytes1(0x01), new bytes(11), address(this));
+        withdrawalCredentials = BytesLib.toBytes32(cred, 0);
     }
 
     /**
