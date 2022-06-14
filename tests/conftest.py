@@ -13,8 +13,12 @@ def setup():
 
     owner = accounts[0]
     deployer = accounts[1]
-    ethDepositContract = "0x00000000219ab540356cbb839cbe05303d7705fa"
-    withdrawalCredential = "0x00a7ea5e6d29ffaf8e80a35f419dd1603c5575f9d68ed75392a356ca17084c90"
+    if chain.id == 1:
+        ethDepositContract = "0x00000000219ab540356cbb839cbe05303d7705fa"
+    elif chain.id == 5:
+        ethDepositContract = "0xff50ed3d0ec03aC01D4C79aAd74928BFF48a7b2b"
+    else:  
+        assert False
 
     print(f'contract owner account: {owner.address}\n')
 
@@ -70,11 +74,6 @@ def setup():
         ethDepositContract,
         {'from': owner, 'gas': GAS_LIMIT}
     ) 
-
-    transparent_staking.setWithdrawCredential(
-        withdrawalCredential,
-        {'from': owner, 'gas': GAS_LIMIT}
-    )
 
     transparent_staking.setRedeemContract(
         transparent_redeem,
