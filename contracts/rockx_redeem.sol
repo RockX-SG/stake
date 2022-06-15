@@ -14,6 +14,7 @@ contract RockXRedeem is IRockXRedeem, Initializable, PausableUpgradeable, Reentr
     using Address for address payable;
 
     mapping(address=>uint256) private balances;
+    uint256 private totalBalance;
 
     /**
      * @dev initialization
@@ -24,33 +25,41 @@ contract RockXRedeem is IRockXRedeem, Initializable, PausableUpgradeable, Reentr
         __ReentrancyGuard_init();
     }
 
+    // some convenient method to help show their claimable in wallet
+    function name() external pure returns (string memory) { return "RockX Claimable ETH"; }
+    function symbol() external pure returns (string memory) { return "RockX Claimable ETH"; }
+    function decimals() external pure returns (uint8) { return 18; }
+    function totalSupply() external view returns (uint256) { return totalBalance; }
+    function balanceOf(address account) external view returns(uint256) { return balances[account]; }
+
+    function transfer(address to, uint256 amount) public nonReentrant returns (bool success) {
+        // check
+        require(balances[msg.sender] >= amount, "INSUFFICIENT_BALANCE");
+
+        // modify
+        balances[msg.sender] -= amount;
+        totalBalance -= amount;
+        payable(to).sendValue(amount);
+
+        // log
+        emit Transfer(msg.sender, to, amount);
+        return true;
+    }
+
     /**
-     * @dev pay debts
+     * @dev pay debts from rockx staking contract
      */
     function pay(address account) external override payable {
         balances[account] += msg.value;
+        totalBalance += msg.value;
 
         // log
         emit Paied(account, msg.value);
     }
 
     /**
-     * @dev claim 
-     */
-    function claim(uint256 amount) external override nonReentrant {
-        require(balances[msg.sender] >= amount, "INSUFFICIENT_BALANCE");
-        balances[msg.sender] -= amount;
-        payable(msg.sender).sendValue(amount);
-
-        // log
-        emit Claimed(msg.sender, amount);
-    }
-
-    /**
      * @dev balance of claimable debts
      */
-    function balanceOf(address account) external override view returns(uint256) { return balances[account]; }
-
     event Paied(address account, uint256 amount);
-    event Claimed(address account, uint256 amount);
+    event Transfer(address indexed _from, address indexed _to, uint256 _value);
 }
