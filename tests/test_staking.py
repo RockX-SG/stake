@@ -35,7 +35,7 @@ def test_redeem(setup):
     assert transparent_redeem.balanceOf(user1) == '32 ether'
 
     lastBalance = user1.balance()
-    transparent_redeem.claim('8 ether', {'from':user1})
+    transparent_redeem.transfer(user1, '8 ether', {'from':user1})
     assert transparent_redeem.balanceOf(user1) == '24 ether' 
     assert user1.balance() - lastBalance == '8 ether'
 
