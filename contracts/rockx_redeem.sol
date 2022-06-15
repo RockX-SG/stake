@@ -27,7 +27,7 @@ contract RockXRedeem is IRockXRedeem, Initializable, PausableUpgradeable, Reentr
 
     // some convenient method to help show their claimable in wallet
     function name() external pure returns (string memory) { return "RockX Claimable ETH"; }
-    function symbol() external pure returns (string memory) { return "debtETH"; }
+    function symbol() external pure returns (string memory) { return "redeemETH"; }
     function decimals() external pure returns (uint8) { return 18; }
     function totalSupply() external view returns (uint256) { return totalBalance; }
     function balanceOf(address account) external view returns(uint256) { return balances[account]; }
