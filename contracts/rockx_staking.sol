@@ -360,8 +360,10 @@ contract RockXStaking is Initializable, PausableUpgradeable, AccessControlUpgrad
         require(amount <= accountedManagerRevenue, "WITHDRAW_EXCEEDED_MANAGER_REVENUE");
         require(amount <= _currentEthersReceived(), "INSUFFICIENT_ETHERS");
 
-        accountedBalance -= int256(amount);
+        // track balance change
+        _balanceDecrease(amount);
         accountedManagerRevenue -= amount;
+
         payable(to).sendValue(amount);
 
         emit ManagerFeeWithdrawed(amount, to);
