@@ -708,7 +708,7 @@ contract RockXStaking is Initializable, PausableUpgradeable, AccessControlUpgrad
             }
         }
 
-		return toMint;
+        return toMint;
     }
 
     /**
@@ -735,8 +735,8 @@ contract RockXStaking is Initializable, PausableUpgradeable, AccessControlUpgrad
         // queue ether debts
         _enqueueDebt(msg.sender, ethersToRedeem);
 
-		// return burned 
-		return xETHToBurn;
+        // return burned 
+        return xETHToBurn;
     }
 
     /** 
