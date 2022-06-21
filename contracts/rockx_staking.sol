@@ -679,7 +679,7 @@ contract RockXStaking is Initializable, PausableUpgradeable, AccessControlUpgrad
     /**
      * @dev mint xETH with ETH
      */
-    function mint(uint256 minToMint, uint256 deadline) external payable nonReentrant whenNotPaused {
+    function mint(uint256 minToMint, uint256 deadline) external payable nonReentrant whenNotPaused returns(uint256 minted){
         require(block.timestamp < deadline, "TRANSACTION_EXPIRED");
         require(msg.value > 0, "MINT_ZERO");
         
@@ -707,6 +707,8 @@ contract RockXStaking is Initializable, PausableUpgradeable, AccessControlUpgrad
                 _spinup();
             }
         }
+
+		return toMint;
     }
 
     /**
@@ -718,7 +720,7 @@ contract RockXStaking is Initializable, PausableUpgradeable, AccessControlUpgrad
      * 
      * redeem keeps the ratio invariant
      */
-    function redeemFromValidators(uint256 ethersToRedeem, uint256 maxToBurn, uint256 deadline) external nonReentrant onlyPhase(1) {
+    function redeemFromValidators(uint256 ethersToRedeem, uint256 maxToBurn, uint256 deadline) external nonReentrant onlyPhase(1) returns(uint256 burned){
         require(block.timestamp < deadline, "TRANSACTION_EXPIRED");
         require(ethersToRedeem % DEPOSIT_SIZE == 0, "REDEEM_NOT_IN_32ETHERS");
 
@@ -732,6 +734,9 @@ contract RockXStaking is Initializable, PausableUpgradeable, AccessControlUpgrad
 
         // queue ether debts
         _enqueueDebt(msg.sender, ethersToRedeem);
+
+		// return burned 
+		return xETHToBurn;
     }
 
     /** 
