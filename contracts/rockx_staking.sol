@@ -185,6 +185,11 @@ contract RockXStaking is Initializable, PausableUpgradeable, AccessControlUpgrad
     // phase switch from 0 to 1
     uint256 private phase;
 
+    /**
+     * @dev empty reserved space for future adding of variables
+     */
+    uint256[32] private __gap;
+
     /** 
      * ======================================================================================
      * 
