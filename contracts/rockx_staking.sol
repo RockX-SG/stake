@@ -565,7 +565,7 @@ contract RockXStaking is Initializable, PausableUpgradeable, AccessControlUpgrad
     /*
      * @dev returns current user deposits
      */
-    function getUserDeposits(address account) external view returns(int256) { return userDeposits[msg.sender]; }
+    function getUserDeposits(address account) external view returns(uint256) { return userDeposits[msg.sender]; }
 
     /*
      * @dev returns current accounted balance
