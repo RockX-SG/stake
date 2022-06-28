@@ -4,6 +4,6 @@ services:
     build: .
     tty: true
     ports:
-      - '8545:8545'
+      - '8545:8000'
     environment:
       - WEB3_INFURA_PROJECT_ID=${WEB3_INFURA_PROJECT_ID}
