@@ -11,10 +11,10 @@ RUN npm install n -g \
 RUN npm install -g ganache
 
 RUN echo 'server {\n\
-    listen 8000;\n\
+    listen 8545;\n\
     server_name localhost;\n\
     location / {\n\
-        proxy_pass http://localhost:8545;\n\
+        proxy_pass http://localhost:8000;\n\
     }\n\
 }' > /etc/nginx/conf.d/default.conf
 
@@ -24,8 +24,10 @@ COPY . .
 
 RUN brownie compile
 
+RUN brownie networks modify mainnet-fork accounts=100 port=8000
+
 # ENV WEB3_INFURA_PROJECT_ID
 
-EXPOSE 8000
+EXPOSE 8545
 
 CMD ["sh","-c","nginx -g 'daemon off;' & ./run.sh"]
