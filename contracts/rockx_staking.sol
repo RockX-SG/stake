@@ -185,9 +185,6 @@ contract RockXStaking is Initializable, PausableUpgradeable, AccessControlUpgrad
     // phase switch from 0 to 1
     uint256 private phase;
 
-    // user-side tracking
-    mapping(address => uint256) private userDeposits;   // track user ether deposits
-
     /**
      * @dev empty reserved space for future adding of variables
      */
@@ -563,11 +560,6 @@ contract RockXStaking is Initializable, PausableUpgradeable, AccessControlUpgrad
     function getVectorClock() external view returns(bytes32) { return vectorClock; }
 
     /*
-     * @dev returns current user deposits
-     */
-    function getUserDeposits(address account) external view returns(uint256) { return userDeposits[account]; }
-
-    /*
      * @dev returns current accounted balance
      */
     function getAccountedBalance() external view returns(int256) { return accountedBalance; }
@@ -713,9 +705,6 @@ contract RockXStaking is Initializable, PausableUpgradeable, AccessControlUpgrad
         IMintableContract(xETHAddress).mint(msg.sender, toMint);
         totalPending += msg.value;
 
-        // track user deposits
-        userDeposits[msg.sender] += msg.value;
-
         // spin up n nodes
         uint256 numValidators = totalPending / DEPOSIT_SIZE;
         for (uint256 i = 0;i<numValidators;i++) {
@@ -750,9 +739,6 @@ contract RockXStaking is Initializable, PausableUpgradeable, AccessControlUpgrad
 
         // queue ether debts
         _enqueueDebt(msg.sender, ethersToRedeem);
-
-        // track user deposits
-        userDeposits[msg.sender] -= ethersToRedeem;
 
         // return burned 
         return xETHToBurn;
