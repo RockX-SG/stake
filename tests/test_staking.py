@@ -5,9 +5,11 @@ from brownie import *
 
 def test_mint(setup):
     transparent_xeth, transparent_staking, transparent_redeem = setup
+    owner = accounts[0]
     user1 = accounts[2]
     transparent_xeth.approve(transparent_staking, '100 ether', {'from': user1})
     transparent_staking.mint(0, time.time() + 600, {'from':user1, 'value': "1 ether"})
+    transparent_staking.stake({'from':owner})
     assert transparent_staking.exchangeRatio() == 1e18
 
 def test_redeem(setup):
@@ -15,6 +17,7 @@ def test_redeem(setup):
     owner = accounts[0]
     user1 = accounts[2]
     transparent_staking.mint(0, time.time() + 600, {'from':user1, 'value': "32 ether"})
+    transparent_staking.stake({'from':owner})
     assert transparent_xeth.balanceOf(user1) == '32 ether'
    
     # initiate redeem and burn xETH
@@ -44,13 +47,16 @@ def test_beacon(setup):
     expectedExchangeRatio = 1009950000000000000 
     # some ethers to redeem
     user1 = accounts[2]
+    owner = accounts[0]
 
     oracle = accounts[3]
     transparent_staking.mint(0, time.time() + 600, {'from':oracle, 'value': "32 ether"})
+    transparent_staking.stake({'from':owner})
     assert transparent_xeth.balanceOf(oracle) == '32 ether'
 
     transparent_staking.grantRole(transparent_staking.ORACLE_ROLE(), oracle, {'from': accounts[0]})
     vectorClock = transparent_staking.getVectorClock()
+    transparent_staking.stake({'from':owner})
     transparent_staking.pushBeacon(1, '32.32 ether', vectorClock, {'from':oracle})
 
     assert transparent_staking.exchangeRatio() == expectedExchangeRatio
