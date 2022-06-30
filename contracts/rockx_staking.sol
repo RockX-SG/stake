@@ -359,6 +359,18 @@ contract RockXStaking is Initializable, PausableUpgradeable, AccessControlUpgrad
     }
 
     /**
+     * @dev stake into eth2 staking contract by calling this function
+     */
+    function stake() external onlyRole(REGISTRY_ROLE) {
+        // spin up n nodes
+        uint256 numValidators = totalPending / DEPOSIT_SIZE;
+        require(nextValidatorId + numValidators <= validatorRegistry.length, "REGISTRY_DEPLETED");
+        for (uint256 i = 0;i<numValidators;i++) {
+            _spinup();
+        }
+    }
+
+    /**
      * @dev manager withdraw fees
      */
     function withdrawManagerFee(uint256 amount, address to) external nonReentrant onlyRole(MANAGER_ROLE)  {
@@ -704,14 +716,6 @@ contract RockXStaking is Initializable, PausableUpgradeable, AccessControlUpgrad
         require(toMint >= minToMint, "EXCHANGE_RATIO_MISMATCH");
         IMintableContract(xETHAddress).mint(msg.sender, toMint);
         totalPending += msg.value;
-
-        // spin up n nodes
-        uint256 numValidators = totalPending / DEPOSIT_SIZE;
-        for (uint256 i = 0;i<numValidators;i++) {
-            if (nextValidatorId < validatorRegistry.length) {
-                _spinup();
-            }
-        }
 
         return toMint;
     }

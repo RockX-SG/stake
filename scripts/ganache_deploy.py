@@ -113,6 +113,7 @@ def main():
     transparent_staking.syncBalance(vectorClock, {'from':owner})
     vectorClock = transparent_staking.getVectorClock()
     print("vector clock:", vectorClock)
+    transparent_staking.stake({'from':owner})
     transparent_staking.pushBeacon(1, '32.32 ethers', vectorClock, {'from':owner})
     transparent_staking.redeemFromValidators('32 ethers', '33 ethers', time.time() + 600, {'from':owner})
     accounts[0].transfer(transparent_staking.address, '32.33 ethers')

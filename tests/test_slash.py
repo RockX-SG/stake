@@ -16,11 +16,13 @@ def test_abc(setup):
 
 def test_slash(setup):
     transparent_xeth, transparent_staking, transparent_redeem = setup
+    owner = accounts[0]
     user1 = accounts[2]
     oracle = accounts[3]
 
     # user1 mint 32eth
     transparent_staking.mint(0, time.time() + 600, {'from':user1, 'value': "32 ether"})
+    transparent_staking.stake({'from':owner})
     assert transparent_xeth.balanceOf(user1) == '32 ether'
 
     # grant oracle role    
