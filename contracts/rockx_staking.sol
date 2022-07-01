@@ -368,6 +368,8 @@ contract RockXStaking is Initializable, PausableUpgradeable, AccessControlUpgrad
         for (uint256 i = 0;i<numValidators;i++) {
             _spinup();
         }
+
+        emit ValidatorActivated(nextValidatorId);
     }
 
     /**
@@ -840,9 +842,6 @@ contract RockXStaking is Initializable, PausableUpgradeable, AccessControlUpgrad
      * @dev spin up the node
      */
     function _spinup() internal {
-        // emit a log
-        emit ValidatorActivated(nextValidatorId);
-
          // load credential
         ValidatorCredential memory cred = validatorRegistry[nextValidatorId];
         _stake(cred.pubkey, cred.signature);
@@ -909,7 +908,7 @@ contract RockXStaking is Initializable, PausableUpgradeable, AccessControlUpgrad
      *
      * ======================================================================================
      */
-    event ValidatorActivated(uint256 node_id);
+    event ValidatorActivated(uint256 nextValidatorId);
     event ValidatorStopped(uint256 stoppedCount, uint256 stoppedBalance);
     event RevenueAccounted(uint256 amount);
     event ValidatorSlashedStopped(uint256 stoppedCount, uint256 slashed);
