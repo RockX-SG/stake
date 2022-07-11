@@ -477,7 +477,7 @@ contract RockXStaking is Initializable, PausableUpgradeable, AccessControlUpgrad
 
         // NOTE(x) The following procedure MUST keep currentReserve unchanged:
         // 
-        // (totalPending + amountUnstaked - paid + incrRewardDebt) + (totalStaked - amountUnstaked) + accountedUserRevenue - (rewardDebt + incrRewardDebt) - (totalDebts - paid)
+        // (totalPending + _stoppedBalance - paid) + (totalStaked - amountUnstaked) + accountedUserRevenue - (rewardDebt + _stoppedBalance - amountUnstaked) - (totalDebts - paid)
         //  ==
         //  totalPending + totalStaked + accountedUserRevenue - totalDebts - rewardDebt
         //
@@ -491,7 +491,7 @@ contract RockXStaking is Initializable, PausableUpgradeable, AccessControlUpgrad
         uint256 paid = _payDebts(amountUnstaked);
 
         // the remaining ethers are aggregated to totalPending
-        totalPending += incrRewardDebt + amountUnstaked - paid;
+        totalPending += _stoppedBalance - paid;
 
         // track total staked ethers
         totalStaked -= amountUnstaked;
