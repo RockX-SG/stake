@@ -185,6 +185,9 @@ contract RockXStaking is Initializable, PausableUpgradeable, AccessControlUpgrad
     // phase switch from 0 to 1
     uint256 private phase;
 
+    // gas refunds
+    uint256 [] private refunds;
+
     /**
      * @dev empty reserved space for future adding of variables
      */
@@ -716,6 +719,11 @@ contract RockXStaking is Initializable, PausableUpgradeable, AccessControlUpgrad
         IMintableContract(xETHAddress).mint(msg.sender, toMint);
         totalPending += msg.value;
 
+        // refund to stakers
+        if (refunds.length > 0) {
+            refunds.pop();
+        }
+
         return toMint;
     }
 
@@ -742,6 +750,9 @@ contract RockXStaking is Initializable, PausableUpgradeable, AccessControlUpgrad
 
         // queue ether debts
         _enqueueDebt(msg.sender, ethersToRedeem);
+
+        // save gas to refund to stakers
+        refunds.push(block.timestamp);
 
         // return burned 
         return xETHToBurn;
