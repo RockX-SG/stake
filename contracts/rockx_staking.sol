@@ -481,11 +481,6 @@ contract RockXStaking is Initializable, PausableUpgradeable, AccessControlUpgrad
         //  ==
         //  totalPending + totalStaked + accountedUserRevenue - totalDebts - rewardDebt
         //
-        
-        // Extra value, which is more than debt clearance requirements,
-        // will be re-staked.
-        // NOTE(x): I name this value to be rewardDebts
-        uint256 incrRewardDebt = _stoppedBalance - amountUnstaked;
 
         // pay debts
         uint256 paid = _payDebts(amountUnstaked);
@@ -496,8 +491,10 @@ contract RockXStaking is Initializable, PausableUpgradeable, AccessControlUpgrad
         // track total staked ethers
         totalStaked -= amountUnstaked;
 
-        // revenue debt
-        rewardDebts += incrRewardDebt;
+        // Extra value, which is more than debt clearance requirements,
+        // will be re-staked.
+        // NOTE(x): I name this value to be rewardDebts
+        rewardDebts += _stoppedBalance - amountUnstaked;
 
         // Variables Compaction
         // compact accountedUserRevenue & rewardDebt, to avert overflow
