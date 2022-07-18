@@ -100,6 +100,7 @@ def main():
             )
 
     
+    transparent_staking.setManagerFeeShare(100, {'from':owner})
     transparent_staking.switchPhase(1, {'from':owner})
     transparent_staking.mint('32 ether', time.time() + 600, {'from':owner, 'value': '32 ether'})
     transparent_xeth.approve(transparent_staking, '10000 ethers', {'from': owner})
