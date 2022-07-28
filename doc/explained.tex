@@ -1,0 +1,159 @@
+\documentclass{article}
+
+% Language setting
+% Replace `english' with e.g. `spanish' to change the document language
+\usepackage[english]{babel}
+
+% Set page size and margins
+% Replace `letterpaper' with `a4paper' for UK/EU standard size
+\usepackage[letterpaper,top=2cm,bottom=2cm,left=3cm,right=3cm,marginparwidth=1.75cm]{geometry}
+
+% Useful packages
+\usepackage{amsmath}
+\usepackage{graphicx}
+\usepackage[colorlinks=true, allcolors=blue]{hyperref}
+
+\title{RockX Liquid Staking Explained}
+\author{RockX Team}
+
+\begin{document}
+\maketitle
+
+\begin{abstract}
+Your abstract.
+\end{abstract}
+
+\section{Introduction}
+
+\subsection{What is Proof of Stake?}
+
+Proof of Stake is the consensus protocol utilised in Ethereum 2.0 (ETH2). The consensus protocol helps everyone to know what transactions have been processed and in what order, which is known as validation.
+
+ETH2 currently has a Proof of Stake (PoS) chain called the Beacon Chain, which is faster, more energy efficient and more decentralised than the current consensus protocol Ethereum is utilising (Proof of Work). Users deposit ETH and provide an Ethereum node to perform the required validation. As a reward for providing the node, the Beacon Chain gives node operators additional ETH on top of their deposits. These rewards are minted in return for helping secure the network.
+
+\subsection{What is liquid staking?}
+
+It is clear that PoS chains will be an integral part of the future of crypto, and become the foundation layer of which DeFi and metaverses will be built on.
+
+However, PoS comes with some drawbacks for those wanting to participate directly as validators:
+
+It requires technical know-how to set up and operate
+32ETH is a significant barrier for regular token holders to participate in POS validation
+Staked tokens are locked up and become illiquid assets
+In order to solve these issues, liquid staking protocols were born. Liquid staking abstracts the depositing of tokens from running a validator node.
+
+In exchange for their tokens, depositors receive a representative (uniETH) token from the protocol which is a claim on the tokens they have staked.
+
+\subsection{What is uniETH?}
+
+uniETH represents the staked ETH plus all future staking rewards. uniETH does not grow in quantity over time but instead, grows in value, i.e. 1 uniETH becomes worth increasingly more than 1 ETH.
+
+\subsection{What should I stake with RockX instead of staking directly to ETH2?}
+
+RockX removes several drawbacks that exist with Proof of Stake on ETH2.
+
+The Beacon Chain requires a minimum deposit of at least 32 ETH. RockX will allow anyone to earn the reward on any amount of ETH deposited with us.
+
+When depositing ETH on the Beacon Chain, users are required to have technical knowledge of interacting with smart contracts. RockX handles all interaction with the Beacon Chain in our users’ place. The Beacon Chain will also require users who make deposits to be technically proficient at running Ethereum nodes 24/7, at the same time keeping that node online and secure. RockX provides this service in our users’ place.
+
+As ETH2 is being rolled out in several phases. We are currently in phase 1, the merge, and depositing now means your deposit is locked until phase 2 arrives, which could very well still be a long time away. With RockX you instantly get uniETH when depositing and do not need to be locked with us. It can be traded, sold or held at any time, which provides our users with liquidity on their staked ETH.
+
+\subsection{What is the staking period for uniETH?}
+The staking period to redeem the underlying ETH on uniETH will only be confirmed till ETH2 goes into phase 2. However, you will receive uniETH when you deposit and it will still gain staking rewards over time in terms of the token value. uniETH can also be sold and traded on various DEXs and CEXs if there is liquidity available for the trade.
+
+\subsection{What is the minimum deposit?}
+RockX gives everyone the opportunity to earn rewards on any amount of ETH, as we do not have a minimum. We do recommend a deposit of at least 0.01ETH to make your transaction worthwhile. When you stake ETH, you will receive uniETH, which gains rewards over time based on the performance of our nodes on the Beacon Chain.
+
+\subsection{What is the maximum deposit?}
+There is no limit on the amount of ETH you can stake with RockX on ETH2. The more ETH, the more rewards you will be receiving.
+
+\section{RockX uniETH staking algorithm}
+
+\subsection{Terminology}
+\begin{description}
+   \item[ETH] $1 ETH = 1e18$
+   \item[ExchangeRatio] Exchange ratio of uniETH to ETH, given as: 
+    \[ExchangeRatio = \frac{CurrentReserve}{TotalSupply}\]
+    normally $ExchangeRatio >= 1.0$
+   \item[TotalSupply] Current total supply of uniETH.
+   \item[TotalStaked] Total ethers staked to validators.
+   \item[TotalDebts] Total unpaid debts(generated from redeemFromValidators), awaiting to be paid by turn off validators to clean debts.
+   \item[TotalPending] Pending ethers to be staked, usually $TotalPending <32ETH$
+   \item[RewardDebts] The amount to restake once TotalPending gathers more than $32ETH$.
+   \item[AccountedUserRevenue] Overall net revenue which belongs to all uniETH holders(excluded re-staked amount)
+   \item[ReportedValidators] Latest reported active validator count.
+   \item[ReportedValidatorBalance] Latest reported active validator overall balance.
+   \item[RecentReceived] The amount this contract receives recently.
+   \item[CurrentReserve] Overall assets under management, given as:
+   \[CurrentReserve = TotalPending + TotalStaked + AccountedUserRevenue - TotalDebts - RewardDebts\]
+\end{description}
+
+\subsection{The algorithm explained}
+\newtheorem{theorem}{Theorem}[section]
+\newtheorem{corollary}{Corollary}[theorem]
+\newtheorem{lemma}[theorem]{Lemma}
+
+\subsection{Function mint()}
+For every mint operation, with $ethersToMint$, we have 
+
+\begin{theorem}[Mint]
+\label{Mint}
+\[TotalPending = TotalPending + ethersToMint\]
+\[TotalSupply = TotalSupply + \frac{ethersToMint}{ExchangeRatio}\]
+\end{theorem}
+
+\subsection{Function stake()}
+At any time $TotalPending$ has more than $32 Ethers$, the manager can call stake(), then $TotalPending$ moves to $TotalStaked$ and keeps $TotalPending$ less than $32 ethers$, then :
+\begin{theorem}[Stake]
+\label{Mint}
+\[TotalPending = TotalPending - \lfloor\frac{TotalPending}{32ETH}\rfloor \cdot 32ETH \]
+\[TotalStaked = TotalStaked + \lfloor\frac{TotalPending}{32ETH}\rfloor \cdot 32ETH \]
+\end{theorem}
+\subsection{Function validatorStopped()}
+Whenever a validator stopped, all value pays debts in priority, given:
+\begin{description}
+\item[valueStopped] The value sent-back via receive() funtion
+\item[amountUnstaked] The amount of unstaked node (based on 32ethers)
+\item[validatorStopped] The count of validator stopped
+\end{description}
+
+Then, we have:
+
+\begin{theorem}[validatorStopped]
+\label{validatorStopped}
+\[incrRewardDebt := valueStopped - amountUnstaked\]
+\[RewardDebts = RewardDebt + incrRewardDebt\]
+\[RecentReceived = RecentReceived + valueStopped\]
+\[TotalPending = TotalPending + Max(0, amountUnstaked - TotalDebts) + incrRewardDebt\]
+\[TotalStaked = TotalStaked - validatorStopped \cdot 32 ETH\]
+\end{theorem}
+
+\subsection{Function pushBeacon()}
+Oracle push balance, rebase if new validator is alive, given:
+\begin{description}
+\item[aliveValidator] The count of validators alive
+\end{description}
+
+Then we have:
+\begin{theorem}[pushBeacon]
+\label{pushBeacon}
+\[RewardBase = ReportedValidatorBalance + Max(0, aliveValidator - ReportedValidators) \cdot  32 ETH\]
+\end{theorem}
+
+\subsection{pushBeacon Reward Distribution}
+Oracle push balance, revenue calculation:
+\begin{description}
+\item[aliveBalance] The balance of current alive validators
+\end{description}
+
+Then we have:
+\begin{theorem}[calcReward]
+\label{calcReward}
+\[r := aliveBalance + RecentReceived - RewardBase\]
+\[AccountedUserRevenue = AccountedUserRevenue + r * (1000 - managerFeeShare) / 1000\]
+\[RecentReceived = 0\]
+\[ReportedValidators = aliveValidator\]
+\[ReportedValidatorBalance = aliveBalance\]
+\end{theorem}
+
+\end{document}
