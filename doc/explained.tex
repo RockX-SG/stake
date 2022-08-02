@@ -74,17 +74,18 @@ There is no limit on the amount of ETH you can stake with RockX on ETH2. The mor
    \item[ETH] $1 ETH \equiv 10^{18}$
    \item[TotalSupply] Current total supply of uniETH.
    \item[TotalStaked] Total ethers staked to validators.
-   \item[TotalDebts] Total unpaid debts(generated from \textbf{redeemFromValidators()}), awaiting to be paid by turn off validators to clean debts.
+   \item[TotalDebts] Total unpaid debts, generated from \textbf{redeemFromValidators()}, awaiting to be paid by turning off validators and initiates debt clearance procedure.
    \item[TotalPending] Pending ethers to be staked, usually $TotalPending <32ETH$
    \item[RewardDebts] The remaining ethers from debt clearance procedure.
    \item[AccountedUserRevenue] Overall net revenue which belongs to all uniETH holders.
    \item[ReportedValidators] Latest reported active validators.
    \item[ReportedValidatorBalance] Latest reported overall balance of active validator.
-   \item[RecentReceived] The amount this contract receives recently.
+   \item[RecentEthersMoved] The amount this contract receives recently from validators.
    \item[CurrentReserve] Overall assets under management, given as:
    \[CurrentReserve = TotalPending + TotalStaked + AccountedUserRevenue - TotalDebts - RewardDebts\]
    \item[Exchange Ratio] Defined as symbol $\rho$ of uniETH to ETH, given as: 
     \[\rho = \frac{TotalSupply}{CurrentReserve} , \{normally: \rho \leq 1.0\} \]
+   \item[managerFeeShare] share of the manager fee, represented as 1 in 1000, managerFeeShare $\in[0,1000]$ 
 \end{description}
 
 \subsection{The algorithm explained}
@@ -114,9 +115,9 @@ At any time \textbf{TotalPending} has more than $32 ethers$, the manager can cal
 \subsection{How ethers returns to this contract from validators? }
 \label{sectionAccounting}
 
-The way the withdrawals implementation is currently, withdrawals are not like normal transactions, and are instead system level transactions that update an account's balance without a transaction in or out. In our contract implementation, we use \textbf{accountedBalance} to track the in and out of the ethers, and compare \textbf{accountedBalance} with \textbf{this.balance}, the difference is the ethers reward returned from validators. We utilize variable \textbf{RecentReceived} to track this difference:
+The way the withdrawals implementation is currently, withdrawals are not like normal transactions, and are instead system level transactions that update an account's balance without a transaction in or out. In our contract implementation, we use \textbf{accountedBalance} to track the in and out of the ethers, and compare \textbf{accountedBalance} with \textbf{this.balance}, the difference is the ethers reward returned from validators. We utilize variable \textbf{RecentEthersMoved} to track this difference:
 
-\[RecentReceived = accountedBalance - this.balance\]
+\[RecentEthersMoved = accountedBalance - this.balance\]
 
 As this variable will only be counted during reward distribution, the variable will be reset to 0 at the end of each \textbf{pushBeacon()} call.
 
@@ -139,8 +140,8 @@ If we do not have \textbf{slashing}, then we have:
 \[amountUnstaked := 32 ETH \cdot validatorStopped\]
 \[incrRewardDebt := valueStopped - amountUnstaked\]
 
-meanwhile, \textbf{RecentReceived} will be updated as explained in section:\ref{sectionAccounting}.
-\[RecentReceived = RecentReceived^{\prime} + valueStopped\]
+meanwhile, \textbf{RecentEthersMoved} will be updated as explained in section:\ref{sectionAccounting}.
+\[RecentEthersMoved = RecentEthersMoved^{\prime} + valueStopped\]
 
 then, we use these 2 varaibles above to update the following variables:
 
@@ -163,17 +164,22 @@ Then we have:
 \end{theorem}
 
 \subsubsection{reward distribution}
-Secondly, revenue will be accumulated as followings if there's any, given:
+Secondly, revenue will be accumulated as followings if there's any. Normally ethers will either stays in contract or validators, the overall assets under management is:
+\[TVL := ethersInContract + ethersInValidators\]
+
+Ethers moves from contract to validators, or vice versa, we can assume: \textbf{RecentEthersMoved} is the ethers moved between ${validators}\Longrightarrow{contract}$, given:
+
 \begin{description}
 \item[aliveBalance] The balance of current alive validators
 \end{description}
 
+
 Then we have:
 \begin{theorem}[calcReward]
 \label{calcReward}
-\[r := Max(0, aliveBalance + RecentReceived - RewardBase)\]
+\[r := Max(0, aliveBalance + RecentEthersMoved - RewardBase)\]
 \[AccountedUserRevenue = AccountedUserRevenue^{\prime} + r \cdot \frac{(1000 - managerFeeShare)}{1000}\]
-\[RecentReceived = 0\]
+\[RecentEthersMoved = 0\]
 \[ReportedValidators = aliveValidator\]
 \[ReportedValidatorBalance = aliveBalance\]
 \end{theorem}
