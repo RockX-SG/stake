@@ -1,4 +1,4 @@
-\documentclass{article}
+\documentclass{article}
 
 % Language setting
 % Replace `english' with e.g. `spanish' to change the document language
@@ -144,7 +144,7 @@ The way the withdrawals implementation is currently, withdrawals are not like no
 
 \[RecentEthersMoved = accountedBalance - this.balance\]
 
-Ethers moves from contract to validators, or vice versa, we can assume: \textbf{RecentEthersMoved} is the ethers moved between ${validators}\Longrightarrow{contract}$.
+Ethers moves from contract to validators, or vice versa, we can assume: \textbf{RecentEthersMoved} is the ethers moved from ${validators}\Longrightarrow{contract}$.
 
 \subsection{Stopping validators for debt clearance}
 Whenever a validator stopped by a node operator, the ethers are supposed to return to this contract by the setting of \textsc{withdrawal\_credentials}, once the ethers returned, the oracle calls \textbf{validatorStopped()} function, along with the following parameters:
@@ -210,7 +210,37 @@ we have:
 \end{theorem}
 
 As \textbf{RecentEthersMoved} will only be counted during reward distribution, the variable will be reset to 0 at the end of each \textbf{pushBeacon()} call. The exchange ratio will go down by the change of \textbf{AccountedUserRevenue}.
-\subsection{Understanding rewards by balance sheet}
+
+\subsection{Slashing}
+Nobody expects slashing, but what if it happens, under such rare case, users will face a sudden change of \textbf{exchange ratio}, actually we made a tiny modification to handle this situation in \textbf{pushBeacon()} and \textbf{validatorSlashedStop()}
+
+\subsubsection{Slashing notification in validatorSlashedStop()}
+Given:
+\begin{description}
+\item[remainingEthers] The ethers left after slashing
+\item[slashedAmount] The ethers slashed
+\item[slashedValidators] The count of slashed validators.
+\end{description}
+we have:
+\begin{theorem}
+\label{slashed}
+\[TotalPending = TotalPending^{\prime} + remainingEthers \]
+\[TotalStaked = TotalStaked^{\prime} - 32 ETH \cdot slashedValidators \]
+\[RecentSlashed = RecentSlashed^{\prime} +  slashedAmount \];
+\end{theorem}
+
+\subsubsection{Modification of rewards calculation in pushBeacon()}
+\begin{theorem}
+\label{slashed}
+\[r := Max(0, aliveBalance + RecentEthersMoved + RecentSlashed - RewardBase)\]
+\[AccountedUserRevenue = AccountedUserRevenue^{\prime} + r \cdot \frac{(1000 - managerFeeShare)}{1000}\]
+\[RecentEthersMoved = 0\]
+\[RecentSlashed = 0\]
+\[ReportedValidators = aliveValidator\]
+\[ReportedValidatorBalance = aliveBalance\]
+\end{theorem}
+
+\subsection{Understanding rewards via balance sheet}
 \begin{table}[!ht]
     \centering
     \begin{tabular}{p{0.2\linewidth} | p{0.3\linewidth}| p{0.1\linewidth}| p{0.2\linewidth}| p{0.2\linewidth}}
