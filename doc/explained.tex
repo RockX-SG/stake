@@ -20,7 +20,7 @@
 \maketitle
 
 \begin{abstract}
-Your abstract.
+Staking, a cryptoeconomic primitive that allows participants to earn yield in exchange for locking tokens, has taken center stage over the past two years. Under Proof of Stake consensus mechanism, instead of using computational power, validators lock (“stake”) a certain amount of the network’s native cryptoasset as collateral to create new blocks. In return, they earn inflationary rewards and transaction fees.
 \end{abstract}
 
 \section{Introduction}
@@ -71,21 +71,20 @@ There is no limit on the amount of ETH you can stake with RockX on ETH2. The mor
 
 \subsection{Terminology}
 \begin{description}
-   \item[ETH] $1 ETH = 1e18$
-   \item[ExchangeRatio] Exchange ratio of uniETH to ETH, given as: 
-    \[ExchangeRatio = \frac{CurrentReserve}{TotalSupply}\]
-    normally $ExchangeRatio >= 1.0$
+   \item[ETH] $1 ETH \equiv 10^{18}$
    \item[TotalSupply] Current total supply of uniETH.
    \item[TotalStaked] Total ethers staked to validators.
-   \item[TotalDebts] Total unpaid debts(generated from redeemFromValidators), awaiting to be paid by turn off validators to clean debts.
+   \item[TotalDebts] Total unpaid debts(generated from \textbf{redeemFromValidators()}), awaiting to be paid by turn off validators to clean debts.
    \item[TotalPending] Pending ethers to be staked, usually $TotalPending <32ETH$
-   \item[RewardDebts] The amount to restake once TotalPending gathers more than $32ETH$.
-   \item[AccountedUserRevenue] Overall net revenue which belongs to all uniETH holders(excluded re-staked amount)
-   \item[ReportedValidators] Latest reported active validator count.
-   \item[ReportedValidatorBalance] Latest reported active validator overall balance.
+   \item[RewardDebts] The remaining ethers from debt clearance procedure.
+   \item[AccountedUserRevenue] Overall net revenue which belongs to all uniETH holders.
+   \item[ReportedValidators] Latest reported active validators.
+   \item[ReportedValidatorBalance] Latest reported overall balance of active validator.
    \item[RecentReceived] The amount this contract receives recently.
    \item[CurrentReserve] Overall assets under management, given as:
    \[CurrentReserve = TotalPending + TotalStaked + AccountedUserRevenue - TotalDebts - RewardDebts\]
+   \item[Exchange Ratio] Defined as symbol $\rho$ of uniETH to ETH, given as: 
+    \[\rho = \frac{TotalSupply}{CurrentReserve} , \{normally: \rho \geq 1.0\} \]
 \end{description}
 
 \subsection{The algorithm explained}
@@ -94,54 +93,77 @@ There is no limit on the amount of ETH you can stake with RockX on ETH2. The mor
 \newtheorem{lemma}[theorem]{Lemma}
 
 \subsection{Function mint()}
-For every mint operation, with $ethersToMint$, we have 
+For every mint operation, with \textbf{ethersToMint}, we have 
 
 \begin{theorem}[Mint]
 \label{Mint}
-\[TotalPending = TotalPending + ethersToMint\]
-\[TotalSupply = TotalSupply + \frac{ethersToMint}{ExchangeRatio}\]
+\[uniETH_{minted} := \rho \cdot ethersToMint \]
+\[TotalSupply = TotalSupply^{\prime} + uniETH_{minted} \]
+\[TotalPending = TotalPending^{\prime} + ethersToMint\]
 \end{theorem}
 
 \subsection{Function stake()}
-At any time $TotalPending$ has more than $32 Ethers$, the manager can call stake(), then $TotalPending$ moves to $TotalStaked$ and keeps $TotalPending$ less than $32 ethers$, then :
+At any time \textbf{TotalPending} has more than $32 ethers$, the manager can call \textbf{stake()} function, then \textbf{TotalPending} moves to \textbf{TotalStaked} and keeps \textbf{TotalPending} less than $32 ethers$, we calculate the changes as followings:
 \begin{theorem}[Stake]
-\label{Mint}
-\[TotalPending = TotalPending - \lfloor\frac{TotalPending}{32ETH}\rfloor \cdot 32ETH \]
-\[TotalStaked = TotalStaked + \lfloor\frac{TotalPending}{32ETH}\rfloor \cdot 32ETH \]
+\label{Stake}
+\[ethersToStake := \lfloor\frac{TotalPending^{\prime}}{32ETH}\rfloor \cdot 32ETH\]
+\[TotalPending = TotalPending^{\prime} - ethersToStake \]
+\[TotalStaked = TotalStaked^{\prime} + ethersToStake \]
 \end{theorem}
-\subsection{Function validatorStopped()}
-Whenever a validator stopped, all value pays debts in priority, given:
-\begin{description}
-\item[valueStopped] The value sent-back via receive() funtion
-\item[amountUnstaked] The amount of unstaked node (based on 32ethers)
-\item[validatorStopped] The count of validator stopped
-\end{description}
 
+\subsection{How ethers returns to this contract from validators? }
+\label{sectionAccounting}
+
+The way the withdrawals implementation is currently, withdrawals are not like normal transactions, and are instead system level transactions that update an account's balance without a transaction in or out. In our contract implementation, we use \textbf{accountedBalance} to track the in and out of the ethers, and compare \textbf{accountedBalance} with \textbf{this.balance}, the difference is the ethers reward returned from validators. We utilize variable \textbf{RecentReceived} to track this difference:
+
+\[RecentReceived = accountedBalance - this.balance\]
+
+As this variable will only be counted during reward distribution, the variable will be reset to 0 at the end of each \textbf{pushBeacon()} call.
+
+\subsection{Function validatorStopped()}
+Whenever a validator stopped by a node operator, the ethers are supposed to return to this contract, once the ethers returned, the oracle calls \textbf{validatorStopped()} function, with the following parameters:
+\begin{description}
+\item[valueStopped] The ethers sent-back from validators to the liquid staking contract.
+\item[validatorStopped] The count of stopped validators.
+\end{description}
 Then, we have:
 
 \begin{theorem}[validatorStopped]
 \label{validatorStopped}
+Suppose:
+
+\[valueStopped \geq amountUnstaked \]
+
+If we do not have \textbf{slashing}, then we have:
+
+\[amountUnstaked := 32 ETH \cdot validatorStopped\]
 \[incrRewardDebt := valueStopped - amountUnstaked\]
-\[RewardDebts = RewardDebt + incrRewardDebt\]
-\[RecentReceived = RecentReceived + valueStopped\]
-\[TotalPending = TotalPending + Max(0, amountUnstaked - TotalDebts) + incrRewardDebt\]
-\[TotalStaked = TotalStaked - validatorStopped \cdot 32 ETH\]
+
+meanwhile, \textbf{RecentReceived} will be updated as explained in section:\ref{sectionAccounting}.
+\[RecentReceived = RecentReceived^{\prime} + valueStopped\]
+
+then, we use these 2 varaibles above to update the following variables:
+
+\[RewardDebts = RewardDebt^{\prime} + incrRewardDebt\]
+\[TotalPending = TotalPending^{\prime} + Max(0, amountUnstaked - TotalDebts) + incrRewardDebt\]
+\[TotalStaked = TotalStaked^{\prime} -  amountUnstaked \]
 \end{theorem}
 
 \subsection{Function pushBeacon()}
-Oracle push balance, rebase if new validator is alive, given:
+An oracle service will push overall alive validators balance periodically, there're 2 things \textbf{pushBeacon()} do:
+\subsubsection{adjusting reward base}
+Firstly, pushBeacon will check if there is new validator alive, the reward base will be aligned to the new staked value plus previously reported validators balance, given:
 \begin{description}
 \item[aliveValidator] The count of validators alive
 \end{description}
-
 Then we have:
 \begin{theorem}[pushBeacon]
 \label{pushBeacon}
 \[RewardBase = ReportedValidatorBalance + Max(0, aliveValidator - ReportedValidators) \cdot  32 ETH\]
 \end{theorem}
 
-\subsection{pushBeacon Reward Distribution}
-Oracle push balance, revenue calculation:
+\subsubsection{reward distribution}
+Secondly, revenue will be accumulated as followings if there's any, given:
 \begin{description}
 \item[aliveBalance] The balance of current alive validators
 \end{description}
@@ -149,8 +171,8 @@ Oracle push balance, revenue calculation:
 Then we have:
 \begin{theorem}[calcReward]
 \label{calcReward}
-\[r := aliveBalance + RecentReceived - RewardBase\]
-\[AccountedUserRevenue = AccountedUserRevenue + r * (1000 - managerFeeShare) / 1000\]
+\[r := Max(0, aliveBalance + RecentReceived - RewardBase)\]
+\[AccountedUserRevenue = AccountedUserRevenue^{\prime} + r \cdot \frac{(1000 - managerFeeShare)}{1000}\]
 \[RecentReceived = 0\]
 \[ReportedValidators = aliveValidator\]
 \[ReportedValidatorBalance = aliveBalance\]
