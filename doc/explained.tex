@@ -12,6 +12,7 @@
 \usepackage{amsmath}
 \usepackage{graphicx}
 \usepackage[colorlinks=true, allcolors=blue]{hyperref}
+\usepackage{multirow,tabularx}
 
 \title{RockX Liquid Staking Explained}
 \author{RockX Team}
@@ -134,6 +135,8 @@ Users call function \textbf{redeemFromValidators()} with a specific amount of \t
 \end{theorem}
 Redeeming(or Unstaking) works as by turning off validators, to wait until the validators to be offline and return the staked ethers to the contract. So it's a time-consuming asynchronous process. The benefit from redeeming directly from this contract is that, there's no slippage as in CEX or DEX, but you have to be patient. Once the ethers returned, you'll be notified to claim the ethers.
 
+Note: redeeming function will only be available after ETH2.0 merged.
+
 \subsection{How ethers returns to this contract from validators? }
 \label{sectionAccounting}
 
@@ -141,10 +144,10 @@ The way the withdrawals implementation is currently, withdrawals are not like no
 
 \[RecentEthersMoved = accountedBalance - this.balance\]
 
-As this variable will only be counted during reward distribution, the variable will be reset to 0 at the end of each \textbf{pushBeacon()} call.
+Ethers moves from contract to validators, or vice versa, we can assume: \textbf{RecentEthersMoved} is the ethers moved between ${validators}\Longrightarrow{contract}$.
 
-\subsection{Function validatorStopped()}
-Whenever a validator stopped by a node operator, the ethers are supposed to return to this contract, once the ethers returned, the oracle calls \textbf{validatorStopped()} function, with the following parameters:
+\subsection{Stopping validators for debt clearance}
+Whenever a validator stopped by a node operator, the ethers are supposed to return to this contract by the setting of \textsc{withdrawal\_credentials}, once the ethers returned, the oracle calls \textbf{validatorStopped()} function, along with the following parameters:
 \begin{description}
 \item[valueStopped] The ethers sent-back from validators to the liquid staking contract.
 \item[validatorStopped] The count of stopped validators.
@@ -169,31 +172,34 @@ then, we use these 2 varaibles above to update the following variables:
 \[TotalStaked = TotalStaked^{\prime} -  amountUnstaked \]
 \end{theorem}
 
-\subsection{Function pushBeacon()}
-An oracle service will push overall alive validators balance periodically, there're 2 things \textbf{pushBeacon()} do:
-\subsubsection{adjusting reward base}
-Firstly, pushBeacon will check if there is new validator alive, the reward base will be aligned to the new staked value plus previously reported validators balance, given:
+\subsection{Calculating rewards}
+An oracle service will push overall alive validators balance periodically, there're 2 things \textbf{pushBeacon()} do to calculate the reward:
+
+\subsubsection{Adjusting reward base}
+Firstly, pushBeacon will check if there is new validator alive, the reward base will be aligned to the new staked value plus previously reported validators balance, the \textbf{reward base} is the defined as the base-point to check for balance increasement, given:
 \begin{description}
 \item[aliveValidator] The count of validators alive
 \end{description}
-Then we have:
+we have:
 \begin{theorem}
 \label{pushBeacon}
 \[RewardBase = ReportedValidatorBalance + Max(0, aliveValidator - ReportedValidators) \cdot  32 ETH\]
 \end{theorem}
 
-\subsubsection{reward distribution}
+\subsubsection{Reward distribution}
 Secondly, revenue will be accumulated as followings if there's any. Normally ethers will either stays in contract or validators, the overall assets under management is:
 \[TVL := ethersInContract + ethersInValidators\]
 
-Ethers moves from contract to validators, or vice versa, we can assume: \textbf{RecentEthersMoved} is the ethers moved between ${validators}\Longrightarrow{contract}$, given:
+During calculation of rewards changes, we only consider the balance change in alive validators, we can assume that, if:
+\[aliveBalance + RecentEthersMoved \geq RewardBase\]
+
+then rewards has generated, we formalize the formula as below, given:
 
 \begin{description}
 \item[aliveBalance] The balance of current alive validators
 \end{description}
+we have:
 
-
-Then we have:
 \begin{theorem}
 \label{calcReward}
 \[r := Max(0, aliveBalance + RecentEthersMoved - RewardBase)\]
@@ -202,5 +208,52 @@ Then we have:
 \[ReportedValidators = aliveValidator\]
 \[ReportedValidatorBalance = aliveBalance\]
 \end{theorem}
+
+As \textbf{RecentEthersMoved} will only be counted during reward distribution, the variable will be reset to 0 at the end of each \textbf{pushBeacon()} call. The exchange ratio will go down by the change of \textbf{AccountedUserRevenue}.
+\subsection{Understanding rewards by balance sheet}
+\begin{table}[!ht]
+    \centering
+    \begin{tabular}{p{0.2\linewidth} | p{0.3\linewidth}| p{0.1\linewidth}| p{0.2\linewidth}| p{0.2\linewidth}}
+    \hline
+        \textbf{Initial Stage}:  & ~ & ~ & ~ & ~ \\ \hline
+        User A Stakes 32 ETH & \textbf{ASSETS} & ETH & \textbf{LIABILITY} & uniETH \\ \hline
+        ~ & \textbf{User A Deposit} & 32 & User A uniETH & 32 \\ \hline
+        ~ & Total Assets & 32 & Total Liability & 32 \\ \hline
+        ~ & SwapRatio & ~ & ~ & 1 \\ \hline
+        \multicolumn{5}{c}{} \\ \hline
+        \textbf{Stage 1}:  & ~ & ~ & ~ & ~ \\ \hline
+        Got 0.32 ETH Rewards & \textbf{ASSETS} & ETH & \textbf{LIABILITY} & uniETH \\ \hline
+        ~ & User A Deposit & 32 & User A uniETH & 32 \\ \hline
+        ~ & \textbf{Mining Rewards} & 0.32 & ~ & ~ \\ \hline
+        ~ & Total Assets & 32.32 & Total Liability & 32 \\ \hline
+        ~ & SwapRatio & ~ & ~ & 1.01 \\ \hline
+        \multicolumn{5}{c}{} \\ \hline
+        \textbf{Stage 2}:  & ~ & ~ & ~ & ~ \\ \hline
+        User B Stakes 64 ETH & \textbf{ASSETS} & ETH & \textbf{LIABILITY} & uniETH \\ \hline
+        ~ & User A Deposit & 32 & User A uniETH & 32 \\ \hline
+        ~ & \textbf{User B Deposit} & 64 & User B uniETH & 63.36633663 \\ \hline
+        ~ & Mining Rewards & 0.32 & ~ & ~ \\ \hline
+        ~ & Total Assets & 96.32 & Total Liability & 95.36633663 \\ \hline
+        ~ & SwapRatio & ~ & ~ & 1.01 \\ \hline
+        \multicolumn{5}{c}{} \\ \hline
+        \textbf{Stage 3}: & ~ & ~ & ~ & ~ \\ \hline
+        User B transfer 32 uniETH to User C & \textbf{ASSETS} & ETH & \textbf{LIABILITY} & uniETH \\ \hline
+        ~ & ~ & ~ & User A uniETH & 32 \\ \hline
+        ~ & ~ & ~ & User B uniETH & 31.36633663 \\ \hline
+        ~ & ~ & ~ & \textbf{User C uniETH} & 32 \\ \hline
+        ~ & Total Assets & 96.32 & Total Liability & 95.36633663 \\ \hline
+        ~ & SwapRatio & ~ & ~ & 1.01 \\ \hline
+        \multicolumn{5}{c}{} \\ \hline
+        \textbf{Stage 4}: & ~ & ~ & ~ & ~ \\ \hline
+          User A unstakes equivalent 32 ETH value of uniETH & \textbf{ASSETS} & ETH & \textbf{LIABILITY} & uniETH \\ \hline
+        ~ & Before Redeeming & 96.32 & User A uniETH & 32 \\ \hline
+        ~ & ~ & ~ & User B uniETH & 31.36633663 \\ \hline
+        ~ & ~ & ~ & User C uniETH & 32 \\ \hline
+        ~ & \textbf{User A Redeems} & -32 & User A Burned & -31.68316832 \\ \hline
+        ~ & Total Assets & 64.32 & Total Liability & 63.68316831 \\ \hline
+        ~ & SwapRatio & ~ & ~ & 1.01 \\ \hline
+    \end{tabular}
+    \caption{RockX ETH2 Liquid Staking Balance Sheet}
+\end{table}
 
 \end{document}
