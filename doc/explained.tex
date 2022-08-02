@@ -1,4 +1,4 @@
-\documentclass{article}
+\documentclass{article}
 
 % Language setting
 % Replace `english' with e.g. `spanish' to change the document language
@@ -73,16 +73,16 @@ There is no limit on the amount of ETH you can stake with RockX on ETH2. The mor
 \subsection{Terminology}
 \begin{description}
    \item[ETH] $1\cdot ETH \equiv 10^{18}$
-   \item[TotalSupply] Current total supply of uniETH.
-   \item[TotalStaked] Total ethers staked to validators.
-   \item[TotalDebts] Total unpaid debts, generated from \textbf{redeemFromValidators()}, awaiting to be paid by turning off validators and initiates debt clearance procedure.
-   \item[TotalPending] Pending ethers to be staked, usually $TotalPending <32ETH$
-   \item[RewardDebts] The remaining ethers from debt clearance procedure.
-   \item[AccountedUserRevenue] Overall net revenue which belongs to all uniETH holders.
-   \item[ReportedValidators] Latest reported active validators.
-   \item[ReportedValidatorBalance] Latest reported overall balance of active validator.
-   \item[RecentEthersMoved] The amount this contract receives recently from validators.
-   \item[CurrentReserve] Overall assets under management, given as:
+   \item[TotalSupply] current total supply of uniETH.
+   \item[TotalStaked] total ethers staked to validators.
+   \item[TotalDebts] total unpaid debts, generated from \textbf{redeemFromValidators()}, awaiting to be paid by turning off validators and initiates debt clearance procedure.
+   \item[TotalPending] pending ethers to be staked.
+   \item[RewardDebts] the remaining ethers from debt clearance procedure.
+   \item[AccountedUserRevenue] overall net revenue which belongs to all uniETH holders.
+   \item[ReportedValidators] latest reported active validators.
+   \item[ReportedValidatorBalance] latest reported overall balance of active validator.
+   \item[RecentEthersMoved] the amount this contract receives recently from validators.
+   \item[CurrentReserve] overall assets under management, given as:
    \[CurrentReserve = TotalPending + TotalStaked + AccountedUserRevenue - TotalDebts - RewardDebts\]
    \item[Exchange Ratio] Defined as symbol $\rho$ of uniETH to ETH, given as: 
     \[\rho = \frac{TotalSupply}{CurrentReserve} , \{normally: \rho \leq 1.0\} \]
