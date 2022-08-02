@@ -223,7 +223,6 @@ Given:
 \end{description}
 we have:
 \begin{theorem}
-\label{slashed}
 \[TotalPending = TotalPending^{\prime} + remainingEthers \]
 \[TotalStaked = TotalStaked^{\prime} - 32 ETH \cdot slashedValidators \]
 \[RecentSlashed = RecentSlashed^{\prime} +  slashedAmount \];
@@ -231,7 +230,6 @@ we have:
 
 \subsubsection{Modification of rewards calculation in pushBeacon()}
 \begin{theorem}
-\label{slashed}
 \[r := Max(0, aliveBalance + RecentEthersMoved + RecentSlashed - RewardBase)\]
 \[AccountedUserRevenue = AccountedUserRevenue^{\prime} + r \cdot \frac{(1000 - managerFeeShare)}{1000}\]
 \[RecentEthersMoved = 0\]
