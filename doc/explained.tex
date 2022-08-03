@@ -231,13 +231,13 @@ we have:
 \end{theorem}
 
 \subsubsection{Reward distribution}
-Secondly, revenue will be accumulated as followings if there's any. Normally ethers will either stay in contract or validators, the overall assets under management is:
+Normally ethers will either stay in contract or validators, the overall assets under management or TVL is:
 \[TVL := ethersInContract + ethersInValidators\]
 
-During calculation of rewards changes, we only consider the balance change in alive validators, we can assume that, if:
+During calculation of rewards changes, we only consider the balance change in alive validators, we can assume if the equation satisfies:
 \[aliveBalance + RecentEthersMoved \geq RewardBase\]
 
-then rewards has generated, we formalize the formula as below, given:
+then positive rewards has generated, we formalize the formula as below, given:
 
 \begin{description}
 \item[aliveBalance] The balance of current alive validators
@@ -253,10 +253,10 @@ we have:
 \[ReportedValidatorBalance = aliveBalance\]
 \end{theorem}
 
-As \textbf{RecentEthersMoved} will only be counted during reward distribution, the variable will be reset to 0 at the end of each \textbf{pushBeacon()} call. The exchange ratio - $\rho$ will go down by the change of \textbf{AccountedUserRevenue}, which makes the \textbf{uniETH} holder to be able to get back more ethers in redeeming.
+As \textbf{RecentEthersMoved} will only be counted during reward distribution, the variable will be reset to 0 at the end of each \textbf{pushBeacon()} call. The exchange ratio - $\rho$ will go down by the change of \textbf{AccountedUserRevenue}, which makes the \textbf{uniETH} holder to be able to get back more ethers if redeems.
 
 \subsection{Slashing}
-Nobody expects slashing, but when it happens, the contract can handle this rare case. Basically, users will face a sudden change of \textbf{exchange ratio}, in our implementation we made a tiny modification to handle this situation in \textbf{pushBeacon()} and \textbf{validatorSlashedStop()}
+Nobody expects slashing, but when it happens, the contract MUST handle. Basically, users will face a sudden change of \textbf{exchange ratio - $\rho$}, in our implementation we made a tiny modification to handle this situation in \textbf{pushBeacon()} and \textbf{validatorSlashedStop()}
 
 \subsubsection{Slashing notification in validatorSlashedStop()}
 Given:
