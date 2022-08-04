@@ -381,6 +381,7 @@ contract RockXStaking is Initializable, PausableUpgradeable, AccessControlUpgrad
      */
     function withdrawManagerFee(uint256 amount, address to, bytes32 clock) external nonReentrant onlyRole(MANAGER_ROLE)  {
         require(vectorClock == clock, "CASUALITY_VIOLATION");
+        require(int256(address(this).balance) == accountedBalance, "BALANCE_DEVIATES");
         require(amount <= accountedManagerRevenue, "WITHDRAW_EXCEEDED_MANAGER_REVENUE");
         require(amount <= _currentEthersReceived(), "INSUFFICIENT_ETHERS");
 
