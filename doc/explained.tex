@@ -104,7 +104,7 @@ There is no limit on the amount of ETH you can stake with RockX on ETH2. The mor
 \newtheorem{lemma}[theorem]{Lemma}
 
 \subsection{The liquid staking algorithm explained}
-In this section, we'll explain the details of liquid staking below from a user's perspective.
+In the sections below, we'll explain the details of liquid staking from a user's perspective.
 
 \subsection{Stake ethers to mint uniETH}
 A user calls function \textbf{mint()} with a specific amount of \textbf{ethersToStake} ethers to mint \textbf{uniETH}, in each function call, we have:
@@ -118,7 +118,7 @@ A user calls function \textbf{mint()} with a specific amount of \textbf{ethersTo
 
 Users receives \underline{$minted_{uniETH}$} token of uniETH  if \textbf{mint()} succeeds. \textbf{uniETH} is a standard \textbf{ERC-20} compliant contract issued by RockX staking contract only, can it can be exchanged at will, uniETH can also be traded on \textbf{DEX}s for liquidation other than redeeming from official contract as long as there are sufficient liquidity on DEXs.
 
-The general rule for \textbf{minting} and \textbf{redeeming} is: \underline{keep the exchange ratio - $\rho$ invariant.}, if $\rho$ changes during \textbf{minting} and \textbf{redeeming} process, users can arbitrage.
+The general rule for \textbf{minting} and \textbf{redeeming} is: \underline{keep the exchange ratio - $\rho$ invariant}, if $\rho$ changes during \textbf{minting} and \textbf{redeeming} process, users can arbitrage.
 
 \begin{proof}
 To prove $\rho$ invariant and irrelevant of ethers to stake.
