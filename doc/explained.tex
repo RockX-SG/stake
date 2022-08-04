@@ -10,6 +10,10 @@
 
 % Useful packages
 \usepackage{amsmath}
+\usepackage{chronology}
+\usepackage{tikz}
+\usepackage{pgfplots} 
+\usetikzlibrary{patterns}
 \usepackage{graphicx}
 \usepackage{float}
 \usepackage[colorlinks=true, allcolors=blue]{hyperref}
@@ -103,7 +107,6 @@ There is no limit on the amount of ETH you can stake with RockX on ETH2. The mor
 \newtheorem{corollary}{Corollary}[theorem]
 \newtheorem{lemma}[theorem]{Lemma}
 
-\subsection{The liquid staking algorithm explained}
 In the sections below, we'll explain the details of liquid staking from a user's perspective.
 
 \subsection{Stake ethers to mint uniETH}
@@ -219,10 +222,35 @@ TotalPending = TotalPending^{\prime} + incrRewardDebt \\
 \subsection{Calculating rewards}
 Rewards are aggregated in daily base, the mining reward will be reflected from decreasing of \textbf{exchange ratio}-$\rho$, which means you can get more ethers back when rewards generates.
 
+\begin{chronology}[5]{1}{15}{90ex}
+\event{1}{pushBeacon(32 ETH)}
+\event{3}{pushBeacon(32.1 ETH)}
+\event{6}{pushBeacon(32.3 ETH)}
+\event{12}{pushBeacon(32.6 ETH)}
+\end{chronology}
+
 An oracle service running offchain will push overall alive validators balance periodically, there're 2 things \textbf{pushBeacon()} do to update the reward:
 
 \subsubsection{Adjusting reward base}
-Firstly, pushBeacon will check if there are new validators becoming alive, the reward base will be adjusted to align to the newly staked ethers plus previously reported validators balance ethers, the \textbf{reward base} is defined as the \underline{reference point} to compare to current balance, be updated by each consecutive pushBeacon() calls, given:
+Firstly, pushBeacon will check if there are new validators becoming alive, the reward base will be adjusted to align to the newly staked ethers plus previously reported validators balance ethers, the \textbf{reward base} is defined as the \underline{reference point} to compare to current balance, and it'll be updated in each consecutive pushBeacon() call with current \textbf{aliveBalance}.
+
+\begin{tikzpicture}
+\begin{axis} [ybar,
+    xtick = data,
+    nodes near coords,
+    ymax = 33,
+    xlabel = pushBeacon counts,
+    ylabel = ethers,
+]
+ 
+\addplot coordinates {(0,32) (1,32.1) (2,32.3) (3,32.6)};
+\addplot coordinates {(0,32.1) (1,32.3) (2,32.6) (3,32.7)};
+ 
+\legend {RewardBase, aliveBalance};
+\end{axis}
+\end{tikzpicture}
+
+Given:
 \begin{description}
 \item[aliveValidator] The count of validators alive
 \end{description}
