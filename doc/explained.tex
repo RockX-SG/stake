@@ -256,6 +256,8 @@ we have:
 As \textbf{RecentEthersMoved} will only be counted during reward distribution, the variable will be reset to 0 at the end of each \textbf{pushBeacon()} call. The exchange ratio - $\rho$ will go down by the change of \textbf{AccountedUserRevenue}, which makes the \textbf{uniETH} holder to be able to get back more ethers if redeems.
 
 \subsection{Slashing}
+Slashing is when a large portion of a validator's stake is removed from the network. This usually happens when a validator breaks the rules that are designed to prevent attacks on the network. Being slashed means that the validator will be forced to exit the beacon chain at some point in the future, receiving penalties until it does so.
+
 Nobody expects slashing, but when it happens, the contract MUST handle. Basically, users will face a sudden change of \textbf{exchange ratio - $\rho$}, in our implementation we made a tiny modification to handle this situation in \textbf{pushBeacon()} and \textbf{validatorSlashedStop()}
 
 \subsubsection{Slashing notification in validatorSlashedStop()}
@@ -269,8 +271,11 @@ we have:
 \begin{theorem}
 \[TotalPending = TotalPending^{\prime} + remainingEthers \]
 \[TotalStaked = TotalStaked^{\prime} - 32 ETH \cdot slashedValidators \]
-\[RecentSlashed = RecentSlashed^{\prime} +  slashedAmount \];
+\[RecentSlashed = RecentSlashed^{\prime} +  slashedAmount \]
 \end{theorem}
+
+$\rho$ will have a sudden changed due to the change of TotalPending and TotalStaked as:
+\[\rho = \frac{TotalSupply}{CurrentReserve - 32 ETH \cdot slashedValidators + remainingEthers } \]
 
 \subsubsection{Modification of rewards calculation in pushBeacon()}
 \begin{theorem}
@@ -285,7 +290,13 @@ we have:
 \section{DAO Governance}
 (TBD)
 \section{Conclusion}
-(TBD)
+RockX ETH2.0 Liquid Staking gives everyone the opportunity to earn rewards on any amount of ETH,  and gains 
+rewards over time based on the performance of our nodes on the Beacon Chain. Allowing retail users to
+participate in ETH2.0 network maintainence works like Inclusive Financial system in real world. Besides stakers has 
+the ability to hedge their uniETH tokens to avoid losing money.
+
+The overall design of RockX ETH2.0 treats funds security as the ultimate goal along with earning rewards. The source 
+codes and architecture has already open-sourced to public.
 
 \newpage
 \appendix
@@ -332,7 +343,7 @@ we have:
         ~ & Total Assets & 64.32 & Total Liability & 63.68316831 \\ \hline
         ~ & SwapRatio & ~ & ~ & 1.01 \\ \hline
     \end{tabular}
-    \caption{RockX ETH2 Liquid Staking Balance Sheet}
+    \caption{Understanding RockX ETH2 Liquid Staking from Balance Sheet}
 \end{table}
 
 \end{document}
