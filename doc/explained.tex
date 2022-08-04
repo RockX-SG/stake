@@ -82,12 +82,12 @@ There is no limit on the amount of ETH you can stake with RockX on ETH2. The mor
    \item[TotalDebts] total unpaid debts, generated from \textbf{redeemFromValidators()}, awaiting to be paid by turning off validators and debt clearance procedure.
    \item[TotalPending] pending ethers to be staked.
    \item[RewardDebts] the remaining ethers from debt clearance procedure.
-   \item[AccountedUserRevenue] overall net revenue which belongs to all uniETH holders.
+   \item[UserRevenue] overall net revenue which belongs to all uniETH holders.
    \item[ReportedValidators] latest reported active validators.
    \item[ReportedValidatorBalance] latest reported overall balance of active validators.
    \item[RecentEthersMoved] the amount this contract receives recently from validators.
    \item[CurrentReserve] overall assets under management, given as:
-   \[CurrentReserve = TotalPending + TotalStaked + AccountedUserRevenue - TotalDebts - RewardDebts\]
+   \[CurrentReserve = TotalPending + TotalStaked + UserRevenue - TotalDebts - RewardDebts\]
    \item[Exchange Ratio] Defined as symbol $\rho$ of uniETH to ETH, given as: 
    \begin{equation}
     \rho = \begin{cases}
@@ -249,13 +249,20 @@ we have:
 \begin{theorem}
 \label{calcReward}
 \[r := Max\{0, aliveBalance + RecentEthersMoved - RewardBase\}\]
-\[AccountedUserRevenue = AccountedUserRevenue^{\prime} + r \cdot \frac{(1000 - managerFeeShare)}{1000}\]
+\[UserRevenue = UserRevenue^{\prime} + r \cdot \frac{(1000 - managerFeeShare)}{1000}\]
 \[RecentEthersMoved = 0\]
 \[ReportedValidators = aliveValidator\]
 \[ReportedValidatorBalance = aliveBalance\]
 \end{theorem}
 
-As \textbf{RecentEthersMoved} will only be counted during reward distribution, the variable will be reset to 0 at the end of each \textbf{pushBeacon()} call. The exchange ratio - $\rho$ will go down by the change of \textbf{AccountedUserRevenue}, which makes the \textbf{uniETH} holder to be able to get back more ethers if redeems.
+As \textbf{RecentEthersMoved} will only be counted during reward distribution, the variable will be reset to 0 at the end of each \textbf{pushBeacon()} call. The exchange ratio - $\rho$ will go down by the change of \textbf{UserRevenue}, which makes the \textbf{uniETH} holder to be able to get back more ethers if redeems.
+
+\subsubsection{Manager's Fee Withdrawal}
+Withdrawal before ETH2.0 merge is still not implemented yet, but here is the general process: 
+
+As \textsc{withdrawal\_credentials} has set to the contract address, to withdraw manager's fee from validators, the manager MUST submit a request of withdrawal from the contract, once the ethers arrived, the manager can claim them. 
+
+The key issue here is, does manager's withdrawal affects the calculation of rewards, as \textbf{aliveBalance} has reduced? The simple answer is - NO. The ethers moves from validators to the contract is accounted in \textbf{RecentEthersMoved}, of course, it won't be an issue as long as RecentEthersMoved is accounted, to make sure this happens, we'll call \textbf{syncBlanace()} to update RecentEthersMoved  each time manager withdraws.
 
 \subsection{Slashing}
 Slashing is when a large portion of a validator's stake is removed from the network. This usually happens when a validator breaks the rules that are designed to prevent attacks on the network. Being slashed means that the validator will be forced to exit the beacon chain at some point in the future, receiving penalties until it does so.
@@ -282,7 +289,7 @@ $\rho$ will have a sudden changed due to the change of \textbf{TotalPending} and
 \subsubsection{Modification of rewards calculation in pushBeacon()}
 \begin{theorem}
 \[r := Max\{0, aliveBalance + RecentEthersMoved + RecentSlashed - RewardBase\}\]
-\[AccountedUserRevenue = AccountedUserRevenue^{\prime} + r \cdot \frac{(1000 - managerFeeShare)}{1000}\]
+\[UserRevenue = UserRevenue^{\prime} + r \cdot \frac{(1000 - managerFeeShare)}{1000}\]
 \[RecentEthersMoved = 0\]
 \[RecentSlashed = 0\]
 \[ReportedValidators = aliveValidator\]
