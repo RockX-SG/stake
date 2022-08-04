@@ -211,13 +211,15 @@ and, we use the 2 varaibles above to update the following variables:
 \[RewardDebts = RewardDebt^{\prime} + incrRewardDebt\]
 \begin{multline}
 TotalPending = TotalPending^{\prime} + incrRewardDebt \\
-+ Max(0, amountUnstaked - TotalDebts)
++ Max\{0, amountUnstaked - TotalDebts\}
 \end{multline}
 \[TotalStaked = TotalStaked^{\prime} -  amountUnstaked \]
 \end{theorem}
 
 \subsection{Calculating rewards}
-An oracle service running offchain will push overall alive validators balance periodically, there're 2 things \textbf{pushBeacon()} do to calculate the reward:
+Rewards are aggregated in daily base, the mining reward will be reflected from decreasing of \textbf{exchange ratio}-$\rho$, which means you can get more ethers back when rewards generates.
+
+An oracle service running offchain will push overall alive validators balance periodically, there're 2 things \textbf{pushBeacon()} do to update the reward:
 
 \subsubsection{Adjusting reward base}
 Firstly, pushBeacon will check if there are new validators becoming alive, the reward base will be adjusted to align to the newly staked ethers plus previously reported validators balance ethers, the \textbf{reward base} is defined as the \underline{reference point} to compare to current balance, be updated by each consecutive pushBeacon() calls, given:
@@ -227,7 +229,7 @@ Firstly, pushBeacon will check if there are new validators becoming alive, the r
 we have:
 \begin{theorem}
 \label{pushBeacon}
-\[RewardBase = ReportedValidatorBalance + Max(0, aliveValidator - ReportedValidators) \cdot  32 ETH\]
+\[RewardBase = ReportedValidatorBalance + Max\{0, aliveValidator - ReportedValidators\} \cdot  32 ETH\]
 \end{theorem}
 
 \subsubsection{Reward distribution}
@@ -246,7 +248,7 @@ we have:
 
 \begin{theorem}
 \label{calcReward}
-\[r := Max(0, aliveBalance + RecentEthersMoved - RewardBase)\]
+\[r := Max\{0, aliveBalance + RecentEthersMoved - RewardBase\}\]
 \[AccountedUserRevenue = AccountedUserRevenue^{\prime} + r \cdot \frac{(1000 - managerFeeShare)}{1000}\]
 \[RecentEthersMoved = 0\]
 \[ReportedValidators = aliveValidator\]
@@ -260,7 +262,7 @@ Slashing is when a large portion of a validator's stake is removed from the netw
 
 Nobody expects slashing, but when it happens, the contract MUST handle. Basically, users will face a sudden change of \textbf{exchange ratio - $\rho$}, in our implementation we made a tiny modification to handle this situation in \textbf{pushBeacon()} and \textbf{validatorSlashedStop()}
 
-\subsubsection{Slashing notification in validatorSlashedStop()}
+\subsubsection{Handling slashing in validatorSlashedStop()}
 Given:
 \begin{description}
 \item[remainingEthers] The ethers left after slashing
@@ -274,18 +276,21 @@ we have:
 \[RecentSlashed = RecentSlashed^{\prime} +  slashedAmount \]
 \end{theorem}
 
-$\rho$ will have a sudden changed due to the change of TotalPending and TotalStaked as:
+$\rho$ will have a sudden changed due to the change of \textbf{TotalPending} and \textbf{TotalStaked} as:
 \[\rho = \frac{TotalSupply}{CurrentReserve - 32 ETH \cdot slashedValidators + remainingEthers } \]
 
 \subsubsection{Modification of rewards calculation in pushBeacon()}
 \begin{theorem}
-\[r := Max(0, aliveBalance + RecentEthersMoved + RecentSlashed - RewardBase)\]
+\[r := Max\{0, aliveBalance + RecentEthersMoved + RecentSlashed - RewardBase\}\]
 \[AccountedUserRevenue = AccountedUserRevenue^{\prime} + r \cdot \frac{(1000 - managerFeeShare)}{1000}\]
 \[RecentEthersMoved = 0\]
 \[RecentSlashed = 0\]
 \[ReportedValidators = aliveValidator\]
 \[ReportedValidatorBalance = aliveBalance\]
 \end{theorem}
+You may think it's a bit strange that we include \textbf{RecentSlashed} to rewards accumulating, just remember, $\rho$ has already been changed, and 
+\textbf{aliveBalance} has been decreased by \textbf{slashedAmount},  at the moment of slashing, we can say:
+\[r := Max\{0, (aliveBalance^{\prime} - slashedAmount) + RecentEthersMoved + slashedAmount - RewardBase\}. \]
 
 \section{DAO Governance}
 (TBD)
