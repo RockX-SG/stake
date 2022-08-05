@@ -124,9 +124,9 @@ Users receives \underline{$minted_{uniETH}$} token of uniETH  if \textbf{mint()}
 The general rule for \textbf{minting} and \textbf{redeeming} is: \underline{keep the exchange ratio - $\rho$ invariant}, if $\rho$ changes during \textbf{minting} and \textbf{redeeming} process, users can arbitrage.
 
 \begin{proof}
-To prove $\rho$ invariant and irrelevant of ethers to stake.
+To prove $\rho$ invariant and irrelevant of ethers to stake,for  $CurrentReserve \in (0, +\infty)$:
 
-\[\rho = \frac{TotalSupply}{CurrentReserve} = \frac{TotalSupply^{\prime} + \rho^{\prime} \cdot ethersToStake}{CurrentReserve^{\prime} + ethersToStake} \]
+\[\rho = \frac{TotalSupply}{CurrentReserve} = \frac{TotalSupply^{\prime} + \rho^{\prime} \cdot ethersToStake}{CurrentReserve^{\prime} + ethersToStake}\]
 
 as by definition:
 
