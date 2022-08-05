@@ -124,7 +124,7 @@ Users receives \underline{$minted_{uniETH}$} token of uniETH  if \textbf{mint()}
 The general rule for \textbf{minting} and \textbf{redeeming} is: \underline{keep the exchange ratio - $\rho$ invariant}, if $\rho$ changes during \textbf{minting} and \textbf{redeeming} process, users can arbitrage.
 
 \begin{proof}
-To prove $\rho$ invariant and irrelevant of ethers to stake,for  $CurrentReserve \in (0, +\infty)$:
+To prove $\rho$ invariant and irrelevant of ethers to stake, for $CurrentReserve \in (0, +\infty)$:
 
 \[\rho = \frac{TotalSupply}{CurrentReserve} = \frac{TotalSupply^{\prime} + \rho^{\prime} \cdot ethersToStake}{CurrentReserve^{\prime} + ethersToStake}\]
 
@@ -188,7 +188,7 @@ The way the Ethereum 2.0 withdrawals implementation is currently, withdrawals ar
 
 \[RecentEthersMoved = accountedBalance - this.balance\]
 
-Ethers moves from contract to validators, or vice versa, here we define: \textbf{RecentEthersMoved} is the ethers moved from ${validators}\Longrightarrow{contract}$.
+Ethers moves from contract to validators, or vice versa, here we define: \textbf{RecentEthersMoved} is the ethers moved from ${validators}\Longrightarrow{contract}$. The balancing syncing is done in \textbf{syncBalance()}
 
 \subsection{Stopping validators for debt clearance}
 Whenever a validator is stopped by a node operator, the ethers are supposed to return to this contract due to the setting of \textsc{withdrawal\_credentials} in depositing \footnote{\nameref{depositing}}, once the ethers returned, the oracle calls \textbf{validatorStopped()} function, along with the following parameters:
@@ -246,7 +246,9 @@ Firstly, pushBeacon will check if there are new validators becoming alive, the r
 \addplot coordinates {(0,32.1) (1,32.3) (2,32.6) (3,32.7)};
 \addplot[black,sharp plot,update limits=false] 
 	coordinates {(0,32.11) (1,32.11) (1,32.31) (2,32.31) (2,32.61) (3,32.61)}
-	node[above] at (axis cs:1.5,32.31) {rebase};
+	node[above] at (axis cs:0.5,32.11) {rebase}
+	node[above] at (axis cs:1.5,32.31) {rebase}
+	node[above] at (axis cs:2.5,32.61) {rebase};
 \legend {reward base, alive balance};
 \end{axis}
 \end{tikzpicture}
