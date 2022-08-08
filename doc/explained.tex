@@ -13,8 +13,9 @@
 \usepackage{chronology}
 \usepackage{tikz}
 \usepackage{pgfplots} 
-\usetikzlibrary{patterns}
+\usetikzlibrary{mindmap,trees, patterns}
 \usepackage{graphicx}
+\usepackage{smartdiagram}
 \usepackage{float}
 \usepackage[colorlinks=true, allcolors=blue]{hyperref}
 \usepackage{multirow,tabularx}
@@ -106,6 +107,13 @@ There is no limit on the amount of ETH you can stake with RockX on ETH2. The mor
 \newtheorem{theorem}{Theorem}[section]
 \newtheorem{corollary}{Corollary}[theorem]
 \newtheorem{lemma}[theorem]{Lemma}
+
+\begin{figure}
+\begin{center}
+    \smartdiagram[circular diagram:clockwise]{register validators, mint, delegation, redeem, push rewards, validators exit}
+\end{center}
+\caption{Lifecycle of RockX Staking Contract.}
+\end{figure}
 
 In the sections below, we'll explain the details of liquid staking from a user's perspective.
 
@@ -328,10 +336,16 @@ $\rho$ will have a sudden changed due to the change of \textbf{TotalPending} and
 \end{theorem}
 You may think it's a bit strange that we include \textbf{RecentSlashed} to rewards accumulating, just remember, $\rho$ has already been changed, and 
 \textbf{aliveBalance} has been decreased by \textbf{slashedAmount},  at the moment of slashing, we can say:
-\[r := Max\{0, (aliveBalance^{\prime} - slashedAmount) + RecentEthersMoved + slashedAmount - RewardBase\}. \]
+
+\begin{multline}
+r := Max\{0, (aliveBalance^{\prime} - slashedAmount) \\
++ RecentEthersMoved + slashedAmount - RewardBase\}
+\end{multline}
 
 \section{DAO Governance}
 (TBD)
+\section{Ecosystem}
+
 \section{Conclusion}
 RockX ETH2.0 Liquid Staking gives everyone the opportunity to earn rewards on any amount of ETH,  and gains 
 rewards over time based on the performance of our nodes on the Beacon Chain. Allowing retail users to
