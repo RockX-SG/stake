@@ -345,9 +345,16 @@ r := Max\{0, (aliveBalance^{\prime} - slashedAmount) \\
 \section{DAO Governance}
 The DAO token currently not completed yet, the supposed scenario is to vote on the key parameters of staking contract, such as:
 
+\begin{description}
+   \item[Manager's Fee Setting] to vote to change manager's fee percentage
+   \item[Qualified Validators Registration] to vote on validator keys proposed by other institutions, or to remove a validator.
+	\item[Granting Roles] to vote to grant specific roles to account addresses, like: \textbf{ORACLE\_ROLE, REGISTRY\_ROLE, MANAGER\_ROLE, PAUSER\_ROLE} 
+	\item[Upgrading Contract] to vote to upgrade staking contract implementation, in case of critical issues or external
+	\item[ETH2 Phase Change] to vote to switch to another phase of ETH2.0, which will enable redeeming such as.
+\end{description}
 
-\section{Ecosystem}
-(TBD)
+The current staking contract has been implemented to be upgradable, using transparent proxy.
+
 \section{Conclusion}
 RockX ETH2.0 Liquid Staking gives everyone the opportunity to earn rewards on any amount of ETH,  and gains 
 rewards over time based on the performance of our nodes on the Beacon Chain. Allowing retail users to
