@@ -82,11 +82,12 @@ There is no limit on the amount of ETH you can stake with RockX on ETH2. The mor
 \subsection{Terminology}
 \begin{description}
    \item[ETH] $1\cdot ETH \equiv 10^{18}$
-   \item[TotalSupply] current total supply of uniETH, the total supply of uniETH is proportional to total ethers staked.
-   \item[TotalStaked] total ethers staked to validators.
+   \item[TotalSupply] current total supply of uniETH, the total supply of uniETH is proportional to total ETH staked.
+   \item[TotalStaked] total 
+ staked to validators.
    \item[TotalDebts] total unpaid debts, generated from \textbf{redeemFromValidators()}, awaiting to be paid by turning off validators and debt clearance procedure.
-   \item[TotalPending] pending ethers to be staked.
-   \item[RewardDebts] the remaining ethers from debt clearance procedure.
+   \item[TotalPending] pending ETH to be staked.
+   \item[RewardDebts] the remaining ETH from debt clearance procedure.
    \item[UserRevenue] overall net revenue which belongs to all uniETH holders.
    \item[ReportedValidators] latest reported active validators.
    \item[ReportedValidatorBalance] latest reported overall balance of active validators.
@@ -117,8 +118,8 @@ There is no limit on the amount of ETH you can stake with RockX on ETH2. The mor
 
 In the sections below, we'll explain the details of liquid staking from a user's perspective.
 
-\subsection{Stake ethers to mint uniETH}
-A user calls function \textbf{mint()} with a specific amount of \textbf{ethersToStake} ethers to mint \textbf{uniETH}, in each function call, we have:
+\subsection{Stake ETH to mint uniETH}
+A user calls function \textbf{mint()} with a specific amount of \textbf{ethersToStake} ETH to mint \textbf{uniETH}, in each function call, we have:
 
 \begin{theorem}
 \label{Mint}
@@ -132,7 +133,7 @@ Users receives \underline{$minted_{uniETH}$} token of uniETH  if \textbf{mint()}
 The general rule for \textbf{minting} and \textbf{redeeming} is: \underline{keep the exchange ratio - $\rho$ invariant}, if $\rho$ changes during \textbf{minting} and \textbf{redeeming} process, users can arbitrage.
 
 \begin{proof}
-To prove $\rho$ invariant and irrelevant of ethers to stake, for $CurrentReserve \in (0, +\infty)$:
+To prove $\rho$ invariant and irrelevant of ETH to stake, for $CurrentReserve \in (0, +\infty)$:
 
 \[\rho = \frac{TotalSupply}{CurrentReserve} = \frac{TotalSupply^{\prime} + \rho^{\prime} \cdot ethersToStake}{CurrentReserve^{\prime} + ethersToStake}\]
 
@@ -152,13 +153,13 @@ finally:
 
 \subsection{Initiating depositing into ETH2 offical contract}
 \label{depositing}
-At any time \textbf{TotalPending} has more than $32 ethers$, the contract manager can call \textbf{stake()} function to stake the ethers into Ethereum 2.0 staking contract, then some ethers in \textbf{TotalPending} moves to \textbf{TotalStaked} and keeps \textbf{TotalPending} less than $32 ethers$, we calculate the changes as followings:
+At any time \textbf{TotalPending} has more than $32 ethers$, the contract manager can call \textbf{stake()} function to stake the ETH into Ethereum 2.0 staking contract, then some ETH in \textbf{TotalPending} moves to \textbf{TotalStaked} and keeps \textbf{TotalPending} less than $32 ethers$, we calculate the changes as followings:
 
 \begin{lemma}
 \[ethersToDeposit := \lfloor\frac{TotalPending^{\prime}}{32ETH}\rfloor \cdot 32ETH\]
 \end{lemma}
 
-The ethers to deposit to ETH2 official contract is bounded to $N\cdot 32ETH$ as above, we define the depositing process as:
+The ETH to deposit to ETH2 official contract is bounded to $N\cdot 32ETH$ as above, we define the depositing process as:
 
 \begin{theorem}
 \label{depositing_vars}
@@ -173,41 +174,41 @@ CurrentReserve := \dots + (TotalPending^{\prime} - ethersToDeposit) + (TotalStak
 \end{multline}
 
 \subsubsection{Timing}
-The timing for calling stake() contract function mainly considers to maximize capital efficiency, if we stake too soon, the cost for running a single validator is way too expensive, on the contrary, if we stake too late, the staked ethers does not generate rewards during the period before ethers staked to official ETH2 staking contract, so we have to build an off-chain program to provide a seamless and comprehensive solution for staking, allowing maximum capital efficiency on assets while earning cryptonative yields.
+The timing for calling stake() contract function mainly considers to maximize capital efficiency, if we stake too soon, the cost for running a single validator is way too expensive, on the contrary, if we stake too late, the staked ETH does not generate rewards during the period before ETH staked to official ETH2 staking contract, so we have to build an off-chain program to provide a seamless and comprehensive solution for staking, allowing maximum capital efficiency on assets while earning cryptonative yields.
 
-\subsection{Redeeming staked ethers from official RockX smart contract}
-Users call contract function \textbf{redeemFromValidators()} with a specific amount of \textbf{ethersToRedeem} ethers expected to redeem, the amount uniETH to be burnt is exactly to $N\cdot 32ETH$ worth of uniETH, then we have:
+\subsection{Redeeming staked ETH from official RockX smart contract}
+Users call contract function \textbf{redeemFromValidators()} with a specific amount of \textbf{ethersToRedeem} ETH expected to redeem, the amount uniETH to be burnt is exactly to $N\cdot 32ETH$ worth of uniETH, then we have:
 \begin{theorem}
 \label{Redeem}
 \[burned_{uniETH} := \rho \cdot ethersToRedeem \]
 \[TotalSupply = TotalSupply^{\prime} - burned_{uniETH} \]
 \[TotalDebts = TotalDebts^{\prime} + ethersToRedeem\]
 \end{theorem}
-Redeeming(or Unstaking) works as by turning off validators, to wait until the validators to be offline and return the staked ethers to the contract. So it's a time-consuming asynchronous process. The benefit from redeeming directly from this contract is that, there's no slippage as in CEX or DEX, but instead, you have to be patient. Once the ethers returned, you'll be notified\footnote{available on web staking portal, \url{https://unieth.rockx.com/}} to claim the ethers.
+Redeeming(or Unstaking) works as by turning off validators, to wait until the validators to be offline and return the staked ETH to the contract. So it's a time-consuming asynchronous process. The benefit from redeeming directly from this contract is that, there's no slippage as in CEX or DEX, but instead, you have to be patient. Once the ETH returned, you'll be notified\footnote{available on web staking portal, \url{https://unieth.rockx.com/}} to claim the ethers.
 
-$\rho$ is also invariant and irrelevant of ethers to unstake.
+$\rho$ is also invariant and irrelevant of ETH to unstake.
 
 Note: redeeming function will only be available after ETH2.0 merged.
 
-\subsection{How ethers return to this contract from validators? }
+\subsection{How ETH return to this contract from validators? }
 \label{sectionAccounting}
 
-The way the Ethereum 2.0 withdrawals implementation is currently, withdrawals are not like normal transactions, and are instead system level transactions that update an account's balance without a transaction in or out. In our contract implementation, we use \textbf{accountedBalance} to track explicit in and out of the ethers from contract functions, and compare \textbf{accountedBalance} with \textbf{this.balance}, the difference is the ethers rewards\footnote{Here we suppose nobody transfers ethers to this contract intentional or unintentional, if this happens, the contract treat the ethers as rewards, shared by all \textbf{uniETH} holders} returned from validators. We utilize variable \textbf{RecentEthersMoved} to track this difference:
+The way the Ethereum 2.0 withdrawals implementation is currently, withdrawals are not like normal transactions, and are instead system level transactions that update an account's balance without a transaction in or out. In our contract implementation, we use \textbf{accountedBalance} to track explicit in and out of the ETH from contract functions, and compare \textbf{accountedBalance} with \textbf{this.balance}, the difference is the ETH rewards\footnote{Here we suppose nobody transfers ETH to this contract intentional or unintentional, if this happens, the contract treat the ETH as rewards, shared by all \textbf{uniETH} holders} returned from validators. We utilize variable \textbf{RecentEthersMoved} to track this difference:
 
 \[RecentEthersMoved = accountedBalance - this.balance\]
 
-Ethers moves from contract to validators, or vice versa, here we define: \textbf{RecentEthersMoved} is the ethers moved from ${validators}\Longrightarrow{contract}$. The balancing syncing is done in \textbf{syncBalance()}
+Ethers moves from contract to validators, or vice versa, here we define: \textbf{RecentEthersMoved} is the ETH moved from ${validators}\Longrightarrow{contract}$. The balancing syncing is done in \textbf{syncBalance()}
 
 \subsection{Stopping validators for debt clearance}
-Whenever a validator is stopped by a node operator, the ethers are supposed to return to this contract due to the setting of \textsc{withdrawal\_credentials} in depositing \footnote{\nameref{depositing}}, once the ethers returned, the oracle calls \textbf{validatorStopped()} function, along with the following parameters:
+Whenever a validator is stopped by a node operator, the ETH are supposed to return to this contract due to the setting of \textsc{withdrawal\_credentials} in depositing \footnote{\nameref{depositing}}, once the ETH returned, the oracle calls \textbf{validatorStopped()} function, along with the following parameters:
 \begin{description}
-\item[valueStopped] The ethers sent-back from validators to the liquid staking contract.
+\item[valueStopped] The ETH sent-back from validators to the liquid staking contract.
 \item[validatorStopped] The count of stopped validators.
 \end{description}
 Suppose:
 
 \[valueStopped \geq amountUnstaked \]
-and meanwhile, ethers in validators has been transferred to contract and \textbf{RecentEthersMoved} has been updated as explained in section:\ref{sectionAccounting}:
+and meanwhile, ETH in validators has been transferred to contract and \textbf{RecentEthersMoved} has been updated as explained in section:\ref{sectionAccounting}:
 \[RecentEthersMoved = RecentEthersMoved^{\prime} + valueStopped\]
 
 If we do not have \textbf{slashing}, then we can deduce from the parameters that:
@@ -228,7 +229,7 @@ TotalPending = TotalPending^{\prime} + incrRewardDebt \\
 \end{theorem}
 
 \subsection{Calculating rewards}
-Rewards are aggregated in daily base, the mining reward will be reflected from decreasing of \textbf{exchange ratio}-$\rho$, which means you can get more ethers back when rewards generates.
+Rewards are aggregated in daily base, the mining reward will be reflected from decreasing of \textbf{exchange ratio}-$\rho$, which means you can get more ETH back when rewards generates.
 
 \begin{chronology}[5]{1}{15}{90ex}
 \event{1}{pushBeacon(32 ETH)}
@@ -240,7 +241,7 @@ Rewards are aggregated in daily base, the mining reward will be reflected from d
 An oracle service running offchain will push overall alive validators balance periodically, there're 2 things \textbf{pushBeacon()} do to update the reward:
 
 \subsubsection{Adjusting reward base}
-Firstly, pushBeacon will check if there are new validators becoming alive, the reward base will be adjusted to align to the newly staked ethers plus previously reported validators balance ethers, the \textbf{reward base} is defined as the \underline{reference point} to compare to current balance, and it'll be updated in each consecutive pushBeacon() call with current \textbf{aliveBalance}.
+Firstly, pushBeacon will check if there are new validators becoming alive, the reward base will be adjusted to align to the newly staked ETH plus previously reported validators balance ethers, the \textbf{reward base} is defined as the \underline{reference point} to compare to current balance, and it'll be updated in each consecutive pushBeacon() call with current \textbf{aliveBalance}.
 
 \begin{tikzpicture}
 \begin{axis} [ybar,
@@ -272,7 +273,7 @@ we have:
 \end{theorem}
 
 \subsubsection{Reward distribution}
-Normally ethers will either stay in contract or validators, the overall assets under management or TVL is:
+Normally ETH will either stay in contract or validators, the overall assets under management or TVL is:
 \[TVL := ethersInContract + ethersInValidators\]
 
 During calculation of rewards changes, we only consider the balance change in alive validators, we can assume if the equation satisfies:
@@ -294,14 +295,14 @@ we have:
 \[ReportedValidatorBalance = aliveBalance\]
 \end{theorem}
 
-As \textbf{RecentEthersMoved} will only be counted during reward distribution, the variable will be reset to 0 at the end of each \textbf{pushBeacon()} call. The exchange ratio - $\rho$ will go down by the change of \textbf{UserRevenue}, which makes the \textbf{uniETH} holder to be able to get back more ethers if redeems.
+As \textbf{RecentEthersMoved} will only be counted during reward distribution, the variable will be reset to 0 at the end of each \textbf{pushBeacon()} call. The exchange ratio - $\rho$ will go down by the change of \textbf{UserRevenue}, which makes the \textbf{uniETH} holder to be able to get back more ETH if redeems.
 
 \subsubsection{Manager's Fee Withdrawal}
 Withdrawal before ETH2.0 merge is still not implemented yet, but here is the general process: 
 
-As \textsc{withdrawal\_credentials} has set to the contract address, to withdraw manager's fee from validators, the manager MUST submit a request of withdrawal from the contract, once the ethers arrived, the manager can claim them. 
+As \textsc{withdrawal\_credentials} has set to the contract address, to withdraw manager's fee from validators, the manager MUST submit a request of withdrawal from the contract, once the ETH arrived, the manager can claim them. 
 
-The key issue here is, does manager's withdrawal affects the calculation of rewards, as \textbf{aliveBalance} has reduced? The simple answer is - NO. The ethers moves from validators to the contract is accounted in \textbf{RecentEthersMoved}, of course, it won't be an issue as long as RecentEthersMoved is accounted, to make sure this happens, we'll call \textbf{syncBlanace()} to update RecentEthersMoved  each time manager withdraws.
+The key issue here is, does manager's withdrawal affects the calculation of rewards, as \textbf{aliveBalance} has reduced? The simple answer is - NO. The ETH moves from validators to the contract is accounted in \textbf{RecentEthersMoved}, of course, it won't be an issue as long as RecentEthersMoved is accounted, to make sure this happens, we'll call \textbf{syncBlanace()} to update RecentEthersMoved  each time manager withdraws.
 
 \subsection{Slashing}
 Slashing is when a large portion of a validator's stake is removed from the network. This usually happens when a validator breaks the rules that are designed to prevent attacks on the network. Being slashed means that the validator will be forced to exit the beacon chain at some point in the future, receiving penalties until it does so.
@@ -311,8 +312,8 @@ Nobody expects slashing, but when it happens, the contract MUST handle. Basicall
 \subsubsection{Handling slashing in validatorSlashedStop()}
 Given:
 \begin{description}
-\item[remainingEthers] The ethers left after slashing
-\item[slashedAmount] The ethers slashed
+\item[remainingEthers] The ETH left after slashing
+\item[slashedAmount] The ETH slashed
 \item[slashedValidators] The count of slashed validators.
 \end{description}
 we have:
