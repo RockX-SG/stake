@@ -642,14 +642,17 @@ contract RockXStaking is Initializable, PausableUpgradeable, AccessControlUpgrad
     /**
      * @dev return a batch of validators credential
      */
-    function getRegisteredValidators(uint256 idx_from, uint256 idx_to) external view returns (bytes [] memory pubkeys, bytes [] memory signatures) {
+    function getRegisteredValidators(uint256 idx_from, uint256 idx_to) external view returns (bytes [] memory pubkeys, bytes [] memory signatures, bool[] memory stopped) {
         pubkeys = new bytes[](idx_to - idx_from);
         signatures = new bytes[](idx_to - idx_from);
+        stopped = new bool[](idx_to - idx_from);
+
 
         uint counter = 0;
         for (uint i = idx_from; i < idx_to;i++) {
             pubkeys[counter] = validatorRegistry[i].pubkey;
             signatures[counter] = validatorRegistry[i].signature;
+            stopped[counter] = validatorRegistry[i].stopped;
             counter++;
         }
     }
@@ -734,7 +737,7 @@ contract RockXStaking is Initializable, PausableUpgradeable, AccessControlUpgrad
      * 
      * redeem keeps the ratio invariant
      */
-    function redeemFromValidators(uint256 ethersToRedeem, uint256 maxToBurn, uint256 deadline) external nonReentrant onlyPhase(1) returns(uint256 burned){
+    function redeemFromValidators(uint256 ethersToRedeem, uint256 maxToBurn, uint256 deadline) external nonReentrant onlyPhase(1) returns(uint256 burned) {
         require(block.timestamp < deadline, "TRANSACTION_EXPIRED");
         require(ethersToRedeem % DEPOSIT_SIZE == 0, "REDEEM_NOT_IN_32ETHERS");
 
