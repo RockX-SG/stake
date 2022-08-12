@@ -2,9 +2,17 @@
 
 ## Usage
 
-### 1. Create an API KEY from [access.rockx.com](https://access.rockx.com)
+### 0. Repo clone
 
-### 2. Install brownie from [brownie](https://eth-brownie.readthedocs.io/en/stable/quickstart.html)
+```
+$ git clone https://github.com/RockX-SG/stake
+```
+
+### 1. Create API KEY 
+Visit [access.rockx.com](https://access.rockx.com), and create an Ethereum API KEY
+
+### 2. Install brownie 
+Visit [brownie](https://eth-brownie.readthedocs.io/en/stable/quickstart.html), install brownie environment.
 
 ### 3. Follow: [brownie-integration](https://rockx.gitbook.io/rockx-access-node-manual/brownie-integration) to setup brownie network
 ```
@@ -25,5 +33,6 @@ $ export ROCKX_API_KEY=<YOUR API KEY>
 
 ### 4. Deploy to mainnet-fork
 ```
+$cd src
 $brownie run scripts/ganache_deploy.py --network mainnet-fork -I
 ```
