@@ -128,7 +128,7 @@ A user calls function \textbf{mint()} with a specific amount of \textbf{ethersTo
 \[TotalPending = TotalPending^{\prime} + ethersToStake\]
 \end{theorem}
 
-Users receives \underline{$minted_{uniETH}$} token of uniETH  if \textbf{mint()} succeeds. \textbf{uniETH} is a standard \textbf{ERC-20} compliant contract issued by RockX staking contract only, can it can be exchanged at will, uniETH can also be traded on \textbf{DEX}s for liquidation other than redeeming from official contract as long as there are sufficient liquidity on DEXs.
+Users receives \underline{$minted_{uniETH}$} token of uniETH  if \textbf{mint()} succeeds. \textbf{uniETH} is a standard \textbf{ERC-20} compliant contract issued only by RockX staking contract. Besides redeeming for the staked ETH through the our smart contract, uniETH can also be traded on \textbf{DEX}s as long as there is sufficient liquidity on DEXs.
 
 The general rule for \textbf{minting} and \textbf{redeeming} is: \underline{keep the exchange ratio - $\rho$ invariant}, if $\rho$ changes during \textbf{minting} and \textbf{redeeming} process, users can arbitrage.
 
@@ -153,7 +153,7 @@ finally:
 
 \subsection{Initiating depositing into ETH2 offical contract}
 \label{depositing}
-At any time \textbf{TotalPending} has more than $32 ethers$, the contract manager can call \textbf{stake()} function to stake the ETH into Ethereum 2.0 staking contract, then some ETH in \textbf{TotalPending} moves to \textbf{TotalStaked} and keeps \textbf{TotalPending} less than $32 ethers$, we calculate the changes as followings:
+At any time \textbf{TotalPending} has more than $32 ETH$, the contract manager can call \textbf{stake()} function to stake the ETH into Ethereum 2.0 staking contract. As a result, $ETH$ in \textbf{TotalPending} moves to \textbf{TotalStaked} and keeps \textbf{TotalPending} less than $32 ETH$, we will calculate the changes as follows:
 
 \begin{lemma}
 \[ethersToDeposit := \lfloor\frac{TotalPending^{\prime}}{32ETH}\rfloor \cdot 32ETH\]
@@ -174,7 +174,7 @@ CurrentReserve := \dots + (TotalPending^{\prime} - ethersToDeposit) + (TotalStak
 \end{multline}
 
 \subsubsection{Timing}
-The timing for calling stake() contract function mainly considers to maximize capital efficiency, if we stake too soon, the cost for running a single validator is way too expensive, on the contrary, if we stake too late, the staked ETH does not generate rewards during the period before ETH staked to official ETH2 staking contract, so we have to build an off-chain program to provide a seamless and comprehensive solution for staking, allowing maximum capital efficiency on assets while earning cryptonative yields.
+The timing for calling stake() contract function mainly considers maximising capital efficiency, if we stake prematurely, the cost for running a single validator is way too expensiv.On the flipside, if we are slow to stake, the deposited ETH does not generate rewards during the period prior to it begin staked in the official ETH2 staking contract. Hence, there is a need to build an off-chain program to provide a seamless and comprehensive solution for staking, allowing maximum capital efficiency on assets while earning cryptonative yields.
 
 \subsection{Redeeming staked ETH from official RockX smart contract}
 Users call contract function \textbf{redeemFromValidators()} with a specific amount of \textbf{ethersToRedeem} ETH expected to redeem, the amount uniETH to be burnt is exactly to $N\cdot 32ETH$ worth of uniETH, then we have:
@@ -184,7 +184,7 @@ Users call contract function \textbf{redeemFromValidators()} with a specific amo
 \[TotalSupply = TotalSupply^{\prime} - burned_{uniETH} \]
 \[TotalDebts = TotalDebts^{\prime} + ethersToRedeem\]
 \end{theorem}
-Redeeming(or Unstaking) works as by turning off validators, to wait until the validators to be offline and return the staked ETH to the contract. So it's a time-consuming asynchronous process. The benefit from redeeming directly from this contract is that, there's no slippage as in CEX or DEX, but instead, you have to be patient. Once the ETH returned, you'll be notified\footnote{available on web staking portal, \url{https://unieth.rockx.com/}} to claim the ethers.
+Redeeming(or Unstaking) works as by turning off validators, waiting for the validators to be offline and returning the staked ETH to the contract. It's a time-consuming asynchronous process. The benefit from redeeming directly from this contract is that there's no slippage which you may face in a CEX or DEX. However as this process takes time, you have to be patient. Once the ETH is returned, you'll be notified\footnote{available on web staking portal, \url{https://unieth.rockx.com/}} to claim it.
 
 $\rho$ is also invariant and irrelevant of ETH to unstake.
 
@@ -193,7 +193,7 @@ Note: redeeming function will only be available after ETH2.0 merged.
 \subsection{How ETH return to this contract from validators? }
 \label{sectionAccounting}
 
-The way the Ethereum 2.0 withdrawals implementation is currently, withdrawals are not like normal transactions, and are instead system level transactions that update an account's balance without a transaction in or out. In our contract implementation, we use \textbf{accountedBalance} to track explicit in and out of the ETH from contract functions, and compare \textbf{accountedBalance} with \textbf{this.balance}, the difference is the ETH rewards\footnote{Here we suppose nobody transfers ETH to this contract intentional or unintentional, if this happens, the contract treat the ETH as rewards, shared by all \textbf{uniETH} holders} returned from validators. We utilize variable \textbf{RecentEthersMoved} to track this difference:
+At current, Ethereum 2.0 withdrawals implementation are not like normal transactions. Instead, they are system level transactions that update an account's balance without a transaction in or out. In our contract implementation, we use \textbf{accountedBalance} to track explicit ETH in and out from contract functions, and compare \textbf{accountedBalance} with \textbf{this.balance}, the difference is the ETH rewards\footnote{Here we suppose nobody transfers ETH to this contract intentional or unintentional, if this happens, the contract treat the ETH as rewards, shared by all \textbf{uniETH} holders} returned from validators. We utilise variable \textbf{RecentEthersMoved} to track this difference:
 
 \[RecentEthersMoved = accountedBalance - this.balance\]
 
@@ -229,7 +229,7 @@ TotalPending = TotalPending^{\prime} + incrRewardDebt \\
 \end{theorem}
 
 \subsection{Calculating rewards}
-Rewards are aggregated in daily base, the mining reward will be reflected from decreasing of \textbf{exchange ratio}-$\rho$, which means you can get more ETH back when rewards generates.
+Rewards are aggregated on a daily basis, and will be reflected from the decrease of \textbf{exchange ratio}-$\rho$, meaning you receive more ETH back.
 
 \begin{chronology}[5]{1}{15}{90ex}
 \event{1}{pushBeacon(32 ETH)}
@@ -241,7 +241,7 @@ Rewards are aggregated in daily base, the mining reward will be reflected from d
 An oracle service running offchain will push overall alive validators balance periodically, there're 2 things \textbf{pushBeacon()} do to update the reward:
 
 \subsubsection{Adjusting reward base}
-Firstly, pushBeacon will check if there are new validators becoming alive, the reward base will be adjusted to align to the newly staked ETH plus previously reported validators balance ethers, the \textbf{reward base} is defined as the \underline{reference point} to compare to current balance, and it'll be updated in each consecutive pushBeacon() call with current \textbf{aliveBalance}.
+Firstly, pushBeacon will check if any new validators has gone alive, the reward base will be adjusted to align to the newly staked ETH plus previously reported validators balance ETH, the \textbf{reward base} is defined as the \underline{reference point} to compare to current balance, and it'll be updated in each consecutive pushBeacon() call with current \textbf{aliveBalance}.
 
 \begin{tikzpicture}
 \begin{axis} [ybar,
@@ -273,13 +273,13 @@ we have:
 \end{theorem}
 
 \subsubsection{Reward distribution}
-Normally ETH will either stay in contract or validators, the overall assets under management or TVL is:
+Normally ETH will either stay in contract or validators, hence the overall assets under management or TVL is as follows:
 \[TVL := ethersInContract + ethersInValidators\]
 
 During calculation of rewards changes, we only consider the balance change in alive validators, we can assume if the equation satisfies:
 \[aliveBalance + RecentEthersMoved \geq RewardBase\]
 
-then positive rewards has generated, we formalize the formula as below, given:
+then positive rewards have generated, we formalise the formula as below, given:
 
 \begin{description}
 \item[aliveBalance] The balance of current alive validators
@@ -295,19 +295,19 @@ we have:
 \[ReportedValidatorBalance = aliveBalance\]
 \end{theorem}
 
-As \textbf{RecentEthersMoved} will only be counted during reward distribution, the variable will be reset to 0 at the end of each \textbf{pushBeacon()} call. The exchange ratio - $\rho$ will go down by the change of \textbf{UserRevenue}, which makes the \textbf{uniETH} holder to be able to get back more ETH if redeems.
+As \textbf{RecentEthersMoved} will only be counted during reward distribution, the variable will be reset to 0 at the end of each \textbf{pushBeacon()} call. The exchange ratio - $\rho$ will go down by the change of \textbf{UserRevenue}, which allows the \textbf{uniETH} holder to get back more ETH when redeems.
 
 \subsubsection{Manager's Fee Withdrawal}
 Withdrawal before ETH2.0 merge is still not implemented yet, but here is the general process: 
 
-As \textsc{withdrawal\_credentials} has set to the contract address, to withdraw manager's fee from validators, the manager MUST submit a request of withdrawal from the contract, once the ETH arrived, the manager can claim them. 
+As \textsc{withdrawal\_credentials} has set to the contract address, to withdraw the manager's fee from validators, the manager MUST submit a request of withdrawal from the contract. Once the ETH arrive, the manager can claim them. 
 
-The key issue here is, does manager's withdrawal affects the calculation of rewards, as \textbf{aliveBalance} has reduced? The simple answer is - NO. The ETH moves from validators to the contract is accounted in \textbf{RecentEthersMoved}, of course, it won't be an issue as long as RecentEthersMoved is accounted, to make sure this happens, we'll call \textbf{syncBlanace()} to update RecentEthersMoved  each time manager withdraws.
+The key issue here is, does manager's withdrawal affects the calculation of rewards, as \textbf{aliveBalance} has reduced? The simple answer is - NO. The ETH moves from validators to the contract is accounted in \textbf{RecentEthersMoved}. It won't be an issue as long as RecentEthersMoved is accounted for, to make sure this happens, we'll call \textbf{syncBlanace()} to update RecentEthersMoved each time manager withdraws.
 
 \subsection{Slashing}
 Slashing is when a large portion of a validator's stake is removed from the network. This usually happens when a validator breaks the rules that are designed to prevent attacks on the network. Being slashed means that the validator will be forced to exit the beacon chain at some point in the future, receiving penalties until it does so.
 
-Nobody expects slashing, but when it happens, the contract MUST handle. Basically, users will face a sudden change of \textbf{exchange ratio - $\rho$}, in our implementation we made a tiny modification to handle this situation in \textbf{pushBeacon()} and \textbf{validatorSlashedStop()}
+Nobody expects slashing, but when it happens, the contract MUST handle it. Basically, users will face a sudden change of \textbf{exchange ratio - $\rho$}, in our implementation we made a tiny modification to handle this situation in \textbf{pushBeacon()} and \textbf{validatorSlashedStop()}
 
 \subsubsection{Handling slashing in validatorSlashedStop()}
 Given:
@@ -336,7 +336,7 @@ $\rho$ will have a sudden changed due to the change of \textbf{TotalPending} and
 \[ReportedValidatorBalance = aliveBalance\]
 \end{theorem}
 You may think it's a bit strange that we include \textbf{RecentSlashed} to rewards accumulating, just remember, $\rho$ has already been changed, and 
-\textbf{aliveBalance} has been decreased by \textbf{slashedAmount},  at the moment of slashing, we can say:
+\textbf{aliveBalance} has been decreased by \textbf{slashedAmount}, at the moment of slashing, we can say:
 
 \begin{multline}
 r := Max\{0, (aliveBalance^{\prime} - slashedAmount) \\
@@ -362,8 +362,7 @@ rewards over time based on the performance of our nodes on the Beacon Chain. All
 participate in ETH2.0 network maintainence works like Inclusive Financial system in real world. Besides stakers has 
 the ability to hedge their uniETH tokens to avoid losing money.
 
-The overall design of RockX ETH2.0 treats funds security as the ultimate goal along with earning rewards. The source 
-codes and architecture has already open-sourced to public.
+The overall design of this liquid staking protocol treats funds security as a core goal when utilising the fund to earn rewards. The source code and architecture has already been open-sourced to the public.
 
 \newpage
 \appendix
