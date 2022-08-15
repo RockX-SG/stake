@@ -30,14 +30,14 @@
 \maketitle
 
 \begin{abstract}
-Staking, a cryptoeconomic primitive that allows participants to earn yield in exchange for locking tokens, has taken center stage over the past two years. Under Proof of Stake consensus mechanism, instead of using computational power, validators lock (“stake”) a certain amount of the network’s native cryptoasset as collateral to create new blocks. In return, they earn inflationary rewards and transaction fees.
+Staking, a cryptoeconomic primitive that allows participants to earn yield in exchange for locking tokens, has taken center stage over the past two years. Under a Proof of Stake consensus mechanism, instead of using computational power, validators lock (“stake”) a certain amount of the network’s native cryptoasset as collateral, thus becoming eligible to create new blocks. In return, they earn inflationary rewards and transaction fees.
 \end{abstract}
 
 \section{Introduction}
 
 \subsection{What is Proof of Stake?}
 
-Proof of Stake is the consensus protocol utilised in Ethereum 2.0 (ETH2). The consensus protocol helps everyone to know what transactions have been processed and in what order, which is known as validation.
+Proof of Stake is the consensus protocol utilised in Ethereum 2.0 (ETH2). The consensus protocol helps everyone to know what transactions have been processed and in what order, which is known as validation.\
 
 ETH2 currently has a Proof of Stake (PoS) chain called the Beacon Chain, which is faster, more energy efficient and more decentralised than the current consensus protocol Ethereum is utilising (Proof of Work). Users deposit ETH and provide an Ethereum node to perform the required validation. As a reward for providing the node, the Beacon Chain gives node operators additional ETH on top of their deposits. These rewards are minted in return for helping secure the network.
 
@@ -47,35 +47,35 @@ It is clear that PoS chains will be an integral part of the future of crypto, an
 
 However, PoS comes with some drawbacks for those wanting to participate directly as validators:
 
-It requires technical know-how to set up and operate
-32ETH is a significant barrier for regular token holders to participate in POS validation
-Staked tokens are locked up and become illiquid assets
-In order to solve these issues, liquid staking protocols were born. Liquid staking abstracts the depositing of tokens from running a validator node.
+It requires technical know-how to set up and operate a node and the required $32 ETH$ deposit are significant barriers for regular token holders to participate in PoS validation. Staked tokens are locked up and become illiquid assets. In order to solve these issues, liquid staking protocols were born. Liquid staking abstracts the depositing of tokens from running a validator node.
 
 In exchange for their tokens, depositors receive a representative (uniETH) token from the protocol which is a claim on the tokens they have staked.
 
 \subsection{What is uniETH?}
 
-uniETH represents the staked ETH plus all future staking rewards. uniETH does not grow in quantity over time but instead, grows in value, i.e. 1 uniETH becomes worth increasingly more than 1 ETH.
+uniETH represents the staked ETH plus all future staking rewards. uniETH does not grow in quantity over time but instead, grows in value, i.e. 1 uniETH becomes worth increasingly more than 1 ETH. If you deposit 1 ETH initially, then your 1 uniETH = 1 ETH, however after receiving some rewards and the total claim you have is 1 ETH + 0.2 ETH rewards, then your 1 uniETH = 1.2 ETH.
+
+\subsection{How are staking rewards distributed?}
+As all the ETH deposited through this protocol is pooled together to provide the 32 ETH for each node, the node will receive the rewards and automatically distribute it across all staking participants based on how much ETH they staked of the 32 ETH total. I.e. if you staked 3.2 ETH you will receive 10\% of each reward.
+Each time rewards are distributed (every block), they will be added to the initial stake amount, eventually compounding future earnings as more nodes are added, while immediately increasing the value of the uniETH tokens representing each stake.
+
 
 \subsection{What should I stake with RockX instead of staking directly to ETH2?}
 
 RockX removes several drawbacks that exist with Proof of Stake on ETH2.
-
-The Beacon Chain requires a minimum deposit of at least 32 ETH. RockX will allow anyone to earn the reward on any amount of ETH deposited with us.
-
-When depositing ETH on the Beacon Chain, users are required to have technical knowledge of interacting with smart contracts. RockX handles all interaction with the Beacon Chain in our users’ place. The Beacon Chain will also require users who make deposits to be technically proficient at running Ethereum nodes 24/7, at the same time keeping that node online and secure. RockX provides this service in our users’ place.
-
-As ETH2 is being rolled out in several phases. We are currently in phase 1, the merge, and depositing now means your deposit is locked until phase 2 arrives, which could very well still be a long time away. With RockX you instantly get uniETH when depositing and do not need to be locked with us. It can be traded, sold or held at any time, which provides our users with liquidity on their staked ETH.
+The Beacon Chain requires a minimum deposit of at least 32 ETH. RockX will allow anyone to earn rewards on any amount of ETH deposited with us.
+When depositing ETH on the Beacon Chain, users are required to have technical knowledge of interacting with smart contracts. RockX handles all interaction with the Beacon Chain for our users. The Beacon Chain will also require users who make deposits to be technically proficient at running Ethereum nodes, keeping their own node online and secure 24/7. RockX provides this service for our users.
+					
+As ETH2 is being rolled out in several phases. We are currently in phase 1, the merge, and depositing now means your deposit is locked until phase 2 arrives, which could very well still be a long time away. With RockX you instantly get uniETH when depositing and do not need to be locked with us. uniETH can be held, traded, or sold at any time, providing our users with instant liquidity on their staked ETH.
 
 \subsection{What is the staking period for uniETH?}
-The staking period to redeem the underlying ETH on uniETH will only be confirmed till ETH2 goes into phase 2. However, you will receive uniETH when you deposit and it will still gain staking rewards over time in terms of the token value. uniETH can also be sold and traded on various DEXs and CEXs if there is liquidity available for the trade.
+The staking period to redeem the underlying ETH with uniETH will only be confirmed once ETH2 goes into phase 2. However, you will instantly receive uniETH when you deposit ETH and you will still gain staking rewards over time as your uniETH will increase in value as your rewards are added to your initial stake. uniETH can also be sold and traded on various DEXs and CEXs if there is liquidity available for the trade.
 
 \subsection{What is the minimum deposit?}
-RockX gives everyone the opportunity to earn rewards on any amount of ETH, as we do not have a minimum. We do recommend a deposit of at least 0.01ETH to make your transaction worthwhile. When you stake ETH, you will receive uniETH, which gains rewards over time based on the performance of our nodes on the Beacon Chain.
+RockX gives everyone the opportunity to earn rewards on any amount of ETH, as we do not have a min- imum. We do recommend a deposit of at least 0.01ETH to make your transaction worthwhile. When you stake ETH, you will receive uniETH, which gains rewards over time based on the performance of our nodes on the Beacon Chain.
 
 \subsection{What is the maximum deposit?}   
-There is no limit on the amount of ETH you can stake with RockX on ETH2. The more ETH, the more rewards you will be receiving.
+There is no limit on the amount of ETH you can stake with RockX on ETH2. The more ETH you stake, the more rewards you will receive.
 
 \section{RockX uniETH staking algorithm}
 
