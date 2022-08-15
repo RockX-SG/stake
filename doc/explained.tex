@@ -47,23 +47,23 @@ It is clear that PoS chains will be an integral part of the future of crypto, an
 
 However, PoS comes with some drawbacks for those wanting to participate directly as validators:
 
-It requires technical know-how to set up and operate a node and the required $32 ETH$ deposit are significant barriers for regular token holders to participate in PoS validation. Staked tokens are locked up and become illiquid assets. In order to solve these issues, liquid staking protocols were born. Liquid staking abstracts the depositing of tokens from running a validator node.
+It requires technical know-how to set up and operate a node and the required $32\cdot ETH$ deposit are significant barriers for regular token holders to participate in PoS validation. Staked tokens are locked up and become illiquid assets. In order to solve these issues, liquid staking protocols were born. Liquid staking abstracts the depositing of tokens from running a validator node.
 
 In exchange for their tokens, depositors receive a representative (uniETH) token from the protocol which is a claim on the tokens they have staked.
 
 \subsection{What is uniETH?}
 
-uniETH represents the staked ETH plus all future staking rewards. uniETH does not grow in quantity over time but instead, grows in value, i.e. 1 uniETH becomes worth increasingly more than 1 ETH. If you deposit 1 ETH initially, then your 1 uniETH = 1 ETH, however after receiving some rewards and the total claim you have is 1 ETH + 0.2 ETH rewards, then your 1 uniETH = 1.2 ETH.
+uniETH represents the staked ETH plus all future staking rewards. uniETH does not grow in quantity over time but instead, grows in value, i.e. $1\cdot uniETH$ becomes worth increasingly more than $1\cdot ETH$. If you deposit $1\cdot ETH$ initially, then your $1\cdot uniETH = 1\cdot ETH$, however after receiving some rewards and the total claim you have is $1\cdot ETH + 0.2\cdot ETH$ rewards, then your $1\cdot uniETH = 1.2\cdot ETH$.
 
 \subsection{How are staking rewards distributed?}
-As all the ETH deposited through this protocol is pooled together to provide the 32 ETH for each node, the node will receive the rewards and automatically distribute it across all staking participants based on how much ETH they staked of the 32 ETH total. I.e. if you staked 3.2 ETH you will receive 10\% of each reward.
+As all the ETH deposited through this protocol is pooled together to provide the $32\cdot ETH$ for each node, the node will receive the rewards and automatically distribute it across all staking participants based on how much ETH they staked of the 32 ETH total. I.e. if you staked 3.2 ETH you will receive 10\% of each reward.
 Each time rewards are distributed (every block), they will be added to the initial stake amount, eventually compounding future earnings as more nodes are added, while immediately increasing the value of the uniETH tokens representing each stake.
 
 
 \subsection{What should I stake with RockX instead of staking directly to ETH2?}
 
 RockX removes several drawbacks that exist with Proof of Stake on ETH2.
-The Beacon Chain requires a minimum deposit of at least 32 ETH. RockX will allow anyone to earn rewards on any amount of ETH deposited with us.
+The Beacon Chain requires a minimum deposit of at least $32\cdot ETH$. RockX will allow anyone to earn rewards on any amount of ETH deposited with us.
 When depositing ETH on the Beacon Chain, users are required to have technical knowledge of interacting with smart contracts. RockX handles all interaction with the Beacon Chain for our users. The Beacon Chain will also require users who make deposits to be technically proficient at running Ethereum nodes, keeping their own node online and secure 24/7. RockX provides this service for our users.
 					
 As ETH2 is being rolled out in several phases. We are currently in phase 1, the merge, and depositing now means your deposit is locked until phase 2 arrives, which could very well still be a long time away. With RockX you instantly get uniETH when depositing and do not need to be locked with us. uniETH can be held, traded, or sold at any time, providing our users with instant liquidity on their staked ETH.
@@ -153,7 +153,7 @@ finally:
 
 \subsection{Initiating depositing into ETH2 offical contract}
 \label{depositing}
-At any time \textbf{TotalPending} has more than $32 ETH$, the contract manager can call \textbf{stake()} function to stake the ETH into Ethereum 2.0 staking contract. As a result, $ETH$ in \textbf{TotalPending} moves to \textbf{TotalStaked} and keeps \textbf{TotalPending} less than $32 ETH$, we will calculate the changes as follows:
+At any time \textbf{TotalPending} has more than $32\cdot ETH$, the contract manager can call \textbf{stake()} function to stake the ETH into Ethereum 2.0 staking contract. As a result, $ETH$ in \textbf{TotalPending} moves to \textbf{TotalStaked} and keeps \textbf{TotalPending} less than $32\cdot ETH$, we will calculate the changes as follows:
 
 \begin{lemma}
 \[ethersToDeposit := \lfloor\frac{TotalPending^{\prime}}{32ETH}\rfloor \cdot 32ETH\]
@@ -213,7 +213,7 @@ and meanwhile, ETH in validators has been transferred to contract and \textbf{Re
 
 If we do not have \textbf{slashing}, then we can deduce from the parameters that:
 \begin{lemma}
-\[amountUnstaked := 32 ETH \cdot validatorStopped\]
+\[amountUnstaked := 32\cdot ETH \cdot validatorStopped\]
 \[incrRewardDebt := valueStopped - amountUnstaked\]
 \end{lemma}
 
@@ -232,10 +232,10 @@ TotalPending = TotalPending^{\prime} + incrRewardDebt \\
 Rewards are aggregated on a daily basis, and will be reflected from the decrease of \textbf{exchange ratio}-$\rho$, meaning you receive more ETH back.
 
 \begin{chronology}[5]{1}{15}{90ex}
-\event{1}{pushBeacon(32 ETH)}
-\event{3}{pushBeacon(32.1 ETH)}
-\event{6}{pushBeacon(32.3 ETH)}
-\event{12}{pushBeacon(32.6 ETH)}
+\event{1}{pushBeacon($32\cdot ETH$)}
+\event{3}{pushBeacon($32.1\cdot ETH$)}
+\event{6}{pushBeacon($32.3\cdot ETH$)}
+\event{12}{pushBeacon($32.6\cdot ETH$)}
 \end{chronology}
 
 An oracle service running offchain will push overall alive validators balance periodically, there're 2 things \textbf{pushBeacon()} do to update the reward:
@@ -269,7 +269,7 @@ Given:
 we have:
 \begin{theorem}
 \label{pushBeacon}
-\[RewardBase = ReportedValidatorBalance + Max\{0, aliveValidator - ReportedValidators\} \cdot  32 ETH\]
+\[RewardBase = ReportedValidatorBalance + Max\{0, aliveValidator - ReportedValidators\} \cdot  32\cdot ETH\]
 \end{theorem}
 
 \subsubsection{Reward distribution}
@@ -319,12 +319,12 @@ Given:
 we have:
 \begin{theorem}
 \[TotalPending = TotalPending^{\prime} + remainingEthers \]
-\[TotalStaked = TotalStaked^{\prime} - 32 ETH \cdot slashedValidators \]
+\[TotalStaked = TotalStaked^{\prime} - 32\cdot ETH \cdot slashedValidators \]
 \[RecentSlashed = RecentSlashed^{\prime} +  slashedAmount \]
 \end{theorem}
 
 $\rho$ will have a sudden changed due to the change of \textbf{TotalPending} and \textbf{TotalStaked} as:
-\[\rho = \frac{TotalSupply}{CurrentReserve - 32 ETH \cdot slashedValidators + remainingEthers } \]
+\[\rho = \frac{TotalSupply}{CurrentReserve - 32\cdot ETH \cdot slashedValidators + remainingEthers } \]
 
 \subsubsection{Modification of rewards calculation in pushBeacon()}
 \begin{theorem}
