@@ -174,7 +174,7 @@ CurrentReserve := \dots + (TotalPending^{\prime} - ethersToDeposit) + (TotalStak
 \end{multline}
 
 \subsubsection{Timing}
-The timing for calling stake() contract function mainly considers maximising capital efficiency, if we stake prematurely, the cost for running a single validator is way too expensive. On the flipside, if we are slow to stake, the deposited ETH does not generate rewards during the period prior to it begin staked in the official ETH2 staking contract. Hence, there is a need to build an off-chain program to provide a seamless and comprehensive solution for staking, allowing maximum capital efficiency on assets while earning cryptonative yields.
+The timing for calling stake() contract function mainly considers maximising capital efficiency, if we stake prematurely, the cost for running a single validator is way too expensive. On the flipside, if we are slow to stake, the deposited ETH does not generate rewards during the period prior to it being staked in the official ETH2 staking contract. Hence, there is a need to build an off-chain program to provide a seamless and comprehensive solution for staking, allowing maximum capital efficiency on assets while earning cryptonative yields.
 
 \subsection{Redeeming staked ETH from official RockX smart contract}
 Users call contract function \textbf{redeemFromValidators()} with a specific amount of \textbf{ethersToRedeem} ETH expected to redeem, the amount uniETH to be burnt is exactly to $N\cdot 32ETH$ worth of uniETH, then we have:
@@ -193,7 +193,7 @@ Note: redeeming function will only be available after ETH2.0 merged.
 \subsection{How ETH return to this contract from validators? }
 \label{sectionAccounting}
 
-At current, Ethereum 2.0 withdrawals implementation are not like normal transactions. Instead, they are system level transactions that update an account's balance without a transaction in or out. In our contract implementation, we use \textbf{accountedBalance} to track explicit ETH in and out from contract functions, and compare \textbf{accountedBalance} with \textbf{this.balance}, the difference is the ETH rewards\footnote{Here we suppose nobody transfers ETH to this contract intentional or unintentional, if this happens, the contract treat the ETH as rewards, shared by all \textbf{uniETH} holders} returned from validators. We utilise variable \textbf{RecentEthersMoved} to track this difference:
+At current, Ethereum 2.0 withdrawals are not like normal transactions. Instead, they are system level transactions that update an account's balance without a transaction in or out. In our contract implementation, we use \textbf{accountedBalance} to track explicit ETH in and out from contract functions, and compare \textbf{accountedBalance} with \textbf{this.balance}, the difference is the ETH rewards\footnote{Here we suppose nobody transfers ETH to this contract intentional or unintentional, if this happens, the contract treat the ETH as rewards, shared by all \textbf{uniETH} holders} returned from validators. We utilise variable \textbf{RecentEthersMoved} to track this difference:
 
 \[RecentEthersMoved = accountedBalance - this.balance\]
 
@@ -229,7 +229,7 @@ TotalPending = TotalPending^{\prime} + incrRewardDebt \\
 \end{theorem}
 
 \subsection{Calculating rewards}
-Rewards are aggregated on a daily basis, and will be reflected from the decrease of \textbf{exchange ratio}-$\rho$, meaning you receive more ETH back.
+Rewards are aggregated on a daily basis, and will be reflected from the decrease in \textbf{exchange ratio}-$\rho$, meaning you receive more ETH back.
 
 \begin{chronology}[5]{1}{15}{90ex}
 \event{1}{pushBeacon($32\cdot ETH$)}
@@ -295,7 +295,7 @@ we have:
 \[ReportedValidatorBalance = aliveBalance\]
 \end{theorem}
 
-As \textbf{RecentEthersMoved} will only be counted during reward distribution, the variable will be reset to 0 at the end of each \textbf{pushBeacon()} call. The exchange ratio - $\rho$ will go down by the change of \textbf{UserRevenue}, which allows the \textbf{uniETH} holder to get back more ETH when redeems.
+As \textbf{RecentEthersMoved} will only be counted during reward distribution, the variable will be reset to 0 at the end of each \textbf{pushBeacon()} call. The exchange ratio - $\rho$ will go down by the change of \textbf{UserRevenue}, which allows \textbf{uniETH} holders to get back more ETH when redeems.
 
 \subsubsection{Manager's Fee Withdrawal}
 Withdrawal before ETH2.0 merge is still not implemented yet, but here is the general process: 
