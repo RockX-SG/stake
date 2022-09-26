@@ -181,6 +181,7 @@ contract RockXStaking is Initializable, PausableUpgradeable, AccessControlUpgrad
 
     // track stopped validators
     uint256 stoppedValidators;                      // track stopped validators count
+    uint256 recentStopped;                          // track recent stopped validators
 
     // phase switch from 0 to 1
     uint256 private phase;
@@ -421,9 +422,9 @@ contract RockXStaking is Initializable, PausableUpgradeable, AccessControlUpgrad
         // step 1. check if new validator increased
         // and adjust rewardBase to include the new validators' value
         uint256 rewardBase = reportedValidatorBalance;
-        if (_aliveValidators > reportedValidators) {         
+        if (_aliveValidators + recentStopped > reportedValidators) {
             // newly launched validators
-            uint256 newValidators = _aliveValidators - reportedValidators;
+            uint256 newValidators = _aliveValidators + recentStopped - reportedValidators;
             rewardBase += newValidators * DEPOSIT_SIZE;
         }
 
@@ -455,6 +456,7 @@ contract RockXStaking is Initializable, PausableUpgradeable, AccessControlUpgrad
         reportedValidators = _aliveValidators;
         recentReceived = 0;
         recentSlashed = 0;
+        recentStopped = 0;
 
         // step 4. vector clock moves, make sure never use the same vector again
         _vectorClockTick();
@@ -480,6 +482,7 @@ contract RockXStaking is Initializable, PausableUpgradeable, AccessControlUpgrad
             validatorRegistry[index].stopped = true;
         }
         stoppedValidators += _stoppedPubKeys.length;
+        recentStopped += _stoppedPubKeys.length;
 
         // NOTE(x) The following procedure MUST keep currentReserve unchanged:
         // 
@@ -539,6 +542,7 @@ contract RockXStaking is Initializable, PausableUpgradeable, AccessControlUpgrad
             validatorRegistry[index].stopped = true;
         }
         stoppedValidators += _stoppedPubKeys.length;
+        recentStopped += _stoppedPubKeys.length;
 
         // here we restake the remaining ethers by putting to totalPending
         totalPending += _remainingAmount;
