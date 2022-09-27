@@ -181,7 +181,6 @@ contract RockXStaking is Initializable, PausableUpgradeable, AccessControlUpgrad
 
     // track stopped validators
     uint256 stoppedValidators;                      // track stopped validators count
-    uint256 recentStopped;                          // track recent stopped validators
 
     // phase switch from 0 to 1
     uint256 private phase;
@@ -189,10 +188,13 @@ contract RockXStaking is Initializable, PausableUpgradeable, AccessControlUpgrad
     // gas refunds
     uint256 [] private refunds;
 
+    // PATCH VARIABLES(UPGRADES)
+    uint256 recentStopped;                          // track recent stopped validators(update: 20220927)
+
     /**
      * @dev empty reserved space for future adding of variables
      */
-    uint256[32] private __gap;
+    uint256[31] private __gap;
 
 
     /** 
