@@ -196,6 +196,9 @@ contract RockXStaking is Initializable, PausableUpgradeable, AccessControlUpgrad
      */
     uint256[31] private __gap;
 
+    // KYC control
+    mapping(address=>uint256) quotaUsed;
+    mapping(address=>bool) whiteList;
 
     /** 
      * ======================================================================================
@@ -310,6 +313,15 @@ contract RockXStaking is Initializable, PausableUpgradeable, AccessControlUpgrad
             validatorRegistry.push(ValidatorCredential({pubkey:pubkeys[i], signature:signatures[i], stopped:false}));
             pubkeyIndices[pubkeyHash] = validatorRegistry.length;
         }
+    }
+
+    /**
+     * @dev toggleWhiteList
+     */
+    function toggleWhiteList(address account) external onlyRole(DEFAULT_ADMIN_ROLE) {
+        whiteList[account] = !whiteList[account];
+
+        emit WhiteListToggle(account, whiteList[account]);
     }
     
     /**
@@ -713,6 +725,12 @@ contract RockXStaking is Initializable, PausableUpgradeable, AccessControlUpgrad
     function mint(uint256 minToMint, uint256 deadline) external payable nonReentrant whenNotPaused returns(uint256 minted){
         require(block.timestamp < deadline, "TRANSACTION_EXPIRED");
         require(msg.value > 0, "MINT_ZERO");
+
+        // for non KYC users, check the quota
+        if (!whiteList[msg.sender]) {
+            require(quotaUsed[msg.sender] + msg.value <= DEPOSIT_SIZE, "NEED_KYC_FOR_MORE");
+            quotaUsed[msg.sender] += msg.value;
+        }
         
         // track balance
         _balanceIncrease(msg.value);
@@ -933,4 +951,5 @@ contract RockXStaking is Initializable, PausableUpgradeable, AccessControlUpgrad
     event DepositContractSet(address addr);
     event RedeemContractSet(address addr);
     event BalanceSynced(uint256 diff);
+    event WhiteListToggle(address account, bool enabled);
 }
