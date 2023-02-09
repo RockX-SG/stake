@@ -126,7 +126,8 @@ def main():
     #transparent_staking.getAccumulatedStoppedBalance()
     #transparent_staking.exchangeRatio()
     print("mint")
+    transparent_staking.toggleWhiteList(owner, {'from':owner})
     tx = transparent_staking.mint(0, time.time() + 600, {'from':owner, 'value': '32 ether'})
 
 
-
+    
