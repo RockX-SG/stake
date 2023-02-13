@@ -197,8 +197,8 @@ contract RockXStaking is Initializable, PausableUpgradeable, AccessControlUpgrad
     uint256[31] private __gap;
 
     // KYC control
-    mapping(address=>uint256) quotaUsed;
-    mapping(address=>bool) whiteList;
+    mapping(address=>uint256) private quotaUsed;
+    mapping(address=>bool) private whiteList;
 
     /** 
      * ======================================================================================
@@ -711,6 +711,17 @@ contract RockXStaking is Initializable, PausableUpgradeable, AccessControlUpgrad
      * @dev get stopped validators count
      */
     function getStoppedValidatorsCount() external view returns (uint256) { return stoppedValidators; }
+
+    /**
+     * @dev get used quota
+     */
+    function getQuota(address account) external view returns (uint256) { return quotaUsed[account]; }
+
+    /**
+     * @dev check whitelist enabled
+     */
+    function isWhiteListed(address account) external view returns (bool) { return whiteList[account]; }
+
 
     /**
      * ======================================================================================
