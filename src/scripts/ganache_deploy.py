@@ -102,6 +102,7 @@ def main():
     
     transparent_staking.setManagerFeeShare(100, {'from':owner})
     transparent_staking.switchPhase(1, {'from':owner})
+    print("quota used",transparent_staking.getQuota(owner))
     mintTX = transparent_staking.mint('32 ether', time.time() + 600, {'from':owner, 'value': '32 ether'})
     print("mintTX", mintTX)
     transparent_xeth.approve(transparent_staking, '10000 ethers', {'from': owner})
@@ -126,8 +127,14 @@ def main():
     #transparent_staking.getAccumulatedStoppedBalance()
     #transparent_staking.exchangeRatio()
     print("mint")
+    print("check whitelist", transparent_staking.isWhiteListed(owner))
+    print("whitelist")
+    print("quota used",transparent_staking.getQuota(owner))
     transparent_staking.toggleWhiteList(owner, {'from':owner})
+    print("check whitelist", transparent_staking.isWhiteListed(owner))
+    print("quota used",transparent_staking.getQuota(owner))
     tx = transparent_staking.mint(0, time.time() + 600, {'from':owner, 'value': '32 ether'})
+    print("quota used",transparent_staking.getQuota(owner))
 
 
     
