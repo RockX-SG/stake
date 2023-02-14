@@ -197,8 +197,8 @@ contract RockXStaking is Initializable, PausableUpgradeable, AccessControlUpgrad
     uint256[31] private __gap;
 
     // KYC control
-    mapping(address=>uint256) private quotaUsed;
-    mapping(address=>bool) private whiteList;
+    mapping(address=>uint256) quotaUsed;
+    mapping(address=>bool) whiteList;
 
     /** 
      * ======================================================================================
