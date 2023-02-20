@@ -886,9 +886,9 @@ contract RockXStaking is Initializable, PausableUpgradeable, AccessControlUpgrad
      */
     function _autocompound() internal {
         if (accountedUserRevenue >= DEPOSIT_SIZE && 
-            address(this).balance >= totalPending + accountedUserRevenue + accountedManagerRevenue + totalDebts) {
-            totalPending += accountedUserRevenue;
-            accountedUserRevenue = 0;
+            address(this).balance >= totalPending + DEPOSIT_SIZE + accountedManagerRevenue + totalDebts) {
+            totalPending += DEPOSIT_SIZE;
+            accountedUserRevenue -= DEPOSIT_SIZE;
         }
     }
 
