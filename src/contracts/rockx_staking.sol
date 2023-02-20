@@ -200,8 +200,11 @@ contract RockXStaking is Initializable, PausableUpgradeable, AccessControlUpgrad
     mapping(address=>uint256) quotaUsed;
     mapping(address=>bool) whiteList;
 
-    // Auto Compound Control
+    // Auto Compound
+    uint256 private accruedUserRevenue;
     bool private autoCompoundEnabled;
+
+    
 
     /** 
      * ======================================================================================
@@ -475,7 +478,6 @@ contract RockXStaking is Initializable, PausableUpgradeable, AccessControlUpgrad
         require(_aliveBalance + recentReceived + recentSlashed > rewardBase, "NOT_ENOUGH_REVENUE");
         uint256 rewards = _aliveBalance + recentReceived + recentSlashed - rewardBase;
         _distributeRewards(rewards);
-        //_autocompound();
 
         // step 3. update reportedValidators & reportedValidatorBalance
         // reset the recentReceived to 0
@@ -892,19 +894,23 @@ contract RockXStaking is Initializable, PausableUpgradeable, AccessControlUpgrad
         accountedManagerRevenue += fee;
         accountedUserRevenue += rewards - fee;
 
+        //_autocompound(rewards - fee);
         emit RevenueAccounted(rewards);
     }
 
     /**
      * @dev auto compounding, after shanghai merge
      */
-    function _autocompound() internal {
-        if (autoCompoundEnabled && accountedUserRevenue >= DEPOSIT_SIZE && 
-            // contract balance consists:
-            // validator assets to clear debts, rewards after shanghai merge, user's mint ethers and manager's revenue.
-            address(this).balance >= totalPending + DEPOSIT_SIZE + accountedManagerRevenue + totalDebts) {
+    function _autocompound(uint256 r) internal {
+        accruedUserRevenue += r;
+        if (autoCompoundEnabled && accruedUserRevenue >= DEPOSIT_SIZE 
+        && address(this).balance >= totalPending + DEPOSIT_SIZE) {
+            //  (totalPending+DEPOSIT_SIZE) + totalStaked + accountedUserRevenue - totalDebts - (rewardDebt+DEPOSIT_SIZE)
+            //  == 
+            //  totalPending + totalStaked + accountedUserRevenue - totalDebts - rewardDebt
             totalPending += DEPOSIT_SIZE;
-            accountedUserRevenue -= DEPOSIT_SIZE;
+            rewardDebts += DEPOSIT_SIZE;
+            accruedUserRevenue -= DEPOSIT_SIZE;
         }
     }
 
