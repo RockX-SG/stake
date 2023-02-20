@@ -521,8 +521,9 @@ contract RockXStaking is Initializable, PausableUpgradeable, AccessControlUpgrad
         rewardDebts += _stoppedBalance - amountUnstaked;
 
         // Variables Compaction
-        // compact accountedUserRevenue & rewardDebt, to avert overflow
-        // NOTE(x): a good to have optimization.
+        // compact accountedUserRevenue & rewardDebt, so If
+        // accountedUserRevenue is >= 32 ETH, we're sure we can do auto-compound on
+        // user's accountedUserRevenue.
         if (accountedUserRevenue >= rewardDebts) {
             accountedUserRevenue -= rewardDebts;
             rewardDebts = 0;
@@ -886,6 +887,8 @@ contract RockXStaking is Initializable, PausableUpgradeable, AccessControlUpgrad
      */
     function _autocompound() internal {
         if (accountedUserRevenue >= DEPOSIT_SIZE && 
+            // contract balance consists:
+            // validator assets to clear debts, rewards after shanghai merge, user's mint ethers and manager's revenue.
             address(this).balance >= totalPending + DEPOSIT_SIZE + accountedManagerRevenue + totalDebts) {
             totalPending += DEPOSIT_SIZE;
             accountedUserRevenue -= DEPOSIT_SIZE;
