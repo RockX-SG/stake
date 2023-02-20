@@ -200,6 +200,9 @@ contract RockXStaking is Initializable, PausableUpgradeable, AccessControlUpgrad
     mapping(address=>uint256) quotaUsed;
     mapping(address=>bool) whiteList;
 
+    // Auto Compound Control
+    bool private autoCompoundEnabled;
+
     /** 
      * ======================================================================================
      * 
@@ -265,7 +268,7 @@ contract RockXStaking is Initializable, PausableUpgradeable, AccessControlUpgrad
         require (newPhase >= phase, "PHASE_ROLLBACK");
         phase = newPhase;
     }
-    
+
     /**
      * @dev register a validator
      */
@@ -322,6 +325,15 @@ contract RockXStaking is Initializable, PausableUpgradeable, AccessControlUpgrad
         whiteList[account] = !whiteList[account];
 
         emit WhiteListToggle(account, whiteList[account]);
+    }
+    
+    /**
+     * @dev toggle autocompound
+     */
+    function toggleAutoCompound() external onlyRole(DEFAULT_ADMIN_ROLE) {
+        autoCompoundEnabled = !autoCompoundEnabled;
+
+        emit AutoCompoundToggle(autoCompoundEnabled);
     }
     
     /**
@@ -516,14 +528,15 @@ contract RockXStaking is Initializable, PausableUpgradeable, AccessControlUpgrad
         totalStaked -= amountUnstaked;
 
         // Extra value, which is more than debt clearance requirements,
-        // will be re-staked.
+        // will be re-staked, but the rewards on this validators has already been distributed to accountedUserRevenue.
+        // so we need a compensation variable to balance this.
         // NOTE(x): I name this value to be rewardDebts
         rewardDebts += _stoppedBalance - amountUnstaked;
 
         // Variables Compaction
         // compact accountedUserRevenue & rewardDebt, so If
         // accountedUserRevenue is >= 32 ETH, we're sure we can do auto-compound on
-        // user's accountedUserRevenue.
+        // user's accountedUserRevenue, because it only accrues when rewards increases.
         if (accountedUserRevenue >= rewardDebts) {
             accountedUserRevenue -= rewardDebts;
             rewardDebts = 0;
@@ -886,7 +899,7 @@ contract RockXStaking is Initializable, PausableUpgradeable, AccessControlUpgrad
      * @dev auto compounding, after shanghai merge
      */
     function _autocompound() internal {
-        if (accountedUserRevenue >= DEPOSIT_SIZE && 
+        if (autoCompoundEnabled && accountedUserRevenue >= DEPOSIT_SIZE && 
             // contract balance consists:
             // validator assets to clear debts, rewards after shanghai merge, user's mint ethers and manager's revenue.
             address(this).balance >= totalPending + DEPOSIT_SIZE + accountedManagerRevenue + totalDebts) {
@@ -979,4 +992,5 @@ contract RockXStaking is Initializable, PausableUpgradeable, AccessControlUpgrad
     event RedeemContractSet(address addr);
     event BalanceSynced(uint256 diff);
     event WhiteListToggle(address account, bool enabled);
+    event AutoCompoundToggle(bool enabled);
 }
