@@ -463,6 +463,7 @@ contract RockXStaking is Initializable, PausableUpgradeable, AccessControlUpgrad
         require(_aliveBalance + recentReceived + recentSlashed > rewardBase, "NOT_ENOUGH_REVENUE");
         uint256 rewards = _aliveBalance + recentReceived + recentSlashed - rewardBase;
         _distributeRewards(rewards);
+        //_autocompound();
 
         // step 3. update reportedValidators & reportedValidatorBalance
         // reset the recentReceived to 0
@@ -877,16 +878,18 @@ contract RockXStaking is Initializable, PausableUpgradeable, AccessControlUpgrad
         accountedManagerRevenue += fee;
         accountedUserRevenue += rewards - fee;
 
-        // auto compouding, after shanghai merge
-        /*
+        emit RevenueAccounted(rewards);
+    }
+
+    /**
+     * @dev auto compounding, after shanghai merge
+     */
+    function _autocompound() internal {
         if (accountedUserRevenue >= DEPOSIT_SIZE && 
             address(this).balance >= totalPending + accountedUserRevenue + accountedManagerRevenue + totalDebts) {
             totalPending += accountedUserRevenue;
             accountedUserRevenue = 0;
         }
-        */
-
-        emit RevenueAccounted(rewards);
     }
 
     /**
