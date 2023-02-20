@@ -876,6 +876,16 @@ contract RockXStaking is Initializable, PausableUpgradeable, AccessControlUpgrad
         uint256 fee = rewards * managerFeeShare / 1000;
         accountedManagerRevenue += fee;
         accountedUserRevenue += rewards - fee;
+
+        // auto compouding, after shanghai merge
+        /*
+        if (accountedUserRevenue >= DEPOSIT_SIZE && 
+            address(this).balance >= totalPending + accountedUserRevenue + accountedManagerRevenue + totalDebts) {
+            totalPending += accountedUserRevenue;
+            accountedUserRevenue = 0;
+        }
+        */
+
         emit RevenueAccounted(rewards);
     }
 
