@@ -398,9 +398,9 @@ contract RockXStaking is Initializable, PausableUpgradeable, AccessControlUpgrad
     /**
      * @dev manager withdraw fees as uniETH
      */
-    function withdrawManagerFee(uint256 amount, address to, bytes32 clock) external nonReentrant onlyRole(MANAGER_ROLE)  {
-        require(vectorClock == clock, "CASUALITY_VIOLATION");
-        require(int256(address(this).balance) == accountedBalance, "BALANCE_DEVIATES");
+    function withdrawManagerFee(uint256 amount, address to) external nonReentrant onlyRole(MANAGER_ROLE)  {
+        _syncBalance();
+        
         require(amount <= accountedManagerRevenue, "WITHDRAW_EXCEEDED_MANAGER_REVENUE");
         // debts + userRevenue + managersRevenue + pending ethers
         require(address(this).balance >= amount + totalPending + totalDebts, "INSUFFICIENT_ETHERS");
@@ -428,8 +428,12 @@ contract RockXStaking is Initializable, PausableUpgradeable, AccessControlUpgrad
     /**
      * @dev balance sync, also moves the vector clock if it has different value
      */
-    function syncBalance(bytes32 clock) external onlyRole(ORACLE_ROLE) {
-        require(vectorClock == clock, "CASUALITY_VIOLATION");
+    function syncBalance() external onlyRole(ORACLE_ROLE) { _syncBalance(); }
+    
+    /**
+     * @dev balance sync, also moves the vector clock if it has different value
+     */
+    function _syncBalance() internal {
         assert(int256(address(this).balance) >= accountedBalance);
         uint256 diff = uint256(int256(address(this).balance) - accountedBalance);
         if (diff > 0) {
