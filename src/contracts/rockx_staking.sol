@@ -405,11 +405,21 @@ contract RockXStaking is Initializable, PausableUpgradeable, AccessControlUpgrad
         // debts + userRevenue + managersRevenue + pending ethers
         require(address(this).balance >= amount + totalPending + totalDebts, "INSUFFICIENT_ETHERS");
 
-        // track balance change
-        _balanceDecrease(amount);
-        accountedManagerRevenue -= amount;
+        // mint uniETH while keeping the exchange ratio invariant
+        uint256 totalXETH = IERC20(xETHAddress).totalSupply();
+        uint256 totalEthers = currentReserve();
+        uint256 toMint = 1 * amount;  // default exchange ratio 1:1
 
-        payable(to).sendValue(amount);
+        if (totalEthers > 0) { // avert division overflow
+            toMint = totalXETH * amount / totalEthers;
+        }
+
+        // mint xETH
+        IMintableContract(xETHAddress).mint(to, toMint);
+
+        // track balance change
+        totalPending += amount;
+        accountedManagerRevenue -= amount;
 
         emit ManagerFeeWithdrawed(amount, to);
     }
