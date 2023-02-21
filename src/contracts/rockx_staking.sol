@@ -200,11 +200,8 @@ contract RockXStaking is Initializable, PausableUpgradeable, AccessControlUpgrad
     mapping(address=>uint256) quotaUsed;
     mapping(address=>bool) whiteList;
 
-    // Auto Compound
-    uint256 private accruedUserRevenue;
+    // auto-compounding
     bool private autoCompoundEnabled;
-
-    
 
     /** 
      * ======================================================================================
@@ -385,14 +382,6 @@ contract RockXStaking is Initializable, PausableUpgradeable, AccessControlUpgrad
     } 
 
     /**
-     * @dev submit reward withdrawal tx from this contract
-     */
-    function sumbitRewardWithdrawal(uint256 amount) external onlyRole(MANAGER_ROLE) {
-        require(amount <= accountedManagerRevenue, "WITHDRAW_EXCEEDED_MANAGER_REVENUE");
-        revert("NOT_IMPLEMENTED");
-    }
-
-    /**
      * @dev stake into eth2 staking contract by calling this function
      */
     function stake() external onlyRole(REGISTRY_ROLE) {
@@ -413,7 +402,7 @@ contract RockXStaking is Initializable, PausableUpgradeable, AccessControlUpgrad
         require(vectorClock == clock, "CASUALITY_VIOLATION");
         require(int256(address(this).balance) == accountedBalance, "BALANCE_DEVIATES");
         require(amount <= accountedManagerRevenue, "WITHDRAW_EXCEEDED_MANAGER_REVENUE");
-        require(amount <= _currentEthersReceived(), "INSUFFICIENT_ETHERS");
+        require(amount + totalDebts <= _currentEthersReceived(), "INSUFFICIENT_ETHERS");
 
         // track balance change
         _balanceDecrease(amount);
@@ -478,6 +467,7 @@ contract RockXStaking is Initializable, PausableUpgradeable, AccessControlUpgrad
         require(_aliveBalance + recentReceived + recentSlashed > rewardBase, "NOT_ENOUGH_REVENUE");
         uint256 rewards = _aliveBalance + recentReceived + recentSlashed - rewardBase;
         _distributeRewards(rewards);
+        //_autocompound(rewards - fee);
 
         // step 3. update reportedValidators & reportedValidatorBalance
         // reset the recentReceived to 0
@@ -894,23 +884,19 @@ contract RockXStaking is Initializable, PausableUpgradeable, AccessControlUpgrad
         accountedManagerRevenue += fee;
         accountedUserRevenue += rewards - fee;
 
-        //_autocompound(rewards - fee);
         emit RevenueAccounted(rewards);
     }
 
     /**
      * @dev auto compounding, after shanghai merge
      */
-    function _autocompound(uint256 r) internal {
-        accruedUserRevenue += r;
-        if (autoCompoundEnabled && accruedUserRevenue >= DEPOSIT_SIZE 
-        && address(this).balance >= totalPending + DEPOSIT_SIZE) {
-            //  (totalPending+DEPOSIT_SIZE) + totalStaked + accountedUserRevenue - totalDebts - (rewardDebt+DEPOSIT_SIZE)
-            //  == 
-            //  totalPending + totalStaked + accountedUserRevenue - totalDebts - rewardDebt
+    function _autocompound() internal {
+        if (autoCompoundEnabled 
+        // contract balance consists of maximum:
+        // validator assets to clear debts, rewards after shanghai merge(compound), user's pending ethers to mint and manager's revenue.
+        && address(this).balance >= totalPending + accountedManagerRevenue + totalDebts + DEPOSIT_SIZE) {
             totalPending += DEPOSIT_SIZE;
             rewardDebts += DEPOSIT_SIZE;
-            accruedUserRevenue -= DEPOSIT_SIZE;
         }
     }
 
