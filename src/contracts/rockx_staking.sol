@@ -396,7 +396,7 @@ contract RockXStaking is Initializable, PausableUpgradeable, AccessControlUpgrad
     }
 
     /**
-     * @dev manager withdraw fees
+     * @dev manager withdraw fees as uniETH
      */
     function withdrawManagerFee(uint256 amount, address to, bytes32 clock) external nonReentrant onlyRole(MANAGER_ROLE)  {
         require(vectorClock == clock, "CASUALITY_VIOLATION");
@@ -414,10 +414,11 @@ contract RockXStaking is Initializable, PausableUpgradeable, AccessControlUpgrad
             toMint = totalXETH * amount / totalEthers;
         }
 
-        // mint xETH
+        // mint equivalent `uniETH` to `amount`
         IMintableContract(xETHAddress).mint(to, toMint);
 
-        // track balance change
+        // track balance change:
+        // shift manager's revenue from accountedManagerRevenue to totalPending
         totalPending += amount;
         accountedManagerRevenue -= amount;
 
