@@ -402,7 +402,8 @@ contract RockXStaking is Initializable, PausableUpgradeable, AccessControlUpgrad
         require(vectorClock == clock, "CASUALITY_VIOLATION");
         require(int256(address(this).balance) == accountedBalance, "BALANCE_DEVIATES");
         require(amount <= accountedManagerRevenue, "WITHDRAW_EXCEEDED_MANAGER_REVENUE");
-        require(amount + totalDebts <= _currentEthersReceived(), "INSUFFICIENT_ETHERS");
+        // debts + userRevenue + managersRevenue + pending ethers
+        require(address(this).balance >= amount + totalPending + totalDebts, "INSUFFICIENT_ETHERS");
 
         // track balance change
         _balanceDecrease(amount);
