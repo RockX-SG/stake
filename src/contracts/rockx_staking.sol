@@ -449,9 +449,11 @@ contract RockXStaking is Initializable, PausableUpgradeable, AccessControlUpgrad
      */
     function pushBeacon(uint256 _aliveValidators, uint256 _aliveBalance, bytes32 clock) external onlyRole(ORACLE_ROLE) {
         require(vectorClock == clock, "CASUALITY_VIOLATION");
-        require(int256(address(this).balance) == accountedBalance, "BALANCE_DEVIATES");
         require(_aliveValidators + stoppedValidators <= nextValidatorId, "VALIDATOR_COUNT_MISMATCH");
         require(_aliveBalance >= _aliveValidators * DEPOSIT_SIZE, "ALIVE_BALANCE_DECREASED");
+
+        // step 0. collect new revenue if there is any.
+        _syncBalance();
 
         // step 1. check if new validator increased
         // and adjust rewardBase to include the new validators' value
@@ -492,9 +494,6 @@ contract RockXStaking is Initializable, PausableUpgradeable, AccessControlUpgrad
         recentReceived = 0;
         recentSlashed = 0;
         recentStopped = 0;
-
-        // step 4. vector clock moves, make sure never use the same vector again
-        _vectorClockTick();
     }
 
     /**

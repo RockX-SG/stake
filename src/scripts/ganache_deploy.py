@@ -143,7 +143,7 @@ def main():
     print("manager fee before claiming:",transparent_staking.getAccountedManagerRevenue(), " exchange ratio:", transparent_staking.exchangeRatio())
     print("pending ethers before", transparent_staking.getPendingEthers()) 
     print("claim to another account:", accounts[2])
-    transparent_staking.withdrawManagerFee(transparent_staking.getAccountedManagerRevenue(), accounts[2], transparent_staking.getVectorClock(), {'from':owner})
+    transparent_staking.withdrawManagerFee(transparent_staking.getAccountedManagerRevenue(), accounts[2], {'from':owner})
     print("uniETH token balance on", accounts[2], "is:",  transparent_xeth.balanceOf(accounts[2]))
     print("manager fee after claiming:",transparent_staking.getAccountedManagerRevenue(), " exchange ratio:", transparent_staking.exchangeRatio())
     print("pending ethers after", transparent_staking.getPendingEthers()) 
