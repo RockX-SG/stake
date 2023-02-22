@@ -486,7 +486,7 @@ contract RockXStaking is Initializable, PausableUpgradeable, AccessControlUpgrad
         uint256 rewards = _aliveBalance + recentReceived + recentSlashed - rewardBase;
         require(rewards * 1000 / currentReserve() < 5, "MALICIOUS_PUSH");
         _distributeRewards(rewards);
-        //_autocompound(rewards - fee);
+        _autocompound();
 
         // step 3. update reportedValidators & reportedValidatorBalance
         // reset the recentReceived to 0
@@ -904,7 +904,7 @@ contract RockXStaking is Initializable, PausableUpgradeable, AccessControlUpgrad
     }
 
     /**
-     * @dev auto compounding, after shanghai merge
+     * @dev auto compounding, after shanghai merge, called in pushBeacon
      */
     function _autocompound() internal {
         if (autoCompoundEnabled 
