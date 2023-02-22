@@ -484,6 +484,7 @@ contract RockXStaking is Initializable, PausableUpgradeable, AccessControlUpgrad
 
         require(_aliveBalance + recentReceived + recentSlashed > rewardBase, "NOT_ENOUGH_REVENUE");
         uint256 rewards = _aliveBalance + recentReceived + recentSlashed - rewardBase;
+        require(rewards * 1000 / currentReserve() < 5, "MALICIOUS_PUSH");
         _distributeRewards(rewards);
         //_autocompound(rewards - fee);
 
