@@ -480,11 +480,17 @@ contract RockXStaking is Initializable, PausableUpgradeable, AccessControlUpgrad
         //  >（GREATER THAN) reward base(last active validator balance + new nodes balance)
         //
         // NOTE(x): recentSlashed is accounted here, then we can adjust the basepoint to current alive validator balance.
+        //   eg:
+        //          _aliveBalance = 0 （slashed)
+        //          recentReceived = 16 ETH (the ethers left)
+        //          recentSlashed = 16 ETH (assumed slashed ethers)
         // 
 
-        require(_aliveBalance + recentReceived + recentSlashed > rewardBase, "NOT_ENOUGH_REVENUE");
+        require(_aliveBalance + recentReceived + recentSlashed >= rewardBase, "NOT_ENOUGH_REVENUE");
         uint256 rewards = _aliveBalance + recentReceived + recentSlashed - rewardBase;
-        require(rewards * 1000 / currentReserve() < 5, "MALICIOUS_PUSH");
+        // If pushBeacon has called before validatorStopped/validatorSlashedStop, this may appear. 
+        //require(rewards * 1000 / currentReserve() < 5, "MALICIOUS_PUSH");
+
         _distributeRewards(rewards);
         _autocompound();
 
@@ -500,13 +506,12 @@ contract RockXStaking is Initializable, PausableUpgradeable, AccessControlUpgrad
     /**
      * @dev notify some validators stopped, and pay the debts
      */
-    function validatorStopped(bytes [] calldata _stoppedPubKeys, uint256 _stoppedBalance, bytes32 clock) external nonReentrant onlyRole(ORACLE_ROLE) {
+    function validatorStopped(bytes [] calldata _stoppedPubKeys, bytes32 clock) external nonReentrant onlyRole(ORACLE_ROLE) {
         require(vectorClock == clock, "CASUALITY_VIOLATION");
         uint256 amountUnstaked = _stoppedPubKeys.length * DEPOSIT_SIZE;
         require(_stoppedPubKeys.length > 0, "EMPTY_CALLDATA");
-        require(_stoppedBalance >= amountUnstaked, "INSUFFICIENT_ETHERS_STOPPED");
         require(_stoppedPubKeys.length + stoppedValidators <= nextValidatorId, "REPORTED_MORE_STOPPED_VALIDATORS");
-        require(_currentEthersReceived() >= _stoppedBalance, "INSUFFICIENT_ETHERS_PUSHED");
+        require(_currentEthersReceived() >= amountUnstaked, "INSUFFICIENT_ETHERS_ARRIVED");
 
         // track stopped validators
         for (uint i=0;i<_stoppedPubKeys.length;i++) {
@@ -520,41 +525,21 @@ contract RockXStaking is Initializable, PausableUpgradeable, AccessControlUpgrad
         recentStopped += _stoppedPubKeys.length;
 
         // NOTE(x) The following procedure MUST keep currentReserve unchanged:
+        // ASSUMING: paid == amountUnstaked
         // 
-        // (totalPending + _stoppedBalance - paid) + (totalStaked - amountUnstaked) + accountedUserRevenue - (rewardDebt + _stoppedBalance - amountUnstaked) - (totalDebts - paid)
+        // totalPending + (totalStaked - amountUnstaked) + accountedUserRevenue - rewardDebt - (totalDebts - paid)
         //  ==
         //  totalPending + totalStaked + accountedUserRevenue - totalDebts - rewardDebt
         //
 
         // pay debts
         uint256 paid = _payDebts(amountUnstaked);
-
-        // the remaining ethers are aggregated to totalPending
-        totalPending += _stoppedBalance - paid;
-
+        require(paid == amountUnstaked, "MALICIOUS_UNSTAKED_VALUE");
         // track total staked ethers
         totalStaked -= amountUnstaked;
-
-        // Extra value, which is more than debt clearance requirements,
-        // will be re-staked, but the rewards on this validators has already been distributed to accountedUserRevenue.
-        // so we need a compensation variable to balance this.
-        // NOTE(x): I name this value to be rewardDebts
-        rewardDebts += _stoppedBalance - amountUnstaked;
-
-        // Variables Compaction
-        // compact accountedUserRevenue & rewardDebt, so If
-        // accountedUserRevenue is >= 32 ETH, we're sure we can do auto-compound on
-        // user's accountedUserRevenue, because it only accrues when rewards increases.
-        if (accountedUserRevenue >= rewardDebts) {
-            accountedUserRevenue -= rewardDebts;
-            rewardDebts = 0;
-        } else {
-            rewardDebts -= accountedUserRevenue;
-            accountedUserRevenue = 0;
-        }
-
+        
         // log
-        emit ValidatorStopped(_stoppedPubKeys.length, _stoppedBalance);
+        emit ValidatorStopped(_stoppedPubKeys.length);
 
         // vector clock moves
         _vectorClockTick();
@@ -563,12 +548,11 @@ contract RockXStaking is Initializable, PausableUpgradeable, AccessControlUpgrad
     /**
      * @dev notify some validators has been slashed, turn off those stopped validator
      */
-    function validatorSlashedStop(bytes [] calldata _stoppedPubKeys, uint256 _remainingAmount, uint256 _slashedAmount, bytes32 clock) external nonReentrant onlyRole(ORACLE_ROLE) {
+    function validatorSlashedStop(bytes [] calldata _stoppedPubKeys, bytes32 clock) external nonReentrant onlyRole(ORACLE_ROLE) {
         require(vectorClock == clock, "CASUALITY_VIOLATION");
         uint256 amountUnstaked = _stoppedPubKeys.length * DEPOSIT_SIZE;
         require(_stoppedPubKeys.length > 0, "EMPTY_CALLDATA");
-        require(_slashedAmount + _remainingAmount >= amountUnstaked);
-        require(_currentEthersReceived() >= _remainingAmount, "INSUFFICIENT_ETHERS_PUSHED");
+        require(_currentEthersReceived() >= _stoppedPubKeys.length * 16 ether, "INSUFFICIENT_ETHERS_PUSHED");
 
         // record slashed validators.
         for (uint i=0;i<_stoppedPubKeys.length;i++) {
@@ -581,17 +565,16 @@ contract RockXStaking is Initializable, PausableUpgradeable, AccessControlUpgrad
         stoppedValidators += _stoppedPubKeys.length;
         recentStopped += _stoppedPubKeys.length;
 
-        // here we restake the remaining ethers by putting to totalPending
-        totalPending += _remainingAmount;
-
-        // track total staked ethers
+        // currentReserve changed to:
+        // (totalPending + 16 ETH) + (totalStaked - amountUnstaked) + accountedUserRevenue - rewardDebt - totalDebts
+        //  the remaining part(revenue) will be taken as the accruing rewards of existing holders.
         totalStaked -= amountUnstaked;
-
+        totalPending += _stoppedPubKeys.length * 16 ether;
         // track recent slashed
-        recentSlashed += _slashedAmount;
+        recentSlashed += _stoppedPubKeys.length * 16 ether;
 
         // log
-        emit ValidatorSlashedStopped(_stoppedPubKeys.length, _slashedAmount);
+        emit ValidatorSlashedStopped(_stoppedPubKeys.length);
         
         // vector clock moves
         _vectorClockTick();
@@ -987,9 +970,9 @@ contract RockXStaking is Initializable, PausableUpgradeable, AccessControlUpgrad
      * ======================================================================================
      */
     event ValidatorActivated(uint256 nextValidatorId);
-    event ValidatorStopped(uint256 stoppedCount, uint256 stoppedBalance);
+    event ValidatorStopped(uint256 stoppedCount);
     event RevenueAccounted(uint256 amount);
-    event ValidatorSlashedStopped(uint256 stoppedCount, uint256 slashed);
+    event ValidatorSlashedStopped(uint256 stoppedCount);
     event ManagerAccountSet(address account);
     event ManagerFeeSet(uint256 milli);
     event ManagerFeeWithdrawed(uint256 amount, address);
