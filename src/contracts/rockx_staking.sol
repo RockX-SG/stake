@@ -489,7 +489,7 @@ contract RockXStaking is Initializable, PausableUpgradeable, AccessControlUpgrad
         require(_aliveBalance + recentReceived + recentSlashed >= rewardBase, "NOT_ENOUGH_REVENUE");
         uint256 rewards = _aliveBalance + recentReceived + recentSlashed - rewardBase;
         // If pushBeacon has called before validatorStopped/validatorSlashedStop, this may appear. 
-        //require(rewards * 1000 / currentReserve() < 5, "MALICIOUS_PUSH");
+        require(rewards * 1000 / currentReserve() < 5, "MALICIOUS_PUSH");
 
         _distributeRewards(rewards);
         _autocompound();
