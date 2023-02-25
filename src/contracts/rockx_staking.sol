@@ -890,12 +890,14 @@ contract RockXStaking is Initializable, PausableUpgradeable, AccessControlUpgrad
      * @dev auto compounding, after shanghai merge, called in pushBeacon
      */
     function _autocompound() internal {
-        if (autoCompoundEnabled 
-        // contract balance consists of maximum:
-        // validator assets to clear debts, rewards after shanghai merge(compound), user's pending ethers to mint and manager's revenue.
-        && address(this).balance >= totalPending + accountedManagerRevenue + totalDebts + DEPOSIT_SIZE) {
-            totalPending += DEPOSIT_SIZE;
-            rewardDebts += DEPOSIT_SIZE;
+        if (autoCompoundEnabled) {
+            // contract balance consists of maximum:
+            // validator assets to clear debts, rewards after shanghai merge(compound), user's pending ethers to mint and manager's revenue.
+            if (address(this).balance >= totalPending + accountedManagerRevenue + totalDebts) {
+                uint256 compound = address(this).balance - totalPending - accountedManagerRevenue - totalDebts;
+                totalPending += compound;
+                rewardDebts += compound;
+            }
         }
     }
 

@@ -107,15 +107,12 @@ def main():
     print("Pending:", transparent_staking.getPendingEthers())
     transparent_staking.mint('32 ether', time.time() + 600, {'from':owner, 'value': '32 ether'})
     transparent_staking.stake({'from':owner})
-    print("Pending:", transparent_staking.getPendingEthers())
 
     print("===== autocompound========")
+    print("pending:", transparent_staking.getPendingEthers())
     print("transfer 40 ether:")
     accounts[5].transfer(transparent_staking.address, '40 ethers')
     transparent_staking.toggleAutoCompound({'from':owner})
-    print("totalStaked:", transparent_staking.getTotalStaked())
     transparent_staking.pushBeacon(1, '32 ethers', transparent_staking.getVectorClock(), {'from':owner})
-    print("stake()")
-    transparent_staking.stake({'from':owner})
-    print("totalStaked:", transparent_staking.getTotalStaked())
+    print("pending:", transparent_staking.getPendingEthers())
 
