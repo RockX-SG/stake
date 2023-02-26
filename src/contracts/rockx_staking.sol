@@ -834,7 +834,7 @@ contract RockXStaking is Initializable, PausableUpgradeable, AccessControlUpgrad
     }
 
     function _dequeueDebt() internal returns (Debt memory debt) {
-        require(lastDebt >= firstDebt);  // non-empty queue
+        require(lastDebt >= firstDebt, "EMPTY_QUEUE");  // non-empty queue
         debt = etherDebts[firstDebt];
         delete etherDebts[firstDebt];
         firstDebt += 1;
