@@ -414,6 +414,7 @@ contract RockXStaking is Initializable, PausableUpgradeable, AccessControlUpgrad
             toMint = totalXETH * amount / totalEthers;
         }
 
+        // NOTE: the following procdure must keep exchangeRatio invariant:
         // mint equivalent `uniETH` to `amount`
         IMintableContract(xETHAddress).mint(to, toMint);
 
@@ -785,7 +786,8 @@ contract RockXStaking is Initializable, PausableUpgradeable, AccessControlUpgrad
         uint256 totalXETH = IERC20(xETHAddress).totalSupply();
         uint256 xETHToBurn = totalXETH * ethersToRedeem / currentReserve();
         require(xETHToBurn <= maxToBurn, "EXCHANGE_RATIO_MISMATCH");
-        
+
+        // NOTE: the following procdure must keep exchangeRatio invariant:
         // transfer xETH from sender & burn
         IERC20(xETHAddress).safeTransferFrom(msg.sender, address(this), xETHToBurn);
         IMintableContract(xETHAddress).burn(xETHToBurn);
