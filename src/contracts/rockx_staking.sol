@@ -489,8 +489,11 @@ contract RockXStaking is Initializable, PausableUpgradeable, AccessControlUpgrad
 
         require(_aliveBalance + recentReceived + recentSlashed >= rewardBase, "SYS015");
         uint256 rewards = _aliveBalance + recentReceived + recentSlashed - rewardBase;
-        // If pushBeacon has called before validatorStopped/validatorSlashedStop, this may appear. 
-        require(rewards * 1000 / currentReserve() < 5, "SYS016");
+        if (totalDebts > 0) {
+            // as we cannot differentiate the ethers from full withdrawal & partial withdrawal,
+            // to make sure we only take partial withdrawal(revenue) into reward calculation
+            require(rewards * 1000 / currentReserve() < 5, "SYS016");
+        }
 
         _distributeRewards(rewards);
         _autocompound();
