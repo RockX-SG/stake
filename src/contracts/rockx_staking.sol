@@ -900,8 +900,8 @@ contract RockXStaking is Initializable, PausableUpgradeable, AccessControlUpgrad
             // contract balance consists of maximum:
             // validator assets to clear debts, rewards after shanghai merge(compound), user's pending ethers to mint and manager's revenue.
             // autocompound & payDebts will race to use the incoming ethers, but eventually both will succeed.
-            uint256 maxCompound = accountedUserRevenue - rewardDebts;
             if (address(this).balance > accountedManagerRevenue + totalPending) {
+                uint256 maxCompound = accountedUserRevenue - rewardDebts;
                 uint256 maxUsable = address(this).balance - accountedManagerRevenue - totalPending;
                 uint256 effectiveEthers = maxCompound < maxUsable? maxCompound:maxUsable;
                 totalPending += effectiveEthers;
