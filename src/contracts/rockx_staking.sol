@@ -515,7 +515,7 @@ contract RockXStaking is Initializable, PausableUpgradeable, AccessControlUpgrad
         uint256 amountUnstaked = _stoppedPubKeys.length * DEPOSIT_SIZE;
         require(_stoppedPubKeys.length > 0, "SYS017");
         require(_stoppedPubKeys.length + stoppedValidators <= nextValidatorId, "SYS018");
-        require(_currentEthersReceived() >= amountUnstaked, "SYS019");
+        require(address(this).balance >= amountUnstaked + totalPending + accountedManagerRevenue, "SYS019");
 
         // track stopped validators
         for (uint i=0;i<_stoppedPubKeys.length;i++) {
@@ -556,7 +556,7 @@ contract RockXStaking is Initializable, PausableUpgradeable, AccessControlUpgrad
         require(vectorClock == clock, "SYS012");
         uint256 amountUnstaked = _stoppedPubKeys.length * DEPOSIT_SIZE;
         require(_stoppedPubKeys.length > 0, "SYS017");
-        require(_currentEthersReceived() >= _stoppedPubKeys.length * 16 ether, "SYS019");
+        require(address(this).balance >= _stoppedPubKeys.length * 16 ether + totalPending + accountedManagerRevenue, "SYS019");
 
         // record slashed validators.
         for (uint i=0;i<_stoppedPubKeys.length;i++) {
@@ -618,6 +618,11 @@ contract RockXStaking is Initializable, PausableUpgradeable, AccessControlUpgrad
      * @dev return pending ethers
      */
     function getPendingEthers() external view returns (uint256) { return totalPending; }
+
+    /**
+     * @dev return reward debts
+     */
+    function getRewardDebts() external view returns (uint256) { return rewardDebts; }
 
     /**
      * @dev return current debts
@@ -818,10 +823,6 @@ contract RockXStaking is Initializable, PausableUpgradeable, AccessControlUpgrad
         vectorClock = keccak256(abi.encodePacked(vectorClock, block.timestamp, vectorClockTicks));
     }
 
-    function _currentEthersReceived() internal view returns(uint256) {
-        return address(this).balance - totalPending;
-    }
-        
     function _enqueueDebt(address account, uint256 amount) internal {
         // debt is paid in FIFO queue
         lastDebt += 1;
@@ -898,10 +899,13 @@ contract RockXStaking is Initializable, PausableUpgradeable, AccessControlUpgrad
         if (autoCompoundEnabled) {
             // contract balance consists of maximum:
             // validator assets to clear debts, rewards after shanghai merge(compound), user's pending ethers to mint and manager's revenue.
-            if (address(this).balance >= totalPending + accountedManagerRevenue + totalDebts) {
-                uint256 compound = address(this).balance - totalPending - accountedManagerRevenue - totalDebts;
-                totalPending += compound;
-                rewardDebts += compound;
+            // autocompound & payDebts will race to use the incoming ethers, but eventually both will succeed.
+            uint256 maxCompound = accountedUserRevenue - rewardDebts;
+            if (address(this).balance > accountedManagerRevenue + totalPending) {
+                uint256 maxUsable = address(this).balance - accountedManagerRevenue - totalPending;
+                uint256 effectiveEthers = maxCompound < maxUsable? maxCompound:maxUsable;
+                totalPending += effectiveEthers;
+                rewardDebts += effectiveEthers;
             }
         }
     }
