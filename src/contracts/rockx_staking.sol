@@ -444,11 +444,25 @@ contract RockXStaking is Initializable, PausableUpgradeable, AccessControlUpgrad
             emit BalanceSynced(diff);
         }
     }
+    
+    /**
+     * @dev operator reports current alive validators count and overall balance
+     * with default appreciation limit
+     */
+    function pushBeacon(uint256 _aliveValidators, uint256 _aliveBalance, bytes32 clock) external onlyRole(ORACLE_ROLE) {
+        _pushBeacon(_aliveValidators, _aliveBalance, clock, 5);
+    }
 
     /**
      * @dev operator reports current alive validators count and overall balance
+     * with custom appreciation limit
      */
-    function pushBeacon(uint256 _aliveValidators, uint256 _aliveBalance, bytes32 clock) external onlyRole(ORACLE_ROLE) {
+    function pushBeacon(uint256 _aliveValidators, uint256 _aliveBalance, bytes32 clock, uint256 limit) external onlyRole(ORACLE_ROLE) {
+        _pushBeacon(_aliveValidators, _aliveBalance, clock, limit);
+    }
+
+
+    function _pushBeacon(uint256 _aliveValidators, uint256 _aliveBalance, bytes32 clock, uint256 limit) internal {
         require(vectorClock == clock, "SYS012");
         require(_aliveValidators + stoppedValidators <= nextValidatorId, "SYS013");
         require(_aliveBalance >= _aliveValidators * DEPOSIT_SIZE, "SYS014");
@@ -492,7 +506,7 @@ contract RockXStaking is Initializable, PausableUpgradeable, AccessControlUpgrad
         if (totalDebts > 0) {
             // as we cannot differentiate the ethers from full withdrawal & partial withdrawal,
             // to make sure we only take partial withdrawal(revenue) into reward calculation
-            require(rewards * 1000 / currentReserve() < 5, "SYS016");
+            require(rewards * 1000 / currentReserve() < limit, "SYS016");
         }
 
         _distributeRewards(rewards);
