@@ -55,6 +55,9 @@ def main():
     print("RockXStaking address:", transparent_staking)
     print("Redeem address:", transparent_redeem)
 
+    transparent_redeem.initialize(
+            {'from': owner}
+            )
     transparent_xeth.initialize(
             {'from': owner}
             )

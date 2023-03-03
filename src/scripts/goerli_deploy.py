@@ -60,6 +60,9 @@ def main():
     transparent_xeth.initialize(
             {'from': owner}
             )
+    transparent_redeem.initialize(
+            {'from': owner}
+            )
     transparent_xeth.setMintable(
             staking_proxy, True,
             {'from': owner}

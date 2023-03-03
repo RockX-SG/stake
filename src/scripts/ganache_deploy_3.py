@@ -67,6 +67,9 @@ def main():
             {'from': owner}
             ) 
 
+    transparent_redeem.initialize(
+            {'from': owner}
+            )
     transparent_staking.setXETHContractAddress(
             transparent_xeth,
             {'from': owner}
