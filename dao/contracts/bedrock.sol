@@ -3,13 +3,13 @@ pragma solidity ^0.8.9;
 
 import "@openzeppelin/contracts-upgradeable/governance/GovernorUpgradeable.sol";
 import "@openzeppelin/contracts-upgradeable/governance/extensions/GovernorSettingsUpgradeable.sol";
-import "@openzeppelin/contracts-upgradeable/governance/compatibility/GovernorCompatibilityBravoUpgradeable.sol";
+import "@openzeppelin/contracts-upgradeable/governance/extensions/GovernorCountingSimpleUpgradeable.sol";
 import "@openzeppelin/contracts-upgradeable/governance/extensions/GovernorVotesUpgradeable.sol";
 import "@openzeppelin/contracts-upgradeable/governance/extensions/GovernorVotesQuorumFractionUpgradeable.sol";
 import "@openzeppelin/contracts-upgradeable/governance/extensions/GovernorTimelockControlUpgradeable.sol";
 import "@openzeppelin/contracts-upgradeable/proxy/utils/Initializable.sol";
 
-contract BedrockGovernor is Initializable, GovernorUpgradeable, GovernorSettingsUpgradeable, GovernorCompatibilityBravoUpgradeable, GovernorVotesUpgradeable, GovernorVotesQuorumFractionUpgradeable, GovernorTimelockControlUpgradeable {
+contract BedrockGovernor is Initializable, GovernorUpgradeable, GovernorSettingsUpgradeable, GovernorCountingSimpleUpgradeable, GovernorVotesUpgradeable, GovernorVotesQuorumFractionUpgradeable, GovernorTimelockControlUpgradeable {
     /// @custom:oz-upgrades-unsafe-allow constructor
     constructor() {
         _disableInitializers();
@@ -20,7 +20,7 @@ contract BedrockGovernor is Initializable, GovernorUpgradeable, GovernorSettings
     {
         __Governor_init("BedrockGovernor");
         __GovernorSettings_init(1 /* 1 block */, 50400 /* 1 week */, 0);
-        __GovernorCompatibilityBravo_init();
+        __GovernorCountingSimple_init();
         __GovernorVotes_init(_token);
         __GovernorVotesQuorumFraction_init(4);
         __GovernorTimelockControl_init(_timelock);
@@ -58,7 +58,7 @@ contract BedrockGovernor is Initializable, GovernorUpgradeable, GovernorSettings
     function state(uint256 proposalId)
         public
         view
-        override(GovernorUpgradeable, IGovernorUpgradeable, GovernorTimelockControlUpgradeable)
+        override(GovernorUpgradeable, GovernorTimelockControlUpgradeable)
         returns (ProposalState)
     {
         return super.state(proposalId);
@@ -66,7 +66,7 @@ contract BedrockGovernor is Initializable, GovernorUpgradeable, GovernorSettings
 
     function propose(address[] memory targets, uint256[] memory values, bytes[] memory calldatas, string memory description)
         public
-        override(GovernorUpgradeable, GovernorCompatibilityBravoUpgradeable, IGovernorUpgradeable)
+        override(GovernorUpgradeable, IGovernorUpgradeable)
         returns (uint256)
     {
         return super.propose(targets, values, calldatas, description);
@@ -108,7 +108,7 @@ contract BedrockGovernor is Initializable, GovernorUpgradeable, GovernorSettings
     function supportsInterface(bytes4 interfaceId)
         public
         view
-        override(GovernorUpgradeable, IERC165Upgradeable, GovernorTimelockControlUpgradeable)
+        override(GovernorUpgradeable, GovernorTimelockControlUpgradeable)
         returns (bool)
     {
         return super.supportsInterface(interfaceId);
