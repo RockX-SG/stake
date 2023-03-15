@@ -1,4 +1,4 @@
-# Stake
+# RockX Liquid Staking
 
 ## Usage
 
