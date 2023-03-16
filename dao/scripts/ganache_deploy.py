@@ -14,7 +14,7 @@ def main():
 
     print(f'contract owner account: {owner.address}\n')
 
-    token_contract = BedrockDAO.deploy(
+    token_contract = BedrockDAOToken.deploy(
             {'from': deployer})
 
     token_proxy =  TransparentUpgradeableProxy.deploy(
@@ -36,7 +36,7 @@ def main():
             {'from': owner})
 
 
-    transparent_token = Contract.from_abi("BedrockDAO", token_proxy.address, BedrockDAO.abi)
+    transparent_token = Contract.from_abi("BedrockDAOToken", token_proxy.address, BedrockDAOToken.abi)
     transparent_token.initialize( {'from': owner})
 
     transparent_govern = Contract.from_abi("BedrockGovernor", govern_proxy.address, BedrockGovernor.abi)

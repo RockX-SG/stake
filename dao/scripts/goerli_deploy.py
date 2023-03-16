@@ -6,8 +6,9 @@ from pathlib import Path
 import time
 import pytest
 
+shouldPublishSource = False
+#priority_fee("80 gwei")
 def main():
-    priority_fee("80 gwei")
     deps = project.load(  Path.home() / ".brownie" / "packages" / config["dependencies"][0])
     TransparentUpgradeableProxy = deps.TransparentUpgradeableProxy
 
@@ -16,28 +17,28 @@ def main():
 
     print(f'contract owner account: {owner.address}\n')
 
-    token_contract = BedrockDAO.deploy(
-            {'from': deployer}, publish_source=True)
+    token_contract = BedrockDAOToken.deploy(
+            {'from': deployer}, publish_source=shouldPublishSource)
 
     token_proxy =  TransparentUpgradeableProxy.deploy(
             token_contract, deployer, b'',
-            {'from': deployer}, publish_source=True)
+            {'from': deployer}, publish_source=shouldPublishSource)
 
     govern_contract = BedrockGovernor.deploy(
-            {'from': deployer}, publish_source=True)
+            {'from': deployer}, publish_source=shouldPublishSource)
 
     govern_proxy = TransparentUpgradeableProxy.deploy(
             govern_contract, deployer, b'',
-            {'from': deployer}, publish_source=True)
+            {'from': deployer}, publish_source=shouldPublishSource)
 
     timelock = TimeLock.deploy(
             86400*1,
             [govern_proxy.address],
             ["0x0000000000000000000000000000000000000000"],
             owner,
-            {'from': deployer}, publish_source=True)
+            {'from': deployer}, publish_source=shouldPublishSource)
 
-    transparent_token = Contract.from_abi("BedrockDAO", token_proxy.address, BedrockDAO.abi)
+    transparent_token = Contract.from_abi("BedrockDAOToken", token_proxy.address, BedrockDAOToken.abi)
     transparent_govern = Contract.from_abi("BedrockGovernor", govern_proxy.address, BedrockGovernor.abi)
 
     print("TOKEN ADDRESS:", transparent_token)
