@@ -32,7 +32,7 @@ contract RockXRedeem is IRockXRedeem, Initializable, PausableUpgradeable, Reentr
     function totalSupply() external view returns (uint256) { return totalBalance; }
     function balanceOf(address account) external view returns(uint256) { return balances[account]; }
 
-    function transfer(address to, uint256 amount) public nonReentrant returns (bool success) {
+    function claim(address to, uint256 amount) public nonReentrant returns (bool success) {
         // check
         require(balances[msg.sender] >= amount, "INSUFFICIENT_BALANCE");
 
@@ -42,7 +42,7 @@ contract RockXRedeem is IRockXRedeem, Initializable, PausableUpgradeable, Reentr
         payable(to).sendValue(amount);
 
         // log
-        emit Transfer(msg.sender, to, amount);
+        emit Claimed(msg.sender, to, amount);
         return true;
     }
 
@@ -57,9 +57,6 @@ contract RockXRedeem is IRockXRedeem, Initializable, PausableUpgradeable, Reentr
         emit Paied(account, msg.value);
     }
 
-    /**
-     * @dev balance of claimable debts
-     */
     event Paied(address account, uint256 amount);
-    event Transfer(address indexed _from, address indexed _to, uint256 _value);
+    event Claimed(address indexed _from, address indexed _to, uint256 _value);
 }
