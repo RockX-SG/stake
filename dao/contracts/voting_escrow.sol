@@ -131,7 +131,9 @@ contract VotingEscrow is IVotingEscrow, Initializable, PausableUpgradeable, Acce
         _unpause();
     }
 
-    /// @notice Public function to trigger global checkpoint
+    /**
+     * @notice Public function to trigger global checkpoint
+     */
     function checkpoint() external {
         LockedBalance memory empty;
         _checkpoint(address(0), empty, empty);
@@ -223,7 +225,7 @@ contract VotingEscrow is IVotingEscrow, Initializable, PausableUpgradeable, Acce
 
     /**
      * @dev Withdraws all the senders stake, providing lockup is over
-    * @param _account User for which to withdraw
+     * @param _account User for which to withdraw
      */
     function withdraw(address _account) 
         external

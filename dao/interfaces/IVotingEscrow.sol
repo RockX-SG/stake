@@ -25,17 +25,16 @@ interface IVotingEscrow {
     /// @notice Locks more tokens in an existing lock
     /// @param _value Additional units of `token` to add to the lock
     /// @dev Does not update the lock's expiration.
-    /// @dev Does increase the user's voting power, or the delegatee's voting power.
+    /// @dev Does increase the user's voting power
     function increaseLockAmount(address _account, uint256 _value) external;
 
     /// @notice Extends the expiration of an existing lock
     /// @param _unlockTime New lock expiration time
     /// @dev Does not update the amount of tokens locked.
-    /// @dev Does increase the user's voting power, unless lock is delegated.
+    /// @dev Does increase the user's voting power
     function increaseLockLength(address _account, uint256 _unlockTime) external;
 
     /// @notice Withdraws all the senders tokens, providing lockup is over
-    /// @dev Delegated locks need to be undelegated first.
     function withdraw(address _account) external;
 
     /// @notice Get current user voting power
