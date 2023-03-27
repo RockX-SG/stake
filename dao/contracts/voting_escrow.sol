@@ -1,4 +1,4 @@
-// SPDX-License-Identifier: MIT
+// SPDX-License-Identifier: AGPL-3.0-or-later
 // ⡀⡀⡀⡀⡀⡀⡀⡀⡀⡀⡀⡀⡀⡀⡀⡀⡀⡀⡀⡀⡀⡀⡀⡀⡀⡀⡀⡀⡀⡀⡀⡀⡀⡀⡀⡀⡀⡀⡀⡀⡀⡀⡀⡀⡀⡀⡀⡀⡀⡀⡀⡀
 // ⡀⡀⡀⡀⡀⡀⡀⡀⡀⡀⡀⡀⡀⡀⡀⡀⡀⡀⡀⡀⡀⡀⡀⡀⡀⡀⡀⡀⡀⡀⡀⡀⡀⡀⡀⡀⡀⡀⡀⡀⡀⡀⡀⡀⡀⡀⡀⡀⡀⡀⡀⡀
 // ⡀⡀⡀⡀⡀⡀⡀⡀⡀⡀⡀⡀⡀⡀⡀⡀⡀⡀⡀⡀⡀⡀⡀⡀⡀⡀⡀⡀⡀⡀⢠⣤⣤⣤⡀⡀⡀⡀⡀⡀⡀⡀⡀⡀⡀⡀⡀⡀⡀⡀⡀⡀
@@ -19,12 +19,15 @@ import "@openzeppelin/contracts-upgradeable/security/ReentrancyGuardUpgradeable.
 import "@openzeppelin/contracts-upgradeable/security/PausableUpgradeable.sol";
 import "@openzeppelin/contracts-upgradeable/access/AccessControlUpgradeable.sol";
 import "@openzeppelin/contracts-upgradeable/proxy/utils/Initializable.sol";
+import "@openzeppelin/contracts/utils/math/SafeCast.sol";
 
 /**
  * @title Rockx Liquid Staking Voting Escrow
- * @author Curve Finance (MIT) - original concept and implementation in Vyper
- *             (see https://github.com/curvefi/curve-dao-contracts/blob/master/contracts/VotingEscrow.vy)
- *         RockX Team - porting to Solidity 
+ * @author  Curve Finance (MIT) - original concept and implementation in Vyper
+ *              (see https://github.com/curvefi/curve-dao-contracts/blob/master/contracts/VotingEscrow.vy)
+ *          mStable (AGPL) - forking Curve's Vyper contract and porting to Solidity
+ *              (see https://github.com/mstable/mStable-contracts/blob/master/contracts/governance/IncentivisedVotingLockup.sol)
+ *          RockX Team - this version
  * @notice Adjustments
  *          1) virtual locking, this contract does not hold any assets, while farming protocol does,
  *               this enhanced the flexbility of veToken.
@@ -35,10 +38,26 @@ contract VotingEscrow is IVotingEscrow, Initializable, PausableUpgradeable, Acce
     bytes32 public constant PAUSER_ROLE = keccak256("PAUSER_ROLE");
     bytes32 public constant FARM_ROLE = keccak256("FARM_ROLE");
     
+    uint256 public constant WEEK = 7 days;
+    uint256 public constant MAXTIME = 365 days;
+    uint256 public constant MULTIPLIER = 10**18;
+    
     enum LockAction {
         CREATE_LOCK,
         INCREASE_AMOUNT,
         INCREASE_TIME
+    }
+    
+    struct Point {
+        int128 bias;
+        int128 slope;
+        uint256 ts;
+        uint256 blk;
+    }
+
+    struct LockedBalance {
+        int128 amount;
+        uint256 end;
     }
 
     // Lock state
@@ -54,24 +73,6 @@ contract VotingEscrow is IVotingEscrow, Initializable, PausableUpgradeable, Acce
     string public symbol;
     uint256 public decimals = 18;
 
-    // Structs
-    struct Point {
-        int128 bias;
-        int128 slope;
-        uint256 ts;
-        uint256 blk;
-    }
-
-    struct LockedBalance {
-        int128 amount;
-        uint256 end;
-    }
-
-    // Shared global state
-    uint256 public constant WEEK = 7 days;
-    uint256 public constant MAXTIME = 365 days;
-    uint256 public constant MULTIPLIER = 10**18;
-
     /// @custom:oz-upgrades-unsafe-allow constructor
     constructor() {
         _disableInitializers();
@@ -82,11 +83,12 @@ contract VotingEscrow is IVotingEscrow, Initializable, PausableUpgradeable, Acce
         string memory _symbol) initializer public {
         __Pausable_init();
         __AccessControl_init();
+        __ReentrancyGuard_init();
 
         _grantRole(DEFAULT_ADMIN_ROLE, msg.sender);
         _grantRole(PAUSER_ROLE, msg.sender);
         
-        // token name init
+        // set token names
         name = _name;
         symbol = _symbol;
 
@@ -97,6 +99,7 @@ contract VotingEscrow is IVotingEscrow, Initializable, PausableUpgradeable, Acce
             ts: block.timestamp,
             blk: block.number
         });
+
         pointHistory.push(init);
     }
   
@@ -237,7 +240,7 @@ contract VotingEscrow is IVotingEscrow, Initializable, PausableUpgradeable, Acce
         require(block.timestamp >= oldLock.end, "The lock didn't expire");
         require(oldLock.amount > 0, "Must have something to withdraw");
 
-        uint256 value = uint256(int256(oldLock.amount));
+        uint256 value = SafeCast.toUint256(oldLock.amount);
 
         LockedBalance memory currentLock = LockedBalance({ end: 0, amount: 0 });
         locked[_account] = currentLock;
@@ -257,51 +260,52 @@ contract VotingEscrow is IVotingEscrow, Initializable, PausableUpgradeable, Acce
 
     /**
      * @notice Returns the last available user point for a user
-     * @param account User address
+     * @param _account User address
      * @return bias i.e. y
      * @return slope i.e. linear gradient
      * @return ts i.e. time point was logged
      */
-    function getLastUserPoint(address account) external view returns (
+    function getLastUserPoint(address _account) external view returns (
         int128 bias,
         int128 slope,
         uint256 ts
     ) {
-        uint256 uepoch = userPointEpoch[account];
+        uint256 uepoch = userPointEpoch[_account];
         if (uepoch == 0) {
             return (0, 0, 0);
         }
-        Point memory point = userPointHistory[account][uepoch];
+        Point memory point = userPointHistory[_account][uepoch];
         return (point.bias, point.slope, point.ts);
     }
 
     /**
      * @dev Get current user voting power
-     * @param account User for which to return the voting power
+     * @param _account User for which to return the voting power
      * @return Voting power of user
      */
-    function balanceOf(address account) public view override returns (uint256) {
-        uint256 epoch = userPointEpoch[account];
+    function balanceOf(address _account) public view override returns (uint256) {
+        uint256 epoch = userPointEpoch[_account];
         if (epoch == 0) {
             return 0;
         }
-        Point memory lastPoint = userPointHistory[account][epoch];
+        Point memory lastPoint = userPointHistory[_account][epoch];
         lastPoint.bias =
             lastPoint.bias -
-            (lastPoint.slope * int128(int256(block.timestamp - lastPoint.ts)));
+            (lastPoint.slope * SafeCast.toInt128(int256(block.timestamp - lastPoint.ts)));
         if (lastPoint.bias < 0) {
             lastPoint.bias = 0;
         }
-        return uint256(uint128(lastPoint.bias));
+        
+        return SafeCast.toUint256(lastPoint.bias);
     }
 
     /**
      * @dev Get users voting power at a given blockNumber
-     * @param _owner User for which to return the voting power
+     * @param _account User for which to return the voting power
      * @param _blockNumber Block at which to calculate voting power
      * @return uint256 Voting power of user
      */
-    function balanceOfAt(address _owner, uint256 _blockNumber)
+    function balanceOfAt(address _account, uint256 _blockNumber)
         public
         view
         override
@@ -310,11 +314,11 @@ contract VotingEscrow is IVotingEscrow, Initializable, PausableUpgradeable, Acce
         require(_blockNumber <= block.number, "Only past block number");
 
         // Get most recent user Point to block
-        uint256 userEpoch = _findUserBlockEpoch(_owner, _blockNumber);
+        uint256 userEpoch = _findUserBlockEpoch(_account, _blockNumber);
         if (userEpoch == 0) {
             return 0;
         }
-        Point memory upoint = userPointHistory[_owner][userEpoch];
+        Point memory upoint = userPointHistory[_account][userEpoch];
 
         // Get most recent global Point to block
         uint256 maxEpoch = globalEpoch;
@@ -344,9 +348,9 @@ contract VotingEscrow is IVotingEscrow, Initializable, PausableUpgradeable, Acce
         // Current Bias = most recent bias - (slope * time since update)
         upoint.bias =
             upoint.bias -
-            (upoint.slope * int128(int256(blockTime - upoint.ts)));
+            (upoint.slope * SafeCast.toInt128(int256(blockTime - upoint.ts)));
         if (upoint.bias >= 0) {
-            return uint256(uint128(upoint.bias));
+            return SafeCast.toUint256(upoint.bias);
         } else {
             return 0;
         }
@@ -432,7 +436,7 @@ contract VotingEscrow is IVotingEscrow, Initializable, PausableUpgradeable, Acce
         });
 
         // Adding to existing lock, or if a lock is expired - creating a new one
-        newLocked.amount = newLocked.amount + int128(int256(_value));
+        newLocked.amount = newLocked.amount + SafeCast.toInt128(int256(_value));
         if (_unlockTime != 0) {
             newLocked.end = _unlockTime;
         }
@@ -468,20 +472,16 @@ contract VotingEscrow is IVotingEscrow, Initializable, PausableUpgradeable, Acce
             // Calculate slopes and biases
             // Kept at zero when they have to
             if (_oldLocked.end > block.timestamp && _oldLocked.amount  > 0) {
-                userOldPoint.slope =
-                    _oldLocked.amount /
-                    int128(int256(MAXTIME));
+                userOldPoint.slope = _oldLocked.amount / SafeCast.toInt128(int256(MAXTIME));
                 userOldPoint.bias =
                     userOldPoint.slope *
-                    int128(int256(_oldLocked.end - block.timestamp));
+                    SafeCast.toInt128(int256(_oldLocked.end - block.timestamp));
             }
             if (_newLocked.end > block.timestamp && _newLocked.amount  > 0) {
-                userNewPoint.slope =
-                    _newLocked.amount /
-                    int128(int256(MAXTIME));
+                userNewPoint.slope = _newLocked.amount / SafeCast.toInt128(int256(MAXTIME));
                 userNewPoint.bias =
                     userNewPoint.slope *
-                    int128(int256(_newLocked.end - block.timestamp));
+                    SafeCast.toInt128(int256(_newLocked.end - block.timestamp));
             }
 
             // Moved from bottom final if statement to resolve stack too deep err
@@ -550,15 +550,16 @@ contract VotingEscrow is IVotingEscrow, Initializable, PausableUpgradeable, Acce
             } else {
                 dSlope = slopeChanges[iterativeTime];
             }
-            int128 biasDelta =
-                lastPoint.slope *
-                    int128(int256((iterativeTime - lastCheckpoint)));
+
+            int128 biasDelta = lastPoint.slope * SafeCast.toInt128(int256((iterativeTime - lastCheckpoint)));
             lastPoint.bias = lastPoint.bias - biasDelta;
             lastPoint.slope = lastPoint.slope + dSlope;
+
             // This can happen
             if (lastPoint.bias < 0) {
                 lastPoint.bias = 0;
             }
+
             // This cannot happen - just in case
             if (lastPoint.slope < 0) {
                 lastPoint.slope = 0;
@@ -586,14 +587,8 @@ contract VotingEscrow is IVotingEscrow, Initializable, PausableUpgradeable, Acce
         if (_addr != address(0)) {
             // If last point was in this block, the slope change has been applied already
             // But in such case we have 0 slope(s)
-            lastPoint.slope =
-                lastPoint.slope +
-                userNewPoint.slope -
-                userOldPoint.slope;
-            lastPoint.bias =
-                lastPoint.bias +
-                userNewPoint.bias -
-                userOldPoint.bias;
+            lastPoint.slope = lastPoint.slope + userNewPoint.slope - userOldPoint.slope;
+            lastPoint.bias = lastPoint.bias + userNewPoint.bias - userOldPoint.bias;
             if (lastPoint.slope < 0) {
                 lastPoint.slope = 0;
             }
@@ -725,8 +720,7 @@ contract VotingEscrow is IVotingEscrow, Initializable, PausableUpgradeable, Acce
 
             lastPoint.bias =
                 lastPoint.bias -
-                (lastPoint.slope *
-                    int128(int256(iterativeTime - lastPoint.ts)));
+                (lastPoint.slope * SafeCast.toInt128(int256(iterativeTime - lastPoint.ts)));
             if (iterativeTime == _t) {
                 break;
             }
@@ -737,7 +731,7 @@ contract VotingEscrow is IVotingEscrow, Initializable, PausableUpgradeable, Acce
         if (lastPoint.bias < 0) {
             lastPoint.bias = 0;
         }
-        return uint256(uint128(lastPoint.bias));
+        return SafeCast.toUint256(lastPoint.bias);
     }
 
     /**
