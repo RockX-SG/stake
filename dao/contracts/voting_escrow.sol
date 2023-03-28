@@ -30,8 +30,8 @@ import "@openzeppelin/contracts/utils/math/SafeCast.sol";
  *          RockX Team - this version
  * @notice Adjustments
  *          1) virtual locking, this contract does not hold any assets, while farming protocol does,
- *               this enhanced the flexbility of veToken.
- *          2) role based, only eligible contracts(farming protocol) can create/extend locks.
+ *               this enhances the flexbility of veToken.
+ *          2) role based, only authorized contracts(farming protocol) can create/extend locks.
  */
 
 contract VotingEscrow is IVotingEscrow, Initializable, PausableUpgradeable, AccessControlUpgradeable, ReentrancyGuardUpgradeable {
