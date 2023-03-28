@@ -634,7 +634,7 @@ contract VotingEscrow is IVotingEscrow, Initializable, PausableUpgradeable, Acce
      */
     /**
      * @dev Floors a timestamp to the nearest weekly increment
-     * @param ——t Timestamp to floor
+     * @param _t Timestamp to floor
      */
     function _floorToWeek(uint256 _t) internal pure returns (uint256) {
         return (_t / WEEK) * WEEK;
