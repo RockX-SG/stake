@@ -104,11 +104,11 @@ contract VotingEscrow is IVotingEscrow, Initializable, PausableUpgradeable, Acce
     }
   
     /** 
-     * ======================================================================================
+     * ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
      * 
-     * CONTRACT MANAGEMENT
+     *      CONTRACT MANAGEMENT
      * 
-     * ======================================================================================
+     * ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
      */
     /**
      * @dev This contract will not accept direct ETH transactions.
@@ -140,11 +140,12 @@ contract VotingEscrow is IVotingEscrow, Initializable, PausableUpgradeable, Acce
     }
 
     /** 
-     * ======================================================================================
+     * ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
      * 
-     *     USER LOCK MANAGEMENT
+     *      ACCOUNT LOCK MANAGEMENT VIA FARMING POOL
+     *          OPERATED BY EXTERNAL CONTRACT
      * 
-     * ======================================================================================
+     * ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
      */
      /**
      * @dev Creates a new lock
@@ -253,11 +254,11 @@ contract VotingEscrow is IVotingEscrow, Initializable, PausableUpgradeable, Acce
     }
     
     /** 
-     * ======================================================================================
+     * ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
      * 
-     *     PUBLIC VIEW FUNCTIONS
+     *     EXTERNAL VIEW FUNCTIONS
      * 
-     * ======================================================================================
+     * ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
      */
 
     /**
@@ -285,7 +286,7 @@ contract VotingEscrow is IVotingEscrow, Initializable, PausableUpgradeable, Acce
      * @param _account User for which to return the voting power
      * @return Voting power of user
      */
-    function balanceOf(address _account) public view override returns (uint256) {
+    function balanceOf(address _account) external view override returns (uint256) {
         uint256 epoch = userPointEpoch[_account];
         if (epoch == 0) {
             return 0;
@@ -308,7 +309,7 @@ contract VotingEscrow is IVotingEscrow, Initializable, PausableUpgradeable, Acce
      * @return uint256 Voting power of user
      */
     function balanceOfAt(address _account, uint256 _blockNumber)
-        public
+        external
         view
         override
         returns (uint256)
@@ -362,7 +363,7 @@ contract VotingEscrow is IVotingEscrow, Initializable, PausableUpgradeable, Acce
      * @dev Calculate current total supply of voting power
      * @return Current totalSupply
      */
-    function totalSupply() public view override returns (uint256) {
+    function totalSupply() external view override returns (uint256) {
         uint256 epoch_ = globalEpoch;
         Point memory lastPoint = pointHistory[epoch_];
         return _supplyAt(lastPoint, block.timestamp);
@@ -374,7 +375,7 @@ contract VotingEscrow is IVotingEscrow, Initializable, PausableUpgradeable, Acce
      * @return totalSupply of voting power at the given blockNumber
      */
     function totalSupplyAt(uint256 _blockNumber)
-        public
+        external
         view
         override
         returns (uint256)
@@ -410,11 +411,11 @@ contract VotingEscrow is IVotingEscrow, Initializable, PausableUpgradeable, Acce
 
 
     /** 
-     * ======================================================================================
+     * ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
      * 
-     *     CORE LOCK MANAGEMENT
+     *     INTERNAL CORE LOCK MANAGEMENT
      * 
-     * ======================================================================================
+     * ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
      */
     
     /**
@@ -529,14 +530,20 @@ contract VotingEscrow is IVotingEscrow, Initializable, PausableUpgradeable, Acce
         // initialLastPoint is used for extrapolation to calculate block number
         // (approximately, for *At methods) and save them
         // as we cannot figure that out exactly from inside the contract
-        Point memory initialLastPoint =
-            Point({ bias: 0, slope: 0, ts: lastPoint.ts, blk: lastPoint.blk });
+        Point memory initialLastPoint = Point({
+            bias: 0,
+            slope: 0,
+            ts: lastPoint.ts,
+            blk: lastPoint.blk
+        });
+
         uint256 blockSlope = 0; // dblock/dt
         if (block.timestamp > lastPoint.ts) {
             blockSlope =
                 (MULTIPLIER * (block.number - lastPoint.blk)) /
                 (block.timestamp - lastPoint.ts);
         }
+
         // If last point is already recorded in this block, slope=0
         // But that's ok b/c we know the block in such case
 
@@ -626,11 +633,11 @@ contract VotingEscrow is IVotingEscrow, Initializable, PausableUpgradeable, Acce
 
   
     /** 
-     * ======================================================================================
+     * ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
      * 
      *     INTERNAL HELPER FUNCTIONS
      * 
-     * ======================================================================================
+     * ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
      */
     /**
      * @dev Floors a timestamp to the nearest weekly increment
@@ -737,11 +744,11 @@ contract VotingEscrow is IVotingEscrow, Initializable, PausableUpgradeable, Acce
     }
 
     /**
-     * ======================================================================================
+     * ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
      * 
      *     CONTRACT EVENTS
      *
-     * ======================================================================================
+     * ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
      */
     event Locked (
         address indexed provider,
