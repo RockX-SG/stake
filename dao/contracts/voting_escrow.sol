@@ -36,7 +36,7 @@ import "@openzeppelin/contracts/utils/math/SafeCast.sol";
 
 contract VotingEscrow is IVotingEscrow, Initializable, PausableUpgradeable, AccessControlUpgradeable, ReentrancyGuardUpgradeable {
     bytes32 public constant PAUSER_ROLE = keccak256("PAUSER_ROLE");
-    bytes32 public constant FARM_ROLE = keccak256("FARM_ROLE");
+    bytes32 public constant AUTHORIZED_LOCKER_ROLE = keccak256("AUTHORIZED_LOCKER_ROLE");
     
     uint256 public constant WEEK = 7 days;
     uint256 public constant MAXTIME = 365 days;
@@ -71,7 +71,7 @@ contract VotingEscrow is IVotingEscrow, Initializable, PausableUpgradeable, Acce
     // Voting token - Checkpointed view only ERC20
     string public name;
     string public symbol;
-    uint256 public decimals = 18;
+    uint256 public decimals;
 
     /// @custom:oz-upgrades-unsafe-allow constructor
     constructor() {
@@ -80,7 +80,8 @@ contract VotingEscrow is IVotingEscrow, Initializable, PausableUpgradeable, Acce
 
     function initialize(
         string memory _name,
-        string memory _symbol) initializer public {
+        string memory _symbol,
+        uint256 _decimals) initializer public {
         __Pausable_init();
         __AccessControl_init();
         __ReentrancyGuard_init();
@@ -91,6 +92,7 @@ contract VotingEscrow is IVotingEscrow, Initializable, PausableUpgradeable, Acce
         // set token names
         name = _name;
         symbol = _symbol;
+        decimals = _decimals;
 
         // lock init
         Point memory init = Point({
@@ -158,7 +160,7 @@ contract VotingEscrow is IVotingEscrow, Initializable, PausableUpgradeable, Acce
         override
         nonReentrant
         whenNotPaused
-        onlyRole(FARM_ROLE)
+        onlyRole(AUTHORIZED_LOCKER_ROLE)
     {
         uint256 unlock_time = _floorToWeek(_unlockTime); // Locktime is rounded down to weeks
         LockedBalance memory locked_ = LockedBalance({
@@ -185,7 +187,7 @@ contract VotingEscrow is IVotingEscrow, Initializable, PausableUpgradeable, Acce
         override
         nonReentrant
         whenNotPaused
-        onlyRole(FARM_ROLE)
+        onlyRole(AUTHORIZED_LOCKER_ROLE)
     {
         LockedBalance memory locked_ = LockedBalance({
             amount: locked[_account].amount,
@@ -208,7 +210,7 @@ contract VotingEscrow is IVotingEscrow, Initializable, PausableUpgradeable, Acce
         override
         nonReentrant
         whenNotPaused
-        onlyRole(FARM_ROLE)
+        onlyRole(AUTHORIZED_LOCKER_ROLE)
     {
         LockedBalance memory locked_ = LockedBalance({
             amount: locked[msg.sender].amount,
@@ -233,7 +235,7 @@ contract VotingEscrow is IVotingEscrow, Initializable, PausableUpgradeable, Acce
         override
         nonReentrant
         whenNotPaused
-        onlyRole(FARM_ROLE)
+        onlyRole(AUTHORIZED_LOCKER_ROLE)
     {
         LockedBalance memory oldLock = LockedBalance({
             end: locked[_account].end,
