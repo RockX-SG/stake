@@ -491,13 +491,13 @@ contract VotingEscrow is IVotingEscrow, Initializable, PausableUpgradeable, Acce
             // Now handle user history
             uint256 uEpoch = userPointEpoch[_addr];
             if (uEpoch == 0) {
-                userPointHistory[_addr][uEpoch + 1] = userOldPoint;
+                userPointHistory[_addr].push(userOldPoint);
             }
 
             userPointEpoch[_addr] = uEpoch + 1;
             userNewPoint.ts = block.timestamp;
             userNewPoint.blk = block.number;
-            userPointHistory[_addr][uEpoch + 1] = userNewPoint;
+            userPointHistory[_addr].push(userNewPoint);
 
             // } end
 
@@ -579,7 +579,7 @@ contract VotingEscrow is IVotingEscrow, Initializable, PausableUpgradeable, Acce
                 lastPoint.blk = block.number;
                 break;
             } else {
-                pointHistory[epoch] = lastPoint;
+                pointHistory.push(lastPoint);
             }
         }
 
@@ -600,7 +600,7 @@ contract VotingEscrow is IVotingEscrow, Initializable, PausableUpgradeable, Acce
         }
 
         // Record the changed point into history
-        pointHistory[epoch] = lastPoint;
+        pointHistory.push(lastPoint);
 
         if (_addr != address(0)) {
             // Schedule the slope changes (slope is going down)
