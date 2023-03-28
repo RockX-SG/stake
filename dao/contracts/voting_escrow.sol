@@ -143,7 +143,7 @@ contract VotingEscrow is IVotingEscrow, Initializable, PausableUpgradeable, Acce
      * ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
      * 
      *      ACCOUNT LOCK MANAGEMENT VIA FARMING POOL
-     *          OPERATED BY EXTERNAL CONTRACT
+     *              OPERATED BY AUTHRORIZED EXTERNAL CONTRACT
      * 
      * ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
      */
