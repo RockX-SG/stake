@@ -68,31 +68,19 @@ contract VotingEscrow is IVotingEscrow, Initializable, PausableUpgradeable, Acce
     mapping(uint256 => int128) public slopeChanges;
     mapping(address => LockedBalance) public locked;
 
-    // Voting token - Checkpointed view only ERC20
-    string public name;
-    string public symbol;
-    uint256 public decimals;
 
     /// @custom:oz-upgrades-unsafe-allow constructor
     constructor() {
         _disableInitializers();
     }
 
-    function initialize(
-        string memory _name,
-        string memory _symbol,
-        uint256 _decimals) initializer public {
+    function initialize() initializer public {
         __Pausable_init();
         __AccessControl_init();
         __ReentrancyGuard_init();
 
         _grantRole(DEFAULT_ADMIN_ROLE, msg.sender);
         _grantRole(PAUSER_ROLE, msg.sender);
-        
-        // set token names
-        name = _name;
-        symbol = _symbol;
-        decimals = _decimals;
 
         // lock init
         Point memory init = Point({
