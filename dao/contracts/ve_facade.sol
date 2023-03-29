@@ -35,7 +35,14 @@ contract VotingEscrowFacade is Initializable, AccessControlUpgradeable {
     string public symbol;
     uint256 public decimals;
 
-    address [] public pools;
+    address [] public veTokens;
+
+    /**
+     * @dev This contract will not accept direct ETH transactions.
+     */
+    receive() external payable {
+        revert("Do not send ETH here");
+    }
 
     /// @custom:oz-upgrades-unsafe-allow constructor
     constructor() {
@@ -57,19 +64,21 @@ contract VotingEscrowFacade is Initializable, AccessControlUpgradeable {
     }
 
     /**
-     * @dev add a ve pool for aggregation of balance & total supply
+     * @dev join a voting escrow for aggregation of balance & total supply in voting-escrow contracts
      */
-    function addVePool(address newPool) external
+    function joinVotingEscrow(address _veToken) 
+        external
         onlyRole(DEFAULT_ADMIN_ROLE) {
 
-        require (newPool.isContract(), "MUST_BE_CONTRACT");
-        for (uint i=0;i<pools.length;i++) {
-            if (pools[i] == newPool) {
+        require (_veToken.isContract(), "MUST_BE_CONTRACT");
+        for (uint i=0;i<veTokens.length;i++) {
+            if (veTokens[i] == _veToken) {
                 revert("ALREADY_IN");
             }
         }
+        veTokens.push(_veToken);
 
-        pools.push(newPool);
+        emit VotingEscrowJoined(_veToken);
     }
 
     /**
@@ -82,8 +91,8 @@ contract VotingEscrowFacade is Initializable, AccessControlUpgradeable {
         view 
         returns (uint256 power) {
             
-        for (uint i=0;i<pools.length;i++) {
-            power += IVotingEscrow(pools[i]).balanceOf(_account);
+        for (uint i=0;i<veTokens.length;i++) {
+            power += IVotingEscrow(veTokens[i]).balanceOf(_account);
         }
         return power;
     }
@@ -99,8 +108,8 @@ contract VotingEscrowFacade is Initializable, AccessControlUpgradeable {
         view
         returns (uint256 power) {
         
-        for (uint i=0;i<pools.length;i++) {
-            power += IVotingEscrow(pools[i]).balanceOfAt(_account, _blockNumber);
+        for (uint i=0;i<veTokens.length;i++) {
+            power += IVotingEscrow(veTokens[i]).balanceOfAt(_account, _blockNumber);
         }
         return power;
     }
@@ -115,8 +124,8 @@ contract VotingEscrowFacade is Initializable, AccessControlUpgradeable {
         returns (uint256) {
         
         uint256 ts;
-        for (uint i=0;i<pools.length;i++) {
-            ts += IVotingEscrow(pools[i]).totalSupply();
+        for (uint i=0;i<veTokens.length;i++) {
+            ts += IVotingEscrow(veTokens[i]).totalSupply();
         }
         return ts;
     }
@@ -130,11 +139,11 @@ contract VotingEscrowFacade is Initializable, AccessControlUpgradeable {
         returns (uint256) {
         
         uint256 ts;
-        for (uint i=0;i<pools.length;i++) {
-            ts += IVotingEscrow(pools[i]).totalSupplyAt(_blockNumber);
+        for (uint i=0;i<veTokens.length;i++) {
+            ts += IVotingEscrow(veTokens[i]).totalSupplyAt(_blockNumber);
         }
         return ts;
     }
 
-    event PoolAdded(address account);
+    event VotingEscrowJoined(address veToken);
 }
