@@ -162,6 +162,7 @@ contract LPStaking is Initializable, OwnableUpgradeable, PausableUpgradeable, Re
         if (balance > accountedBalance && totalShares > 0) {
             uint256 rewards = balance - accountedBalance;
             accShare += rewards * MULTIPLIER / totalShares;
+            accountedBalance = balance;
         }
     }
 
