@@ -38,7 +38,6 @@ contract GaugeController is AccessControlUpgradeable, ReentrancyGuardUpgradeable
 
     struct GaugeData {
         uint128 gType; // Gauge type
-        address bribe; // Bribe contract for the gauge (# Deprecated)
         uint256 wtUpdateTime; // latest weight schedule time
         uint256 w0; // base weight for the gauge.
     }
@@ -86,28 +85,14 @@ contract GaugeController is AccessControlUpgradeable, ReentrancyGuardUpgradeable
     // type_id -> time -> type weight
     mapping(uint128 => mapping(uint256 => uint256)) public typeWtAtTime;
 
-    event TypeAdded(string name, uint128 typeId);
-    event TypeWeightUpdated(
-        uint128 typeId,
-        uint256 time,
-        uint256 weight,
-        uint256 totalWeight
-    );
-    event GaugeWeightUpdated(
-        address indexed gAddr,
-        uint256 time,
-        uint256 weight,
-        uint256 totalWeight
-    );
-    event GaugeVoted(
-        uint256 time,
-        address indexed user,
-        address indexed gAddr,
-        uint256 weight
-    );
-    event GaugeAdded(address indexed addr, uint128 gType, uint256 weight);
-    event OperatorApproved(address indexed operator, bool isApproved);
-
+    /** 
+     * ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+     * 
+     *      CONTRACT MANAGEMENT
+     * 
+     * ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+     */
+     
     /// @custom:oz-upgrades-unsafe-allow constructor
     constructor() {
         _disableInitializers();
@@ -135,6 +120,26 @@ contract GaugeController is AccessControlUpgradeable, ReentrancyGuardUpgradeable
             _changeTypeWeight(gType, _weight);
         }
         emit TypeAdded(_typeName, gType);
+    }
+
+    /// @notice Change gauge type `_gType` weight to `_weight`
+    /// @param _gType Gauge type id
+    /// @param _weight New Gauge weight
+    function changeTypeWeight(uint128 _gType, uint256 _weight)
+        external
+        onlyRole(DEFAULT_ADMIN_ROLE) 
+    {
+        _changeTypeWeight(_gType, _weight);
+    }
+
+    /// @notice Change weight of gauge `_gAddr` to `_weight`
+    /// @param _gAddr `GaugeController` contract address
+    /// @param _weight New Gauge weight
+    function changeGaugeWeight(address _gAddr, uint256 _weight)
+        external
+        onlyRole(DEFAULT_ADMIN_ROLE) 
+    {
+        _changeGaugeWeight(_gAddr, _weight);
     }
 
     /// @notice Add gauge `gAddr` of type `gauge_type` with weight `weight`
@@ -174,7 +179,6 @@ contract GaugeController is AccessControlUpgradeable, ReentrancyGuardUpgradeable
         }
         gaugeData[_gAddr] = GaugeData({
             gType: _gType + 1,
-            bribe: address(0), // @note Variable not used any more.
             wtUpdateTime: nextTime,
             w0: _weight
         });
@@ -182,25 +186,6 @@ contract GaugeController is AccessControlUpgradeable, ReentrancyGuardUpgradeable
         emit GaugeAdded(_gAddr, _gType, _weight);
     }
 
-    /// @notice Change gauge type `_gType` weight to `_weight`
-    /// @param _gType Gauge type id
-    /// @param _weight New Gauge weight
-    function changeTypeWeight(uint128 _gType, uint256 _weight)
-        external
-        onlyRole(DEFAULT_ADMIN_ROLE) 
-    {
-        _changeTypeWeight(_gType, _weight);
-    }
-
-    /// @notice Change weight of gauge `_gAddr` to `_weight`
-    /// @param _gAddr `GaugeController` contract address
-    /// @param _weight New Gauge weight
-    function changeGaugeWeight(address _gAddr, uint256 _weight)
-        external
-        onlyRole(DEFAULT_ADMIN_ROLE) 
-    {
-        _changeGaugeWeight(_gAddr, _weight);
-    }
 
     /// @notice Checkpoint to fill data common for all gauges
     function checkpoint() external {
@@ -213,6 +198,14 @@ contract GaugeController is AccessControlUpgradeable, ReentrancyGuardUpgradeable
         _getTotal();
     }
 
+    /** 
+     * ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+     * 
+     *      EXTERNAL FUNCTIONS FOR GAUGE VOTING
+     * 
+     * ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+     */
+     
     /// @notice Allocate voting power for changing pool weights
     /// @param _gAddr Gauge which `msg.sender` votes for
     /// @param _userWeight Weight for a gauge in bps (units of 0.01%). Minimal is 0.01%. Ignored if 0
@@ -264,6 +257,7 @@ contract GaugeController is AccessControlUpgradeable, ReentrancyGuardUpgradeable
         emit GaugeVoted(block.timestamp, msg.sender, _gAddr, _userWeight);
     }
 
+
     /// @notice Get gauge weight normalized to 1e18 and also fill all the unfilled
     //         values for type and gauge records
     /// @dev Any address can call, however nothing is recorded if the values are filled already
@@ -295,11 +289,13 @@ contract GaugeController is AccessControlUpgradeable, ReentrancyGuardUpgradeable
         return _getGaugeType(_gAddr);
     }
 
-    /// @notice Gets the bribe contract for gauge.
-    /// @dev This is for backward compatibility
-    function gaugeBribe(address _gAddr) external view returns (address) {
-        return gaugeData[_gAddr].bribe;
-    }
+    /** 
+     * ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+     * 
+     *      EXTERNAL VIEW FUNCTIONS
+     * 
+     * ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+     */
 
     /// @notice Get Gauge relative weight (not more than 1.0) normalized to 1e18
     //         (e.g. 1.0 == 1e18). Inflation which will be received by it is
@@ -385,6 +381,13 @@ contract GaugeController is AccessControlUpgradeable, ReentrancyGuardUpgradeable
         return gauges;
     }
 
+    /** 
+     * ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+     * 
+     *      INTERNAL HELPER FUNCTIONS
+     * 
+     * ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+     */
     /// @notice Fill historic type weights week-over-week for missed check-points
     ///         and return the type weight for the future week
     /// @param _gType Gauge type id
@@ -715,4 +718,32 @@ contract GaugeController is AccessControlUpgradeable, ReentrancyGuardUpgradeable
         if (_a > _b) return _a;
         return _b;
     }
+
+    /** 
+     * ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+     * 
+     *      EVENTS
+     * 
+     * ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+     */
+    event TypeAdded(string name, uint128 typeId);
+    event TypeWeightUpdated(
+        uint128 typeId,
+        uint256 time,
+        uint256 weight,
+        uint256 totalWeight
+    );
+    event GaugeWeightUpdated(
+        address indexed gAddr,
+        uint256 time,
+        uint256 weight,
+        uint256 totalWeight
+    );
+    event GaugeVoted(
+        uint256 time,
+        address indexed user,
+        address indexed gAddr,
+        uint256 weight
+    );
+    event GaugeAdded(address indexed addr, uint128 gType, uint256 weight);
 }
