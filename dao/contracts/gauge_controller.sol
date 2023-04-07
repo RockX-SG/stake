@@ -98,10 +98,12 @@ contract GaugeController is AccessControlUpgradeable, ReentrancyGuardUpgradeable
         _disableInitializers();
     }
 
-    function initialize() initializer public {
+    function initialize(address _votingEscrow) initializer public {
         __AccessControl_init();
         __ReentrancyGuard_init();
 
+        votingEscrow = _votingEscrow;
+        
         _grantRole(DEFAULT_ADMIN_ROLE, msg.sender);
         _grantRole(AUTHORIZED_OPERATOR, msg.sender);
     }
@@ -282,13 +284,6 @@ contract GaugeController is AccessControlUpgradeable, ReentrancyGuardUpgradeable
         return _gaugeRelativeWeight(_gAddr, block.timestamp);
     }
 
-    /// @notice Get gauge type for address
-    /// @param _gAddr Gauge address
-    /// @return Gauge type id
-    function gaugeType(address _gAddr) external view returns (uint128) {
-        return _getGaugeType(_gAddr);
-    }
-
     /** 
      * ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
      * 
@@ -296,6 +291,13 @@ contract GaugeController is AccessControlUpgradeable, ReentrancyGuardUpgradeable
      * 
      * ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
      */
+
+    /// @notice Get gauge type for address
+    /// @param _gAddr Gauge address
+    /// @return Gauge type id
+    function gaugeType(address _gAddr) external view returns (uint128) {
+        return _getGaugeType(_gAddr);
+    }
 
     /// @notice Get Gauge relative weight (not more than 1.0) normalized to 1e18
     //         (e.g. 1.0 == 1e18). Inflation which will be received by it is
