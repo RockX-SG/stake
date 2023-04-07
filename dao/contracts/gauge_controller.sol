@@ -86,8 +86,6 @@ contract GaugeController is OwnableUpgradeable, ReentrancyGuardUpgradeable {
     // Allow operators to add gauge.
     mapping(address => bool) public approvedOperator;
 
-    address public bribe;
-
     event TypeAdded(string name, uint128 typeId);
     event TypeWeightUpdated(
         uint128 typeId,
@@ -108,16 +106,11 @@ contract GaugeController is OwnableUpgradeable, ReentrancyGuardUpgradeable {
         uint256 weight
     );
     event GaugeAdded(address indexed addr, uint128 gType, uint256 weight);
-    event BribeContractUpdated(address newBribeContract);
     event OperatorApproved(address indexed operator, bool isApproved);
 
-    constructor() initializer {}
-
-    function reInitialize(address _newBribe) external {
-        require(bribe == address(0), "Bribe already updated");
-        _isNonZeroAddr(_newBribe);
-        bribe = _newBribe;
-        emit BribeContractUpdated(_newBribe);
+    /// @custom:oz-upgrades-unsafe-allow constructor
+    constructor() {
+        _disableInitializers();
     }
 
     /// @notice Add gauge type with name `_name` and weight `weight`
@@ -210,18 +203,6 @@ contract GaugeController is OwnableUpgradeable, ReentrancyGuardUpgradeable {
         onlyOwner
     {
         _changeGaugeWeight(_gAddr, _weight);
-    }
-
-    /// @notice Update the bribe contract for a gauge.
-    /// @param _newBribeContract Address of the new deployed bribe contract.
-    /// @dev Do ensure the _newBribeContract is compatible with the bribe interface.
-    function changeGaugeBribeContract(address _newBribeContract)
-        external
-        onlyOwner
-    {
-        _isNonZeroAddr(_newBribeContract);
-        bribe = _newBribeContract;
-        emit BribeContractUpdated(_newBribeContract);
     }
 
     /// @notice Checkpoint to fill data common for all gauges
