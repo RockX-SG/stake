@@ -436,16 +436,13 @@ contract GaugeController is AccessControlUpgradeable, ReentrancyGuardUpgradeable
         uint256 t = lastTypeWtTime[_gType];
         if (t > 0) {
             uint256 w = typeWtAtTime[_gType][t];
-            for (uint8 i = 0; i < 100; ) {
+            for (uint8 i = 0; i < 100; i++) {
                 if (t > block.timestamp) {
                     lastTypeWtTime[_gType] = t;
                     break;
                 }
                 t += WEEK;
                 typeWtAtTime[_gType][t] = w;
-                unchecked {
-                    ++i;
-                }
             }
             return w;
         }
@@ -462,7 +459,7 @@ contract GaugeController is AccessControlUpgradeable, ReentrancyGuardUpgradeable
         uint256 t = timeSum[_gType];
         if (t > 0) {
             Point memory pt = typePoints[_gType][t];
-            for (uint8 i = 0; i < 100; ) {
+            for (uint8 i = 0; i < 100; i++) {
                 if (t > block.timestamp) {
                     timeSum[_gType] = t;
                     break;
@@ -477,9 +474,6 @@ contract GaugeController is AccessControlUpgradeable, ReentrancyGuardUpgradeable
                     pt.slope = 0;
                 }
                 typePoints[_gType][t] = pt;
-                unchecked {
-                    ++i;
-                }
             }
             return pt.bias;
         }
@@ -499,18 +493,15 @@ contract GaugeController is AccessControlUpgradeable, ReentrancyGuardUpgradeable
         }
 
         // Updating type related data
-        for (uint8 i = 0; i < 100; ) {
+        for (uint8 i = 0; i < 100; i++) {
             if (i == numTypes) break;
             _getSum(i);
             _getTypeWeight(i);
-            unchecked {
-                ++i;
-            }
         }
 
         uint256 pt = totalWtAtTime[t];
 
-        for (uint256 i = 0; i < 100; ) {
+        for (uint256 i = 0; i < 100; i++) {
             if (t > block.timestamp) {
                 timeTotal = t;
                 break;
@@ -518,19 +509,13 @@ contract GaugeController is AccessControlUpgradeable, ReentrancyGuardUpgradeable
             t += WEEK;
             pt = 0;
 
-            for (uint128 gType = 0; gType < 100; ) {
+            for (uint128 gType = 0; gType < 100; gType++) {
                 if (gType == numTypes) break;
                 uint256 typeSum = typePoints[gType][t].bias;
                 uint256 typeWeight = typeWtAtTime[gType][t];
                 pt += typeSum * typeWeight;
-                unchecked {
-                    ++gType;
-                }
             }
             totalWtAtTime[t] = pt;
-            unchecked {
-                ++i;
-            }
         }
         return pt;
     }
@@ -545,7 +530,7 @@ contract GaugeController is AccessControlUpgradeable, ReentrancyGuardUpgradeable
         uint256 t = gaugeData[_gAddr].wtUpdateTime;
         if (t > 0) {
             Point memory pt = gaugePoints[_gAddr][t];
-            for (uint8 i = 0; i < 100; ) {
+            for (uint8 i = 0; i < 100; i++) {
                 if (t > block.timestamp) {
                     gaugeData[_gAddr].wtUpdateTime = t;
                     break;
@@ -560,9 +545,6 @@ contract GaugeController is AccessControlUpgradeable, ReentrancyGuardUpgradeable
                     pt.slope = 0;
                 }
                 gaugePoints[_gAddr][t] = pt;
-                unchecked {
-                    ++i;
-                }
             }
             return pt.bias;
         }
