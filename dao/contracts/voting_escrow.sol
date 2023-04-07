@@ -251,6 +251,15 @@ contract VotingEscrow is IVotingEscrow, Initializable, PausableUpgradeable, Acce
      * ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
      */
 
+    /** 
+     * @notice Returns a user's lock expiration
+     * @param _addr The address of the user
+     * @return Expiration of the user's lock
+     */
+    function lockEnd(address _addr) external view returns (uint256) {
+        return locked[_addr].end;
+    }
+
     /**
      * @notice Returns the last available user point for a user
      * @param _account User address

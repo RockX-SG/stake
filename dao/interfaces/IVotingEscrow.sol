@@ -62,4 +62,14 @@ interface IVotingEscrow {
         external
         view
         returns (uint256);
+
+
+    function getLastUserPoint(address _account) external view returns (
+        int128 bias,
+        int128 slope,
+        uint256 ts
+    );
+
+    function lockEnd(address _addr) external view returns (uint256);
+
 }
