@@ -16,12 +16,14 @@
 pragma solidity ^0.8.9;
 import "interfaces/IVotingEscrow.sol";
 import "@openzeppelin/contracts-upgradeable/security/ReentrancyGuardUpgradeable.sol";
-import "@openzeppelin/contracts-upgradeable/access/OwnableUpgradeable.sol";
+import "@openzeppelin/contracts-upgradeable/access/AccessControlUpgradeable.sol";
 import "@openzeppelin/contracts/utils/math/SafeCast.sol";
 
 /// @title GaugeController
 /// @notice This contract is the solidity version of curves GaugeController.
-contract GaugeController is OwnableUpgradeable, ReentrancyGuardUpgradeable {
+contract GaugeController is AccessControlUpgradeable, ReentrancyGuardUpgradeable {
+    bytes32 public constant AUTHORIZED_OPERATOR = keccak256("AUTHORIZED_OPERATOR_ROLE");
+
     struct Point {
         uint256 bias;
         uint256 slope;
@@ -83,8 +85,6 @@ contract GaugeController is OwnableUpgradeable, ReentrancyGuardUpgradeable {
     mapping(uint128 => mapping(uint256 => uint256)) public typeSlopeChanges;
     // type_id -> time -> type weight
     mapping(uint128 => mapping(uint256 => uint256)) public typeWtAtTime;
-    // Allow operators to add gauge.
-    mapping(address => bool) public approvedOperator;
 
     event TypeAdded(string name, uint128 typeId);
     event TypeWeightUpdated(
@@ -113,12 +113,20 @@ contract GaugeController is OwnableUpgradeable, ReentrancyGuardUpgradeable {
         _disableInitializers();
     }
 
+    function initialize() initializer public {
+        __AccessControl_init();
+        __ReentrancyGuard_init();
+
+        _grantRole(DEFAULT_ADMIN_ROLE, msg.sender);
+        _grantRole(AUTHORIZED_OPERATOR, msg.sender);
+    }
+
     /// @notice Add gauge type with name `_name` and weight `weight`
     /// @param _typeName Name of gauge type
     /// @param _weight Weight of gauge type
     function addType(string memory _typeName, uint256 _weight)
         external
-        onlyOwner
+        onlyRole(DEFAULT_ADMIN_ROLE)
     {
         uint128 gType = nGaugeTypes;
         typeNames[gType] = _typeName;
@@ -137,9 +145,9 @@ contract GaugeController is OwnableUpgradeable, ReentrancyGuardUpgradeable {
         address _gAddr,
         uint128 _gType,
         uint256 _weight
-    ) external {
-        _isApprovedOperator(msg.sender);
-        _isNonZeroAddr(_gAddr);
+    ) external onlyRole(AUTHORIZED_OPERATOR) 
+    {
+        require(_gAddr != address(0), "Invalid address");
         require(_gType < nGaugeTypes, "Invalid gauge type");
         require(gaugeData[_gAddr].gType == 0, "Gauge already registered"); /// @dev can't add the same gauge twice
         require(nGauges < MAX_NUM_GAUGES, "Can't add more gauges");
@@ -174,23 +182,12 @@ contract GaugeController is OwnableUpgradeable, ReentrancyGuardUpgradeable {
         emit GaugeAdded(_gAddr, _gType, _weight);
     }
 
-    /// @notice add/removes operator roles.
-    /// @param _operator Operator address.
-    /// @param _isApproved new status.
-    function approveOperator(address _operator, bool _isApproved)
-        external
-        onlyOwner
-    {
-        approvedOperator[_operator] = _isApproved;
-        emit OperatorApproved(_operator, _isApproved);
-    }
-
     /// @notice Change gauge type `_gType` weight to `_weight`
     /// @param _gType Gauge type id
     /// @param _weight New Gauge weight
     function changeTypeWeight(uint128 _gType, uint256 _weight)
         external
-        onlyOwner
+        onlyRole(DEFAULT_ADMIN_ROLE) 
     {
         _changeTypeWeight(_gType, _weight);
     }
@@ -200,7 +197,7 @@ contract GaugeController is OwnableUpgradeable, ReentrancyGuardUpgradeable {
     /// @param _weight New Gauge weight
     function changeGaugeWeight(address _gAddr, uint256 _weight)
         external
-        onlyOwner
+        onlyRole(DEFAULT_ADMIN_ROLE) 
     {
         _changeGaugeWeight(_gAddr, _weight);
     }
@@ -698,15 +695,6 @@ contract GaugeController is OwnableUpgradeable, ReentrancyGuardUpgradeable {
         return 0;
     }
 
-    /// @notice Validates if the caller is authorized
-    /// @param _caller Caller address.
-    function _isApprovedOperator(address _caller) private view {
-        require(
-            approvedOperator[_caller] || owner() == _caller,
-            "GaugeController: Unauthorized call"
-        );
-    }
-
     /// @notice Gets the gauge type.
     /// @param _gAddr Gauge address.
     /// @return Returns gauge type.
@@ -726,10 +714,5 @@ contract GaugeController is OwnableUpgradeable, ReentrancyGuardUpgradeable {
     function _max(uint256 _a, uint256 _b) private pure returns (uint256) {
         if (_a > _b) return _a;
         return _b;
-    }
-
-    /// @notice Validate address
-    function _isNonZeroAddr(address _addr) private pure {
-        require(_addr != address(0), "Invalid address");
     }
 }
