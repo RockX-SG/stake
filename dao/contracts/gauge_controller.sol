@@ -19,8 +19,10 @@ import "@openzeppelin/contracts-upgradeable/security/ReentrancyGuardUpgradeable.
 import "@openzeppelin/contracts-upgradeable/access/AccessControlUpgradeable.sol";
 import "@openzeppelin/contracts/utils/math/SafeCast.sol";
 
-/// @title GaugeController
-/// @notice This contract is the solidity version of curves GaugeController.
+/**
+ *  @title GaugeController
+ *  @notice This contract is the solidity version of curves GaugeController.
+ */
 contract GaugeController is AccessControlUpgradeable, ReentrancyGuardUpgradeable {
     bytes32 public constant AUTHORIZED_OPERATOR = keccak256("AUTHORIZED_OPERATOR_ROLE");
 
@@ -88,7 +90,7 @@ contract GaugeController is AccessControlUpgradeable, ReentrancyGuardUpgradeable
     /** 
      * ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
      * 
-     *      CONTRACT MANAGEMENT
+     *      CONTRACT & META MANAGEMENT
      * 
      * ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
      */
@@ -103,14 +105,16 @@ contract GaugeController is AccessControlUpgradeable, ReentrancyGuardUpgradeable
         __ReentrancyGuard_init();
 
         votingEscrow = _votingEscrow;
-        
+
         _grantRole(DEFAULT_ADMIN_ROLE, msg.sender);
         _grantRole(AUTHORIZED_OPERATOR, msg.sender);
     }
 
-    /// @notice Add gauge type with name `_name` and weight `weight`
-    /// @param _typeName Name of gauge type
-    /// @param _weight Weight of gauge type
+    /**
+     * @notice Add gauge type with name `_name` and weight `weight`
+     * @param _typeName Name of gauge type
+     * @param _weight Weight of gauge type
+     */
     function addType(string memory _typeName, uint256 _weight)
         external
         onlyRole(DEFAULT_ADMIN_ROLE)
@@ -124,9 +128,11 @@ contract GaugeController is AccessControlUpgradeable, ReentrancyGuardUpgradeable
         emit TypeAdded(_typeName, gType);
     }
 
-    /// @notice Change gauge type `_gType` weight to `_weight`
-    /// @param _gType Gauge type id
-    /// @param _weight New Gauge weight
+    /*
+     * @notice Change gauge type `_gType` weight to `_weight
+     * @param _gType Gauge type id
+     * @param _weight New Gauge weight
+    */
     function changeTypeWeight(uint128 _gType, uint256 _weight)
         external
         onlyRole(DEFAULT_ADMIN_ROLE) 
@@ -134,9 +140,11 @@ contract GaugeController is AccessControlUpgradeable, ReentrancyGuardUpgradeable
         _changeTypeWeight(_gType, _weight);
     }
 
-    /// @notice Change weight of gauge `_gAddr` to `_weight`
-    /// @param _gAddr `GaugeController` contract address
-    /// @param _weight New Gauge weight
+    /*
+     *  @notice Change weight of gauge `_gAddr` to `_weight`
+     *  @param _gAddr `GaugeController` contract address
+     *  @param _weight New Gauge weight
+     */
     function changeGaugeWeight(address _gAddr, uint256 _weight)
         external
         onlyRole(DEFAULT_ADMIN_ROLE) 
@@ -144,10 +152,12 @@ contract GaugeController is AccessControlUpgradeable, ReentrancyGuardUpgradeable
         _changeGaugeWeight(_gAddr, _weight);
     }
 
-    /// @notice Add gauge `gAddr` of type `gauge_type` with weight `weight`
-    /// @param _gAddr Gauge address
-    /// @param _gType Gauge type
-    /// @param _weight Gauge weight
+    /**
+     *  @notice Add gauge `gAddr` of type `gauge_type` with weight `weight`
+     *  @param _gAddr Gauge address
+     *  @param _gType Gauge type
+     *  @param _weight Gauge weight
+     */
     function addGauge(
         address _gAddr,
         uint128 _gType,
@@ -156,7 +166,7 @@ contract GaugeController is AccessControlUpgradeable, ReentrancyGuardUpgradeable
     {
         require(_gAddr != address(0), "Invalid address");
         require(_gType < nGaugeTypes, "Invalid gauge type");
-        require(gaugeData[_gAddr].gType == 0, "Gauge already registered"); /// @dev can't add the same gauge twice
+        require(gaugeData[_gAddr].gType == 0, "Gauge already registered");  ///  @dev can't add the same gauge twice
         require(nGauges < MAX_NUM_GAUGES, "Can't add more gauges");
         gauges.push(_gAddr);
         nGauges += 1;
@@ -188,13 +198,16 @@ contract GaugeController is AccessControlUpgradeable, ReentrancyGuardUpgradeable
         emit GaugeAdded(_gAddr, _gType, _weight);
     }
 
-
-    /// @notice Checkpoint to fill data common for all gauges
+    /**
+     *  @notice Checkpoint to fill data common for all gauges
+     */
     function checkpoint() external {
         _getTotal();
     }
 
-    /// @notice checkpoints gauge weight for missing weeks
+    /**
+     *  @notice checkpoints gauge weight for missing weeks
+     */
     function checkpointGauge(address _gAddr) external {
         _getWeight(_gAddr);
         _getTotal();
@@ -208,9 +221,11 @@ contract GaugeController is AccessControlUpgradeable, ReentrancyGuardUpgradeable
      * ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
      */
      
-    /// @notice Allocate voting power for changing pool weights
-    /// @param _gAddr Gauge which `msg.sender` votes for
-    /// @param _userWeight Weight for a gauge in bps (units of 0.01%). Minimal is 0.01%. Ignored if 0
+    /**
+     *  @notice Allocate voting power for changing pool weights
+     *  @param _gAddr Gauge which `msg.sender` votes for
+     *  @param _userWeight Weight for a gauge in bps (units of 0.01%). Minimal is 0.01%. Ignored if 0
+     */
     function voteForGaugeWeight(address _gAddr, uint256 _userWeight)
         external
         nonReentrant
@@ -260,12 +275,14 @@ contract GaugeController is AccessControlUpgradeable, ReentrancyGuardUpgradeable
     }
 
 
-    /// @notice Get gauge weight normalized to 1e18 and also fill all the unfilled
-    //         values for type and gauge records
-    /// @dev Any address can call, however nothing is recorded if the values are filled already
-    /// @param _gAddr Gauge address
-    /// @param _time Relative weight at the specified timestamp in the past or present
-    /// @return Value of relative weight normalized to 1e18
+    /**  
+     *  @notice Get gauge weight normalized to 1e18 and also fill all the unfilled
+     *         values for type and gauge records
+     *  @dev Any address can call, however nothing is recorded if the values are filled already
+     *  @param _gAddr Gauge address
+     *  @param _time Relative weight at the specified timestamp in the past or present
+     *  @return Value of relative weight normalized to 1e18
+     */
     function gaugeRelativeWeightWrite(address _gAddr, uint256 _time)
         external
         returns (uint256)
@@ -292,19 +309,23 @@ contract GaugeController is AccessControlUpgradeable, ReentrancyGuardUpgradeable
      * ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
      */
 
-    /// @notice Get gauge type for address
-    /// @param _gAddr Gauge address
-    /// @return Gauge type id
+    /*
+     * @notice Get gauge type for address
+     * @param _gAddr Gauge address
+     * @return Gauge type id
+     */
     function gaugeType(address _gAddr) external view returns (uint128) {
         return _getGaugeType(_gAddr);
     }
 
-    /// @notice Get Gauge relative weight (not more than 1.0) normalized to 1e18
-    //         (e.g. 1.0 == 1e18). Inflation which will be received by it is
-    //         inflation_rate * relative_weight / 1e18
-    /// @param _gAddr Gauge address
-    /// @param _time Relative weight at the specified timestamp in the past or present
-    /// @return Value of relative weight normalized to 1e18
+    /**
+     *  @notice Get Gauge relative weight (not more than 1.0) normalized to 1e18
+     *         (e.g. 1.0 == 1e18). Inflation which will be received by it is
+     *         inflation_rate * relative_weight / 1e18
+     *  @param _gAddr Gauge address
+     *  @param _time Relative weight at the specified timestamp in the past or present
+     *  @return Value of relative weight normalized to 1e18
+     */
     function gaugeRelativeWeight(address _gAddr, uint256 _time)
         external
         view
@@ -321,19 +342,23 @@ contract GaugeController is AccessControlUpgradeable, ReentrancyGuardUpgradeable
         return _gaugeRelativeWeight(_gAddr, block.timestamp);
     }
 
-    /// @notice Get current gauge weight
-    /// @dev Gets the gauge weight based on last checkpoint.
-    /// @param _gAddr Gauge address
-    /// @return Gauge weight
+    /**
+     *  @notice Get current gauge weight
+     *  @dev Gets the gauge weight based on last checkpoint.
+     *  @param _gAddr Gauge address
+     *  @return Gauge weight
+     */
     function getGaugeWeight(address _gAddr) external view returns (uint256) {
         return gaugePoints[_gAddr][gaugeData[_gAddr].wtUpdateTime].bias;
     }
 
-    /// @notice Get the gauge weight at a provided week timestamp.
-    /// @param _gAddr Gauge address
-    /// @param _time Required week timestamp
-    /// @dev _time should be in ((time / WEEK) * WEEK) value.
-    /// @return Returns gauge weight for a week.
+    /**
+     *  @notice Get the gauge weight at a provided week timestamp.
+     *  @param _gAddr Gauge address
+     *  @param _time Required week timestamp
+     *  @dev _time should be in ((time / WEEK) * WEEK) value.
+     *  @return Returns gauge weight for a week.
+     */
     function getGaugeWeight(address _gAddr, uint256 _time)
         external
         view
@@ -342,10 +367,12 @@ contract GaugeController is AccessControlUpgradeable, ReentrancyGuardUpgradeable
         return _getGaugeWeightReadOnly(_gAddr, _time);
     }
 
-    /// @notice Get the gaugeWeight - w0 (base weight)
-    /// @param _gAddr gauge address
-    /// @param _time timestamp
-    /// @return returns only the vote weight for the gauge.
+    /**
+     *  @notice Get the gaugeWeight - w0 (base weight)
+     *  @param _gAddr gauge address
+     *  @param _time timestamp
+     *  @return returns only the vote weight for the gauge.
+     */
     function getUserVotesWtForGauge(address _gAddr, uint256 _time)
         external
         view
@@ -354,22 +381,28 @@ contract GaugeController is AccessControlUpgradeable, ReentrancyGuardUpgradeable
         return _getGaugeWeightReadOnly(_gAddr, _time) - gaugeData[_gAddr].w0;
     }
 
-    /// @notice Get current type weight
-    /// @param _gType Type id
-    /// @return Type weight
+    /**
+     *  @notice Get current type weight
+     *  @param _gType Type id
+     *  @return Type weight
+     */
     function getTypeWeight(uint128 _gType) external view returns (uint256) {
         return typeWtAtTime[_gType][lastTypeWtTime[_gType]];
     }
 
-    /// @notice Get current total (type-weighted) weight
-    /// @return Total weight
+    /**
+     *  @notice Get current total (type-weighted) weight
+     *  @return Total weight
+     */
     function getTotalWeight() external view returns (uint256) {
         return totalWtAtTime[timeTotal];
     }
 
-    /// @notice Get sum of gauge weights per type
-    /// @param _gType Type id
-    /// @return Sum of gauge weights
+    /**
+     *  @notice Get sum of gauge weights per type
+     *  @param _gType Type id
+     *  @return Sum of gauge weights
+     */
     function getWeightsSumPerType(uint128 _gType)
         external
         view
@@ -378,7 +411,9 @@ contract GaugeController is AccessControlUpgradeable, ReentrancyGuardUpgradeable
         return typePoints[_gType][timeSum[_gType]].bias;
     }
 
-    /// @notice Returns address of all registered gauges.
+    /**
+     *  @notice Returns address of all registered gauges.
+     */
     function getGaugeList() external view returns (address[] memory) {
         return gauges;
     }
@@ -390,10 +425,13 @@ contract GaugeController is AccessControlUpgradeable, ReentrancyGuardUpgradeable
      * 
      * ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
      */
-    /// @notice Fill historic type weights week-over-week for missed check-points
-    ///         and return the type weight for the future week
-    /// @param _gType Gauge type id
-    /// @return Type weight
+
+    /**
+     *  @notice Fill historic type weights week-over-week for missed check-points
+     *          and return the type weight for the future week
+     *  @param _gType Gauge type id
+     *  @return Type weight
+     */
     function _getTypeWeight(uint128 _gType) private returns (uint256) {
         uint256 t = lastTypeWtTime[_gType];
         if (t > 0) {
@@ -414,10 +452,12 @@ contract GaugeController is AccessControlUpgradeable, ReentrancyGuardUpgradeable
         return 0;
     }
 
-    /// @notice Fill sum of gauge weights for the same type week-over-week for
-    //         missed checkpoints and return the sum for the future week
-    /// @param _gType Gauge type id
-    /// @return Sum of weights
+    /**
+     *  @notice Fill sum of gauge weights for the same type week-over-week for
+     *         missed checkpoints and return the sum for the future week
+     *  @param _gType Gauge type id
+     *  @return Sum of weights
+     */
     function _getSum(uint128 _gType) private returns (uint256) {
         uint256 t = timeSum[_gType];
         if (t > 0) {
@@ -446,9 +486,11 @@ contract GaugeController is AccessControlUpgradeable, ReentrancyGuardUpgradeable
         return 0;
     }
 
-    /// @notice Fill historic total weights week-over-week for missed checkins
-    //         and return the total for the future week
-    /// @return Total weight
+    /**
+     *  @notice Fill historic total weights week-over-week for missed checkins
+     *         and return the total for the future week
+     *  @return Total weight
+     */
     function _getTotal() private returns (uint256) {
         uint256 t = timeTotal;
         uint128 numTypes = nGaugeTypes;
@@ -493,10 +535,12 @@ contract GaugeController is AccessControlUpgradeable, ReentrancyGuardUpgradeable
         return pt;
     }
 
-    /// @notice Fill historic gauge weights week-over-week for missed checkins
-    //         and return the total for the future week
-    /// @param _gAddr Address of the gauge
-    /// @return Gauge weight
+    /**
+     *  @notice Fill historic gauge weights week-over-week for missed checkins
+     *         and return the total for the future week
+     *  @param _gAddr Address of the gauge
+     *  @return Gauge weight
+     */
     function _getWeight(address _gAddr) private returns (uint256) {
         uint256 t = gaugeData[_gAddr].wtUpdateTime;
         if (t > 0) {
@@ -525,9 +569,11 @@ contract GaugeController is AccessControlUpgradeable, ReentrancyGuardUpgradeable
         return 0;
     }
 
-    /// @notice Change type weight
-    /// @param _gType Type id
-    /// @param _weight New type weight
+    /**
+     *  @notice Change type weight
+     *  @param _gType Type id
+     *  @param _weight New type weight
+     */
     function _changeTypeWeight(uint128 _gType, uint256 _weight) private {
         uint256 oldWeight = _getTypeWeight(_gType);
         uint256 oldSum = _getSum(_gType);
@@ -543,9 +589,11 @@ contract GaugeController is AccessControlUpgradeable, ReentrancyGuardUpgradeable
         emit TypeWeightUpdated(_gType, nextTime, _weight, totalWeight);
     }
 
-    /// @notice Change gauge weight
-    /// @param _gAddr Gauge Address
-    /// @param _weight for gauge.
+    /**
+     *  @notice Change gauge weight
+     *  @param _gAddr Gauge Address
+     *  @param _weight for gauge.
+     */
     function _changeGaugeWeight(address _gAddr, uint256 _weight) private {
         uint128 gType = _getGaugeType(_gAddr);
         uint256 oldGaugeWeight = _getWeight(_gAddr);
@@ -569,9 +617,11 @@ contract GaugeController is AccessControlUpgradeable, ReentrancyGuardUpgradeable
         emit GaugeWeightUpdated(_gAddr, block.timestamp, _weight, totalWeight);
     }
 
-    /// @notice Update user power.
-    /// @param _oldPow current power used.
-    /// @param _newPow updated power.
+    /**
+     *  @notice Update user power.
+     *  @param _oldPow current power used.
+     *  @param _newPow updated power.
+     */
     function _updateUserPower(uint256 _oldPow, uint256 _newPow) private {
         // Check and update powers (weights) used
         uint256 powerUsed = userVotePower[msg.sender];
@@ -580,12 +630,14 @@ contract GaugeController is AccessControlUpgradeable, ReentrancyGuardUpgradeable
         require(powerUsed >= 0 && powerUsed <= PREC, "Power beyond boundaries");
     }
 
-    /// @notice Update the vote data and scheduled slope changes.
-    /// @param _oldVoteData user's old vote data.
-    /// @param _newVoteData user's new vote data.
-    /// @param _nextTime timestamp for next cycle.
-    /// @param _lockEnd the expiry ts for user's veToken position.
-    /// @param _gAddr address of the gauge.
+    /**
+     *  @notice Update the vote data and scheduled slope changes.
+     *  @param _oldVoteData user's old vote data.
+     *  @param _newVoteData user's new vote data.
+     *  @param _nextTime timestamp for next cycle.
+     *  @param _lockEnd the expiry ts for user's veToken position.
+     *  @param _gAddr address of the gauge.
+     */
     function _updateScheduledChanges(
         VoteData memory _oldVoteData,
         VoteData memory _newVoteData,
@@ -647,11 +699,13 @@ contract GaugeController is AccessControlUpgradeable, ReentrancyGuardUpgradeable
         typeSlopeChanges[gType][_newVoteData.end] += _newVoteData.slope;
     }
 
-    /// @notice Returns the gauge weight based on the last check-pointed data
-    /// @param _gAddr Address of the gauge.
-    /// @param _time Required timestamp.
-    /// @dev Returns weight based on the Week start of the provided time
-    /// @return Returns the weight of the gauge.
+    /**
+     *  @notice Returns the gauge weight based on the last check-pointed data
+     *  @param _gAddr Address of the gauge.
+     *  @param _time Required timestamp.
+     *  @dev Returns weight based on the Week start of the provided time
+     *  @return Returns the weight of the gauge.
+     */
     function _getGaugeWeightReadOnly(address _gAddr, uint256 _time)
         private
         view
@@ -677,12 +731,14 @@ contract GaugeController is AccessControlUpgradeable, ReentrancyGuardUpgradeable
         return lastPoint.bias - delta;
     }
 
-    /// @notice Get Gauge relative weight (not more than 1.0) normalized to 1e18
-    //         (e.g. 1.0 == 1e18). Inflation which will be received by it is
-    //         inflation_rate * relative_weight / 1e18
-    /// @param _gAddr Gauge address
-    /// @param _time Relative weight at the specified timestamp in the past or present
-    /// @return Value of relative weight normalized to 1e18
+    /**
+     *  @notice Get Gauge relative weight (not more than 1.0) normalized to 1e18
+     *         (e.g. 1.0 == 1e18). Inflation which will be received by it is
+     *         inflation_rate * relative_weight / 1e18
+     *  @param _gAddr Gauge address
+     *  @param _time Relative weight at the specified timestamp in the past or present
+     *  @return Value of relative weight normalized to 1e18
+     */
     function _gaugeRelativeWeight(address _gAddr, uint256 _time)
         private
         view
@@ -700,18 +756,22 @@ contract GaugeController is AccessControlUpgradeable, ReentrancyGuardUpgradeable
         return 0;
     }
 
-    /// @notice Gets the gauge type.
-    /// @param _gAddr Gauge address.
-    /// @return Returns gauge type.
+    /**
+     *  @notice Gets the gauge type.
+     *  @param _gAddr Gauge address.
+     *  @return Returns gauge type.
+     */
     function _getGaugeType(address _gAddr) private view returns (uint128) {
         uint128 gType = gaugeData[_gAddr].gType;
         require(gType > 0, "Gauge not added");
         return gType - 1;
     }
 
-    /// @notice Get the based on the ts.
-    /// @param _ts arbitrary time stamp.
-    /// @return returns the 00:00 am UTC for THU after _ts
+    /**
+     *  @notice Get the based on the ts.
+     *  @param _ts arbitrary time stamp.
+     *  @return returns the 00:00 am UTC for THU after _ts
+     */
     function _getWeek(uint256 _ts) private pure returns (uint256) {
         return (_ts / WEEK) * WEEK;
     }
