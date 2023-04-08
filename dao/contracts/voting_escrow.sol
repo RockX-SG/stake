@@ -68,13 +68,20 @@ contract VotingEscrow is IVotingEscrow, Initializable, PausableUpgradeable, Acce
     mapping(uint256 => int128) public slopeChanges;
     mapping(address => LockedBalance) public locked;
 
+    // veToken definition
+    string public name;
+    string public symbol;
+    uint256 public decimals = 18;
 
     /// @custom:oz-upgrades-unsafe-allow constructor
     constructor() {
         _disableInitializers();
     }
 
-    function initialize() initializer public {
+    function initialize(
+        string memory _name,
+        string memory _symbol) initializer public 
+    {
         __Pausable_init();
         __AccessControl_init();
         __ReentrancyGuard_init();
@@ -91,6 +98,10 @@ contract VotingEscrow is IVotingEscrow, Initializable, PausableUpgradeable, Acce
         });
 
         pointHistory.push(init);
+
+        // injection of ERC20 concept
+        name = _name;
+        symbol = _symbol;
     }
   
     /** 

@@ -22,10 +22,23 @@ def main():
             {'from': deployer})
 
 
+    gauge_contract = GaugeController.deploy(
+            {'from': deployer})
+
+    gauge_proxy = TransparentUpgradeableProxy.deploy(
+            gauge_contract, deployer, b'',
+            {'from': deployer})
+
+
     transparent_ve = Contract.from_abi("VotingEscrow", ve_proxy.address, VotingEscrow.abi)
     transparent_ve.initialize( "voting-escrow BDR", "veBDR", {'from': owner})
 
     print("VE ADDRESS:", transparent_ve)
+
+    transparent_gauge= Contract.from_abi("GaugeController", gauge_proxy.address, GaugeController.abi)
+    transparent_gauge.initialize(transparent_ve, {'from': owner})
+
+    print("GAUGE ADDRESS:", transparent_gauge)
 
     print("granting AUTHORIZED LOCKER ROLE to owner")
     transparent_ve.grantRole( transparent_ve.AUTHORIZED_LOCKER_ROLE(), owner, {'from': owner})
