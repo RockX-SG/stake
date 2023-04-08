@@ -11,6 +11,9 @@ def main():
 
     owner = accounts[0]
     deployer = accounts[1]
+    voter = accounts[2]
+    lp_gauge1 = accounts[8]
+    lp_gauge2 = accounts[9]
 
     print(f'contract owner account: {owner.address}\n')
 
@@ -43,16 +46,24 @@ def main():
     print("granting AUTHORIZED LOCKER ROLE to owner")
     transparent_ve.grantRole( transparent_ve.AUTHORIZED_LOCKER_ROLE(), owner, {'from': owner})
 
-    print("lock 100 * 1e18 value of account", accounts[2], "for 30 days:")
-    transparent_ve.createLock(accounts[2], 100 * 1e18, chain.time() + 86400 * 30, {'from': owner})
-    print("lockinfo:", transparent_ve.userPointHistory(accounts[2], transparent_ve.userPointEpoch(accounts[2])))
-    print("balanceOf", accounts[2], "is:", transparent_ve.balanceOf(accounts[2]))
-    print("totalSupply is:", transparent_ve.totalSupply())
+    print("lock 100 * 1e18 value of account", voter, "for 30 days:")
+    transparent_ve.createLock(voter, 100 * 1e18, chain.time() + 86400 * 30, {'from': owner})
 
-    print("lock 100 * 1e18 value of account", accounts[3], "for 60 days:")
-    transparent_ve.createLock(accounts[3],100 * 1e18, chain.time() + 86400 * 60, {'from': owner})
-    print("lockinfo:", transparent_ve.userPointHistory(accounts[3], transparent_ve.userPointEpoch(accounts[3])))
-    print("balanceOf", accounts[3], "is:", transparent_ve.balanceOf(accounts[3]))
-    print("totalSupply is:", transparent_ve.totalSupply())
+    print("########## GAUGE CONTROLLER INIT")
+    print(r'''transparent_gauge.addType("LP", 1, {'from':owner})''')
+    transparent_gauge.addType("LP1", 1, {'from':owner})
+    print(r'''transparent_gauge.addType("LP", 2, {'from':owner})''')
+    transparent_gauge.addType("LP2", 2, {'from':owner})
 
+    print(r'''transparent_gauge.addGauge(lp_gauge1, 1, 0, {'from':owner}''', lp_gauge1)
+    transparent_gauge.addGauge(lp_gauge1, 1, 0, {'from':owner})
+    print(r'''transparent_gauge.addGauge(lp_gauge2, 2, 0, {'from':owner}''', lp_gauge2)
+    transparent_gauge.addGauge(lp_gauge2, 2, 0, {'from':owner})
 
+    print(r'''transparent_gauge.voteForGaugeWeight(lp_gauge1, 5000, {'from':accounts[2]})''')
+    transparent_gauge.voteForGaugeWeight(lp_gauge1, 5000, {'from': voter})
+    print(r'''transparent_gauge.voteForGaugeWeight(lp_gauge2, 5000, {'from':accounts[2]})''')
+    transparent_gauge.voteForGaugeWeight(lp_gauge2, 5000, {'from': voter})
+
+    print(transparent_gauge.gaugeRelativeWeight(lp_gauge1, chain.time() + transparent_gauge.WEEK()))
+    print(transparent_gauge.gaugeRelativeWeight(lp_gauge2, chain.time() + transparent_gauge.WEEK()))
