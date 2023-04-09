@@ -50,15 +50,15 @@ def main():
     transparent_ve.createLock(voter, 100 * 1e18, chain.time() + 86400 * 30, {'from': owner})
 
     print("########## GAUGE CONTROLLER INIT")
-    print(r'''transparent_gauge.addType("LP", 1, {'from':owner})''')
-    transparent_gauge.addType("LP1", 1, {'from':owner})
-    print(r'''transparent_gauge.addType("LP", 2, {'from':owner})''')
-    transparent_gauge.addType("LP2", 2, {'from':owner})
+    print(r'''transparent_gauge.addType("LP-TYPE0", 1, {'from':owner})''')
+    transparent_gauge.addType("LP-TYPE0", 1, {'from':owner})
+    print(r'''transparent_gauge.addType("LP-TYPE1", 2, {'from':owner})''')
+    transparent_gauge.addType("LP-TYPE1", 2, {'from':owner})
 
-    print(r'''transparent_gauge.addGauge(lp_gauge1, 1, 0, {'from':owner}''', lp_gauge1)
-    transparent_gauge.addGauge(lp_gauge1, 1, 0, {'from':owner})
-    print(r'''transparent_gauge.addGauge(lp_gauge2, 2, 0, {'from':owner}''', lp_gauge2)
-    transparent_gauge.addGauge(lp_gauge2, 2, 0, {'from':owner})
+    print(r'''transparent_gauge.addGauge(lp_gauge1, 0, 0, {'from':owner}''', lp_gauge1)
+    transparent_gauge.addGauge(lp_gauge1, 0, 0, {'from':owner})
+    print(r'''transparent_gauge.addGauge(lp_gauge2, 1, 0, {'from':owner}''', lp_gauge2)
+    transparent_gauge.addGauge(lp_gauge2, 1, 0, {'from':owner})
 
     print(r'''transparent_gauge.voteForGaugeWeight(lp_gauge1, 5000, {'from':accounts[2]})''')
     transparent_gauge.voteForGaugeWeight(lp_gauge1, 5000, {'from': voter})
