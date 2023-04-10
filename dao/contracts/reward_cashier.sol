@@ -57,6 +57,13 @@ contract RewardCashier is Initializable, PausableUpgradeable, OwnableUpgradeable
         globalWeekEmission = _globalWeekEmission;
     }
 
+    /** 
+     * ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+     * 
+     *      CONTRACT EXTERNAL CONTROL
+     *
+     * ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+     */
     function pause() public onlyOwner {
         _pause();
     }
@@ -64,14 +71,6 @@ contract RewardCashier is Initializable, PausableUpgradeable, OwnableUpgradeable
     function unpause() public onlyOwner {
         _unpause();
     }
-
-    /** 
-     * ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
-     * 
-     *      CONTRACT EXTERNAL CONTROL & VIEW
-     *
-     * ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
-     */
 
     /**
      * @notice Function set the global emission rate per week
@@ -89,6 +88,14 @@ contract RewardCashier is Initializable, PausableUpgradeable, OwnableUpgradeable
     function distributeRewards(address _gAddr) external nonReentrant whenNotPaused {
         _distributeRewards(_gAddr);
     }
+
+    /** 
+     * ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+     * 
+     *      EXTERNAL VIEW
+     *
+     * ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+     */
 
     /**
      * @notice Function gets the rewards for gauge, for current cycle.
