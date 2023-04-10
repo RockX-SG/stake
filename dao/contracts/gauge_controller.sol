@@ -22,6 +22,9 @@ import "@openzeppelin/contracts/utils/math/SafeCast.sol";
 /**
  *  @title GaugeController
  *  @notice This contract is the solidity version of curves GaugeController.
+ *  @author Curve Finance (MIT) - original concept and implementation in Vyper
+ *                https://github.com/curvefi/curve-dao-contracts/blob/master/contracts/GaugeController.vy
+ *          RockX Team - this version
  */
 contract GaugeController is AccessControlUpgradeable, ReentrancyGuardUpgradeable {
     bytes32 public constant AUTHORIZED_OPERATOR = keccak256("AUTHORIZED_OPERATOR_ROLE");
@@ -87,14 +90,14 @@ contract GaugeController is AccessControlUpgradeable, ReentrancyGuardUpgradeable
     // type_id -> time -> type weight
     mapping(uint128 => mapping(uint256 => uint256)) public typeWtAtTime;
 
-    /** 
+    /**
      * ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
-     * 
+     *
      *      CONTRACT & META MANAGEMENT
-     * 
+     *
      * ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
      */
-     
+
     /// @custom:oz-upgrades-unsafe-allow constructor
     constructor() {
         _disableInitializers();
@@ -105,6 +108,7 @@ contract GaugeController is AccessControlUpgradeable, ReentrancyGuardUpgradeable
         __ReentrancyGuard_init();
 
         votingEscrow = _votingEscrow;
+        timeTotal = block.timestamp / WEEK * WEEK;
 
         _grantRole(DEFAULT_ADMIN_ROLE, msg.sender);
         _grantRole(AUTHORIZED_OPERATOR, msg.sender);
@@ -135,7 +139,7 @@ contract GaugeController is AccessControlUpgradeable, ReentrancyGuardUpgradeable
     */
     function changeTypeWeight(uint128 _gType, uint256 _weight)
         external
-        onlyRole(DEFAULT_ADMIN_ROLE) 
+        onlyRole(DEFAULT_ADMIN_ROLE)
     {
         _changeTypeWeight(_gType, _weight);
     }
@@ -147,7 +151,7 @@ contract GaugeController is AccessControlUpgradeable, ReentrancyGuardUpgradeable
      */
     function changeGaugeWeight(address _gAddr, uint256 _weight)
         external
-        onlyRole(DEFAULT_ADMIN_ROLE) 
+        onlyRole(DEFAULT_ADMIN_ROLE)
     {
         _changeGaugeWeight(_gAddr, _weight);
     }
@@ -162,7 +166,7 @@ contract GaugeController is AccessControlUpgradeable, ReentrancyGuardUpgradeable
         address _gAddr,
         uint128 _gType,
         uint256 _weight
-    ) external onlyRole(AUTHORIZED_OPERATOR) 
+    ) external onlyRole(AUTHORIZED_OPERATOR)
     {
         require(_gAddr != address(0), "Invalid address");
         require(_gType < nGaugeTypes, "Invalid gauge type");
@@ -213,14 +217,14 @@ contract GaugeController is AccessControlUpgradeable, ReentrancyGuardUpgradeable
         _getTotal();
     }
 
-    /** 
+    /**
      * ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
-     * 
+     *
      *      EXTERNAL FUNCTIONS FOR GAUGE VOTING
-     * 
+     *
      * ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
      */
-     
+
     /**
      *  @notice Allocate voting power for changing pool weights
      *  @param _gAddr Gauge which `msg.sender` votes for
@@ -275,7 +279,7 @@ contract GaugeController is AccessControlUpgradeable, ReentrancyGuardUpgradeable
     }
 
 
-    /**  
+    /**
      *  @notice Get gauge weight normalized to 1e18 and also fill all the unfilled
      *         values for type and gauge records
      *  @dev Any address can call, however nothing is recorded if the values are filled already
@@ -301,11 +305,11 @@ contract GaugeController is AccessControlUpgradeable, ReentrancyGuardUpgradeable
         return _gaugeRelativeWeight(_gAddr, block.timestamp);
     }
 
-    /** 
+    /**
      * ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
-     * 
+     *
      *      EXTERNAL VIEW FUNCTIONS
-     * 
+     *
      * ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
      */
 
@@ -418,11 +422,11 @@ contract GaugeController is AccessControlUpgradeable, ReentrancyGuardUpgradeable
         return gauges;
     }
 
-    /** 
+    /**
      * ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
-     * 
+     *
      *      INTERNAL HELPER FUNCTIONS
-     * 
+     *
      * ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
      */
 
@@ -763,11 +767,11 @@ contract GaugeController is AccessControlUpgradeable, ReentrancyGuardUpgradeable
         return _b;
     }
 
-    /** 
+    /**
      * ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
-     * 
+     *
      *      EVENTS
-     * 
+     *
      * ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
      */
     event TypeAdded(string name, uint128 typeId);
