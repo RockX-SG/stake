@@ -23,11 +23,11 @@ import "@openzeppelin/contracts-upgradeable/access/OwnableUpgradeable.sol";
 import "@openzeppelin/contracts-upgradeable/proxy/utils/Initializable.sol";
 
 /**
- *  @title RewardCashier
+ *  @title Cashier
  *  @notice This contract manages the reward distribution to different LP's based on gauges weight, weekly.
  *  @author RockX Team(AGPL)
  */
-contract RewardCashier is Initializable, PausableUpgradeable, OwnableUpgradeable, ReentrancyGuardUpgradeable {
+contract Cashier is Initializable, PausableUpgradeable, OwnableUpgradeable, ReentrancyGuardUpgradeable {
     using SafeERC20 for IERC20;
     uint256 public constant WEEK = 86400*7;
     uint256 public constant MULTIPLIER = 1e18;
