@@ -53,11 +53,10 @@ def main():
     transparent_ve.grantRole( transparent_ve.AUTHORIZED_LOCKER_ROLE(), owner, {'from': owner})
 
     print("lock 100 * 1e18 value of account", voter1, "for 30 days:")
-    transparent_ve.createLock(voter1, 100 * 1e18, chain.time() + 86400 * 30, {'from': owner})
+    transparent_ve.createLock(voter1, 100 * 1e18, chain.time() + 86400 * 300, {'from': owner})
     print("lock 100 * 1e18 value of account", voter2, "for 30 days:")
-    transparent_ve.createLock(voter2, 100 * 1e18, chain.time() + 86400 * 30, {'from': owner})
+    transparent_ve.createLock(voter2, 100 * 1e18, chain.time() + 86400 * 300, {'from': owner})
     
-    chain.mine(10)
     print("########## GAUGE CONTROLLER INIT")
     print(r'''addType("LP-TYPE0", 1, {'from':owner})''')
     transparent_gauge.addType("TYPE0", 1, {'from':owner})
