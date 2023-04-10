@@ -22,9 +22,11 @@ import "@openzeppelin/contracts/utils/math/SafeCast.sol";
 /**
  *  @title GaugeController
  *  @notice This contract is the solidity version of curves GaugeController.
- *  @author Curve Finance (MIT) - original concept and implementation in Vyper
- *                https://github.com/curvefi/curve-dao-contracts/blob/master/contracts/GaugeController.vy
- *          RockX Team - this version
+ *  @author Curve Finance (MIT) - original concept and implementation in Vyper 
+ *              (see: https://github.com/curvefi/curve-dao-contracts/blob/master/contracts/GaugeController.vy)
+ *          Sperax Team (MIT) - solidity interpretation of gauge controller.
+ *              (see: https://arbiscan.io/address/0xdce2810fc24d8ec8a6d2d749e1248e3f0ba97257#code)
+ *          RockX Team - this version, structure and code optimized, role-based access-control
  */
 contract GaugeController is AccessControlUpgradeable, ReentrancyGuardUpgradeable {
     bytes32 public constant AUTHORIZED_OPERATOR = keccak256("AUTHORIZED_OPERATOR_ROLE");
