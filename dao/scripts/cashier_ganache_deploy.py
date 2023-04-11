@@ -20,8 +20,16 @@ def main():
     voter2 = accounts[3]
     lp_gauge1 = accounts[8]
     lp_gauge2 = accounts[9]
+    approved_account = accounts[4]
 
     print(f'contract owner account: {owner.address}\n')
+
+    token_contract = BedrockDAO.deploy(
+            {'from': deployer})
+
+    token_proxy =  TransparentUpgradeableProxy.deploy(
+            token_contract, deployer, b'',
+            {'from': deployer})
 
     ve_contract = VotingEscrow.deploy(
             {'from': deployer})
@@ -30,7 +38,6 @@ def main():
             ve_contract, deployer, b'',
             {'from': deployer})
 
-
     gauge_contract = GaugeController.deploy(
             {'from': deployer})
 
@@ -38,6 +45,17 @@ def main():
             gauge_contract, deployer, b'',
             {'from': deployer})
 
+    cashier_contract = Cashier.deploy(
+            {'from': deployer})
+
+    cashier_proxy = TransparentUpgradeableProxy.deploy(
+            cashier_contract, deployer, b'',
+            {'from': deployer})
+
+    transparent_token = Contract.from_abi("BedrockDAO", token_proxy.address, BedrockDAO.abi)
+    transparent_token.initialize({'from': owner})
+
+    print("BDR ADDRESS:", transparent_token)
 
     transparent_ve = Contract.from_abi("VotingEscrow", ve_proxy.address, VotingEscrow.abi)
     transparent_ve.initialize( "voting-escrow BDR", "veBDR", {'from': owner})
@@ -49,6 +67,11 @@ def main():
 
     print("GAUGE ADDRESS:", transparent_gauge)
 
+    transparent_cashier = Contract.from_abi("Cashier", cashier_proxy.address, Cashier.abi)
+    transparent_cashier.initialize(transparent_token, 100000 * 1e18, transparent_gauge, approved_account, {'from': owner})
+
+    print("CASHIER ADDRESS:", transparent_gauge)
+
     print("granting AUTHORIZED LOCKER ROLE to owner")
     transparent_ve.grantRole( transparent_ve.AUTHORIZED_LOCKER_ROLE(), owner, {'from': owner})
 
@@ -57,7 +80,7 @@ def main():
     print("lock 100 * 1e18 value of account", voter2, "for 300 days:")
     transparent_ve.createLock(voter2, 100 * 1e18, chain.time() + 86400 * 300, {'from': owner})
     
-    print("########## GAUGE CONTROLLER INIT")
+    print("########## GAUGE CONTROLLER INIT #############")
     print(r'''addType("LP-TYPE0", 1, {'from':owner})''')
     transparent_gauge.addType("TYPE0", 1, {'from':owner})
 
@@ -75,3 +98,24 @@ def main():
             transparent_gauge.gaugeRelativeWeight(lp_gauge1, get_week(1)))
     print(r'''transparent_gauge.gaugeRelativeWeight(lp_gauge2, get_week(1))''',
             transparent_gauge.gaugeRelativeWeight(lp_gauge2, get_week(1)))
+
+
+    print("########## CASHIER INIT #############")
+    transparent_token.mint(approved_account, 100000 * 1e18, {'from':owner})
+    print('''transparent_token.balanceOf(approved_account)''',transparent_token.balanceOf(approved_account))
+    transparent_token.approve(transparent_cashier, 0xffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffff, {'from':approved_account})
+    print('''transparent_cashier.setGlobalEmissionRate(100 * 1e18, {'from':owner}''')
+    transparent_cashier.setGlobalEmissionRate(100 * 1e18, {'from':owner}) 
+
+    chain.sleep(86400*7)
+    chain.mine(1)
+    print("distributeRewards to gauge 1 & 2")
+    transparent_cashier.distributeRewards(lp_gauge1, {'from':owner})
+    transparent_cashier.distributeRewards(lp_gauge2, {'from':owner})
+    print('''transparent_token.balanceOf(lp_gauge1)''',transparent_token.balanceOf(lp_gauge1))
+    print('''transparent_token.balanceOf(lp_gauge2)''',transparent_token.balanceOf(lp_gauge2))
+
+
+
+
+

@@ -34,6 +34,7 @@ contract Cashier is Initializable, PausableUpgradeable, OwnableUpgradeable, Reen
 
     address public rewardToken;
     address public gaugeController;
+    address public approvedAccount;
     uint256 public globalWeekEmission; // Reward Token Emissions per week.
 
     mapping(address => uint256) public nextRewardTime; // Tracks the next reward time for a gauge.
@@ -46,7 +47,8 @@ contract Cashier is Initializable, PausableUpgradeable, OwnableUpgradeable, Reen
     function initialize(
         address _rewardToken,
         uint256 _globalWeekEmission,
-        address _gaugeController
+        address _gaugeController,
+        address _approvedAccount
     ) initializer public {
         __Pausable_init();
         __Ownable_init();
@@ -55,6 +57,7 @@ contract Cashier is Initializable, PausableUpgradeable, OwnableUpgradeable, Reen
         rewardToken = _rewardToken;
         gaugeController = _gaugeController;
         globalWeekEmission = _globalWeekEmission;
+        approvedAccount = _approvedAccount;
     }
 
     /** 
@@ -139,7 +142,7 @@ contract Cashier is Initializable, PausableUpgradeable, OwnableUpgradeable, Reen
         uint256 rewards = (globalWeekEmission * gaugeRelativeWt) / MULTIPLIER;
 
         // transfer ERC20 reward token to farm.
-        IERC20(rewardToken).safeTransfer(_gAddr, rewards);
+        IERC20(rewardToken).safeTransferFrom(approvedAccount, _gAddr, rewards);
 
         // schedule next week's transfer
         nextRewardTime[_gAddr] = _getWeek(block.timestamp + WEEK);
