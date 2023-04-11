@@ -87,7 +87,7 @@ contract LPStaking is Initializable, OwnableUpgradeable, PausableUpgradeable, Re
      * @dev stake assets
      */
     function deposit(uint256 amount) external nonReentrant whenNotPaused {
-        updateReward();
+        _updateReward();
 
         UserInfo storage info = userInfo[msg.sender];
 
@@ -110,7 +110,7 @@ contract LPStaking is Initializable, OwnableUpgradeable, PausableUpgradeable, Re
      * @dev havest & vest
      */
     function havest(uint256 amount) external nonReentrant whenNotPaused {
-        updateReward();
+        _updateReward();
 
         UserInfo storage info = userInfo[msg.sender];
 
@@ -134,7 +134,7 @@ contract LPStaking is Initializable, OwnableUpgradeable, PausableUpgradeable, Re
      * @dev withdraw the staked assets
      */
     function withdraw(uint256 amount) external nonReentrant {
-        updateReward();
+        _updateReward();
 
         UserInfo storage info = userInfo[msg.sender];
         require(info.amount >= amount, "INSUFFICIENT_AMOUNT");
@@ -157,14 +157,7 @@ contract LPStaking is Initializable, OwnableUpgradeable, PausableUpgradeable, Re
     /**
      * @dev updateReward
      */
-    function updateReward() public {
-        uint256 balance = IERC20(rewardToken).balanceOf(address(this));
-        if (balance > accountedBalance && totalShares > 0) {
-            uint256 rewards = balance - accountedBalance;
-            accShare += rewards * MULTIPLIER / totalShares;
-            accountedBalance = balance;
-        }
-    }
+    function updateReward() external {  _updateReward(); }
 
     /** 
      * ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
@@ -174,6 +167,15 @@ contract LPStaking is Initializable, OwnableUpgradeable, PausableUpgradeable, Re
      * ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
      */
     function _balanceDecrease(uint256 amount) internal { accountedBalance -= amount; }
+
+    function _updateReward() internal {
+        uint256 balance = IERC20(rewardToken).balanceOf(address(this));
+        if (balance > accountedBalance && totalShares > 0) {
+            uint256 rewards = balance - accountedBalance;
+            accShare += rewards * MULTIPLIER / totalShares;
+            accountedBalance = balance;
+        }
+    }
 
     /** 
      * ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
