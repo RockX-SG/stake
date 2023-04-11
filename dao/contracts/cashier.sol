@@ -32,9 +32,10 @@ contract Cashier is Initializable, PausableUpgradeable, OwnableUpgradeable, Reen
     uint256 public constant WEEK = 86400*7;
     uint256 public constant MULTIPLIER = 1e18;
 
-    address public rewardToken;
-    address public gaugeController;
-    address public approvedAccount;
+    address public rewardToken; // the token as the rewards
+    address public gaugeController; // gauge controller to determine how much to transfer
+    address public approvedAccount; // the account who owns the to-be distributed rewards
+                                    // a multi-sig wallet is recommended.
     uint256 public globalWeekEmission; // Reward Token Emissions per week.
 
     mapping(address => uint256) public nextRewardTime; // Tracks the next reward time for a gauge.
@@ -81,7 +82,7 @@ contract Cashier is Initializable, PausableUpgradeable, OwnableUpgradeable, Reen
      */
     function setGlobalEmissionRate(uint256 _newWeekEmission) external onlyOwner {
         globalWeekEmission = _newWeekEmission;
-        emit GlobalEmissionRateUpdated(_newWeekEmission);
+        emit GlobalEmissionRateSet(_newWeekEmission);
     }
 
     /**
@@ -166,6 +167,6 @@ contract Cashier is Initializable, PausableUpgradeable, OwnableUpgradeable, Reen
      *
      * ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
      */
-    event GlobalEmissionRateUpdated(uint256 rate);
+    event GlobalEmissionRateSet(uint256 rate);
     event RewardsDistributed(address indexed gAddr, uint256 amount);
 }
