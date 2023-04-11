@@ -30,6 +30,7 @@ contract LPStaking is Initializable, OwnableUpgradeable, PausableUpgradeable, Re
     using SafeMath for uint;
     
     uint256 private constant MULTIPLIER = 1e18; 
+    uint256 public constant WEEK = 604800;
 
     struct UserInfo {
         uint256 accSharePoint; // share starting point
@@ -39,6 +40,12 @@ contract LPStaking is Initializable, OwnableUpgradeable, PausableUpgradeable, Re
 
     uint256 private totalShares; // total shares
     uint256 private accShare;   // accumulated earnings per 1 share
+
+    // current realized profit delivery rate, this profit should be distributed linearly in a week,
+    // otherwise, users can sandwich stake & unstake on newly received rewards
+    uint256 private accShareRealized; // the realized accShare at specific time.
+    uint256 private accShareRealizingTime;  // the accShare expected to be realized at this time
+
     mapping(address => UserInfo) public userInfo; // claimaddr -> info
     uint256 private accountedBalance;   // for tracking of rewards
 
@@ -104,7 +111,7 @@ contract LPStaking is Initializable, OwnableUpgradeable, PausableUpgradeable, Re
     }
     
     /**
-     * @dev havest & vest
+     * @dev havest
      */
     function havest(uint256 amount) external nonReentrant whenNotPaused {
         _updateReward();
@@ -169,12 +176,41 @@ contract LPStaking is Initializable, OwnableUpgradeable, PausableUpgradeable, Re
      * @dev compare balance remembered to current balance to find the increased reward.
      */
     function _updateReward() internal {
+        // make sure previous accShare has been updated if it's been a week
+        if (block.timestamp > accShareRealizingTime) {
+            accShare = accShareRealized;
+        }
+
+        // accumulate new rewards
         uint256 balance = IERC20(rewardToken).balanceOf(address(this));
         if (balance > accountedBalance && totalShares > 0) {
             uint256 rewards = balance - accountedBalance;
-            accShare += rewards * MULTIPLIER / totalShares;
             accountedBalance = balance;
+
+            // here we update accShareRealized first
+            // then accShare is calculated on linear base:
+            //  accShare(block.timestamp) ---> accShareRealized(week ends)
+            //     |                          |
+            //     |----- duration -----------|
+            
+            // new accShare will be realized in current week.
+            accShareRealized += rewards * MULTIPLIER / totalShares;
+            accShareRealizingTime = _getWeek(block.timestamp + WEEK);
         }
+
+        // accShare reaching target: accShareRealized linearly.
+        if (accShareRealized - accShare > 0) {
+            accShare += (accShareRealized - accShare) / (accShareRealizingTime - block.timestamp);
+        }
+    }
+
+    /**
+     *  @notice Get the based on the ts.
+     *  @param _ts arbitrary time stamp.
+     *  @return returns the 00:00 am UTC for THU after _ts
+     */
+    function _getWeek(uint256 _ts) private pure returns (uint256) {
+        return (_ts / WEEK) * WEEK;
     }
 
     /** 
