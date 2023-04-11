@@ -14,7 +14,6 @@
 // ⡀⡀⡀⡀⡀⡀⡀⡀⡀⡀⡀⡀⡀⡀⡀⡀⡀⡀⡀⡀⡀⡀⡀⡀⡀⡀⡀⡀⡀⡀⡀⡀⡀⡀⡀⡀⡀⡀⡀⡀⡀⡀⡀⡀⡀⡀⡀⡀⡀⡀⡀⡀
 pragma solidity ^0.8.9;
 
-import "interfaces/IVotingEscrow.sol";
 import "@openzeppelin/contracts/utils/math/SafeMath.sol";
 import "@openzeppelin/contracts/token/ERC20/utils/SafeERC20.sol";
 import "@openzeppelin/contracts-upgradeable/access/OwnableUpgradeable.sol";
@@ -45,7 +44,6 @@ contract LPStaking is Initializable, OwnableUpgradeable, PausableUpgradeable, Re
 
     address public lpToken; // the ERC20 lp token to staking
     address public rewardToken; // the reward token to distribute to users as rewards
-    address public votingEscrow; // the voting escrow to lock the rewards
 
     uint256 private _lastRewardBlock = block.number;
 
@@ -66,13 +64,12 @@ contract LPStaking is Initializable, OwnableUpgradeable, PausableUpgradeable, Re
         revert("Do not send ETH here");
     }
 
-    function initialize(address _lpToken, address _rewardToken, address _votingEscrow) initializer public {
+    function initialize(address _lpToken, address _rewardToken) initializer public {
         __Pausable_init();
         __Ownable_init();
 
         lpToken = _lpToken;
         rewardToken = _rewardToken;
-        votingEscrow = _votingEscrow;
     }
 
     function pause() public onlyOwner {
@@ -168,6 +165,9 @@ contract LPStaking is Initializable, OwnableUpgradeable, PausableUpgradeable, Re
      */
     function _balanceDecrease(uint256 amount) internal { accountedBalance -= amount; }
 
+    /**
+     * @dev compare balance remembered to current balance to find the increased reward.
+     */
     function _updateReward() internal {
         uint256 balance = IERC20(rewardToken).balanceOf(address(this));
         if (balance > accountedBalance && totalShares > 0) {
