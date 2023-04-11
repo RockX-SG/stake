@@ -43,7 +43,9 @@ contract LPStaking is Initializable, OwnableUpgradeable, PausableUpgradeable, Re
 
     // current realized profit delivery rate, this profit should be distributed linearly in a week,
     // otherwise, users can sandwich stake & unstake on newly received rewards
-    uint256 private accShareRealized; // the realized accShare at specific time.
+    uint256 private accShareSnapshot;   // the accShare snapshot at the time
+    uint256 private accShareSnapshotTime;   // the accShare snapshot time
+    uint256 private accShareRealized;   // the realized accShare in the future.
     uint256 private accShareRealizingTime;  // the accShare expected to be realized at this time
 
     mapping(address => UserInfo) public userInfo; // claimaddr -> info
@@ -181,6 +183,13 @@ contract LPStaking is Initializable, OwnableUpgradeable, PausableUpgradeable, Re
             accShare = accShareRealized;
         }
 
+        // let accShare reach target: accShareRealized linearly.
+        if (accShareRealized - accShare > 0) {
+            uint256 secondsPassed = block.timestamp - accShareSnapshotTime;
+            uint256 accSharePerSecond = (accShareRealized - accShareSnapshot) / (accShareRealizingTime - accShareSnapshotTime);
+            accShare = accShareSnapshot + secondsPassed * accSharePerSecond;
+        }
+
         // accumulate new rewards
         uint256 balance = IERC20(rewardToken).balanceOf(address(this));
         if (balance > accountedBalance && totalShares > 0) {
@@ -192,15 +201,11 @@ contract LPStaking is Initializable, OwnableUpgradeable, PausableUpgradeable, Re
             //  accShare(block.timestamp) ---> accShareRealized(week ends)
             //     |                          |
             //     |----- duration -----------|
-            
-            // new accShare will be realized in current week.
+
             accShareRealized += rewards * MULTIPLIER / totalShares;
             accShareRealizingTime = _getWeek(block.timestamp + WEEK);
-        }
-
-        // accShare reaching target: accShareRealized linearly.
-        if (accShareRealized - accShare > 0) {
-            accShare += (accShareRealized - accShare) / (accShareRealizingTime - block.timestamp);
+            accShareSnapshot = accShare;
+            accShareSnapshotTime = block.timestamp;
         }
     }
 
