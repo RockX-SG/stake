@@ -237,7 +237,7 @@ contract LPStaking is Initializable, OwnableUpgradeable, PausableUpgradeable, Re
         if (accShareRealized > accShareForView) {
             if (block.timestamp > accShareRealizingTime) {
                 accShareForView = accShareRealized;
-            } else if (accShareRealized > accShare && block.timestamp > accShareSnapshotTime) {
+            } else if (block.timestamp > accShareSnapshotTime) {
                 // let accShare approach target: accShareRealized linearly.
                 // y = ax + b, which:
                 // y is accShare
