@@ -233,10 +233,10 @@ contract LPStaking is Initializable, OwnableUpgradeable, PausableUpgradeable, Re
      */
     function _getCurrentAccShare() private view returns (uint256) {
         // make sure the previous accShare has been updated if it's beyond the realizing time
-        uint256 accShareForView = accShare;
-        if (accShareRealized > accShareForView) {
+        uint256 currentAccShare = accShare;
+        if (accShareRealized > currentAccShare) {
             if (block.timestamp > accShareRealizingTime) {
-                accShareForView = accShareRealized;
+                currentAccShare = accShareRealized;
             } else if (block.timestamp > accShareSnapshotTime) {
                 // let accShare approach target: accShareRealized linearly.
                 // y = ax + b, which:
@@ -246,10 +246,10 @@ contract LPStaking is Initializable, OwnableUpgradeable, PausableUpgradeable, Re
                 // b is accShareSnapshot
                 uint256 secondsPassed = block.timestamp - accShareSnapshotTime;
                 uint256 accSharePerSecond = (accShareRealized - accShareSnapshot) / (accShareRealizingTime - accShareSnapshotTime);
-                accShareForView = accShareSnapshot + secondsPassed * accSharePerSecond;
+                currentAccShare = accShareSnapshot + secondsPassed * accSharePerSecond;
             }
         }
-        return accShareForView;
+        return currentAccShare;
     }
 
     /**
