@@ -113,7 +113,7 @@ contract LPStaking is Initializable, OwnableUpgradeable, PausableUpgradeable, Re
     }
     
     /**
-     * @dev havest
+     * @dev havest rewards
      */
     function havest(uint256 amount) external nonReentrant whenNotPaused {
         _updateReward();
@@ -165,6 +165,38 @@ contract LPStaking is Initializable, OwnableUpgradeable, PausableUpgradeable, Re
      */
     function updateReward() external {  _updateReward(); }
 
+        /**
+     * ======================================================================================
+     * 
+     * VIEW FUNCTIONS
+     * 
+     * ======================================================================================
+     */
+     function getTotalShare() external view returns (uint256) { return totalShares; }
+     function getAccountedBalance() external view returns (uint256) { return accountedBalance; }
+
+     function getPendingReward(address claimaddr) external view returns (uint256) {
+        UserInfo storage info = userInfo[claimaddr];
+        if (totalShares == 0) {  
+            return info.rewardBalance;
+        }
+        
+        uint256 accShareForView = accShare;
+        // make sure previous accShare has been updated if it's been a week
+        if (block.timestamp > accShareRealizingTime) {
+            accShareForView = accShareRealized;
+        }
+
+        // let accShare approach target: accShareRealized linearly.
+        if (accShareRealized > accShareForView) {
+            uint256 secondsPassed = block.timestamp - accShareSnapshotTime;
+            uint256 accSharePerSecond = (accShareRealized - accShareSnapshot) / (accShareRealizingTime - accShareSnapshotTime);
+            accShareForView = accShareSnapshot + secondsPassed * accSharePerSecond;
+        }
+
+        return info.rewardBalance + (accShareForView - info.accSharePoint) * info.amount / MULTIPLIER;
+     }
+
     /** 
      * ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
      * 
@@ -183,8 +215,8 @@ contract LPStaking is Initializable, OwnableUpgradeable, PausableUpgradeable, Re
             accShare = accShareRealized;
         }
 
-        // let accShare reach target: accShareRealized linearly.
-        if (accShareRealized - accShare > 0) {
+        // let accShare approach target: accShareRealized linearly.
+        if (accShareRealized > accShare) {
             uint256 secondsPassed = block.timestamp - accShareSnapshotTime;
             uint256 accSharePerSecond = (accShareRealized - accShareSnapshot) / (accShareRealizingTime - accShareSnapshotTime);
             accShare = accShareSnapshot + secondsPassed * accSharePerSecond;

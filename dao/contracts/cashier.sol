@@ -16,7 +16,9 @@
 pragma solidity ^0.8.9;
 
 import "interfaces/IGaugeController.sol";
+import "interfaces/IStaking.sol";
 import "@openzeppelin/contracts/token/ERC20/utils/SafeERC20.sol";
+import "@openzeppelin/contracts/utils/Address.sol";
 import "@openzeppelin/contracts-upgradeable/security/ReentrancyGuardUpgradeable.sol";
 import "@openzeppelin/contracts-upgradeable/security/PausableUpgradeable.sol";
 import "@openzeppelin/contracts-upgradeable/access/OwnableUpgradeable.sol";
@@ -29,6 +31,7 @@ import "@openzeppelin/contracts-upgradeable/proxy/utils/Initializable.sol";
  */
 contract Cashier is Initializable, PausableUpgradeable, OwnableUpgradeable, ReentrancyGuardUpgradeable {
     using SafeERC20 for IERC20;
+    using Address for address;
     uint256 public constant WEEK = 86400*7;
     uint256 public constant MULTIPLIER = 1e18;
 
@@ -144,6 +147,11 @@ contract Cashier is Initializable, PausableUpgradeable, OwnableUpgradeable, Reen
 
         // transfer ERC20 reward token to farm.
         IERC20(rewardToken).safeTransferFrom(approvedAccount, _gAddr, rewards);
+
+        // notify staking with updateReward() if it's a contract
+        if (_gAddr.isContract()) {
+            IStaking(_gAddr).updateReward();
+        }
 
         // schedule next week's transfer
         nextRewardTime[_gAddr] = _getWeek(block.timestamp + WEEK);
