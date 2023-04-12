@@ -89,6 +89,14 @@ contract LPStaking is Initializable, OwnableUpgradeable, PausableUpgradeable, Re
         _unpause();
     }
 
+    /** 
+     * ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+     * 
+     *      EXTERNAL FUNCTIONS 
+     *
+     * ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+     */
+
      /**
      * @dev stake assets
      */
@@ -165,12 +173,12 @@ contract LPStaking is Initializable, OwnableUpgradeable, PausableUpgradeable, Re
      */
     function updateReward() external {  _updateReward(); }
 
-        /**
-     * ======================================================================================
+    /** 
+     * ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
      * 
-     * VIEW FUNCTIONS
-     * 
-     * ======================================================================================
+     *      VIEW FUNCTIONS 
+     *
+     * ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
      */
      function getTotalShare() external view returns (uint256) { return totalShares; }
      function getAccountedBalance() external view returns (uint256) { return accountedBalance; }
