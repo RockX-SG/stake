@@ -23,14 +23,14 @@ import "@openzeppelin/contracts-upgradeable/security/PausableUpgradeable.sol";
 import "@openzeppelin/contracts-upgradeable/proxy/utils/Initializable.sol";
 
  /**
- * @title Rockx Liquid Staking LP Pair Incentives
- * @author RockX Team
- */
+  * @title Rockx Liquid Staking LP Pair Incentives
+  * @author RockX Team
+  */
 contract LPStaking is IStaking, Initializable, OwnableUpgradeable, PausableUpgradeable, ReentrancyGuardUpgradeable {
     using SafeERC20 for IERC20;
     using SafeMath for uint;
-    
-    uint256 private constant MULTIPLIER = 1e18; 
+
+    uint256 private constant MULTIPLIER = 1e18;
     uint256 public constant WEEK = 604800;
 
     struct UserInfo {
@@ -66,7 +66,7 @@ contract LPStaking is IStaking, Initializable, OwnableUpgradeable, PausableUpgra
     constructor() {
         _disableInitializers();
     }
-    
+
     /**
      * @dev This contract will not accept direct ETH transactions.
      */
@@ -90,10 +90,10 @@ contract LPStaking is IStaking, Initializable, OwnableUpgradeable, PausableUpgra
         _unpause();
     }
 
-    /** 
+    /**
      * ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
-     * 
-     *      EXTERNAL FUNCTIONS 
+     *
+     *      EXTERNAL FUNCTIONS
      *
      * ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
      */
@@ -113,14 +113,14 @@ contract LPStaking is IStaking, Initializable, OwnableUpgradeable, PausableUpgra
 
         // update total shares
         totalShares += amount;
-        
+
         // transfer lp token
         IERC20(lpToken).safeTransferFrom(msg.sender, address(this), amount);
-        
+
         // log
         emit Deposit(msg.sender, amount);
     }
-    
+
     /**
      * @dev havest rewards
      */
@@ -144,7 +144,7 @@ contract LPStaking is IStaking, Initializable, OwnableUpgradeable, PausableUpgra
         // log
         emit Havest(msg.sender, amount, 0);
     }
-    
+
     /**
      * @dev withdraw the staked assets
      */
@@ -174,10 +174,10 @@ contract LPStaking is IStaking, Initializable, OwnableUpgradeable, PausableUpgra
      */
     function updateReward() external override {  _updateReward(); }
 
-    /** 
+    /**
      * ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
-     * 
-     *      VIEW FUNCTIONS 
+     *
+     *      VIEW FUNCTIONS
      *
      * ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
      */
@@ -186,17 +186,17 @@ contract LPStaking is IStaking, Initializable, OwnableUpgradeable, PausableUpgra
 
      function getPendingReward(address claimaddr) external view returns (uint256) {
         UserInfo storage info = userInfo[claimaddr];
-        if (totalShares == 0) {  
+        if (totalShares == 0) {
             return info.rewardBalance;
         }
-        
+
         return info.rewardBalance + (_getCurrentAccShare() - info.accSharePoint) * info.amount / MULTIPLIER;
      }
 
-    /** 
+    /**
      * ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
-     * 
-     *      INTERNALS 
+     *
+     *      INTERNALS
      *
      * ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
      */
@@ -229,7 +229,7 @@ contract LPStaking is IStaking, Initializable, OwnableUpgradeable, PausableUpgra
         }
     }
 
-    /** 
+    /**
      * @dev calculate current accShare
      */
     function _getCurrentAccShare() private view returns (uint256) {
@@ -262,10 +262,10 @@ contract LPStaking is IStaking, Initializable, OwnableUpgradeable, PausableUpgra
         return (_ts / WEEK) * WEEK;
     }
 
-    /** 
+    /**
      * ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
-     * 
-     *      EVENTS 
+     *
+     *      EVENTS
      *
      * ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
      */
