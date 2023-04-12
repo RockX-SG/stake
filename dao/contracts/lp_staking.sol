@@ -189,20 +189,7 @@ contract LPStaking is Initializable, OwnableUpgradeable, PausableUpgradeable, Re
             return info.rewardBalance;
         }
         
-        uint256 accShareForView = accShare;
-        // make sure previous accShare has been updated if it's been a week
-        if (block.timestamp > accShareRealizingTime) {
-            accShareForView = accShareRealized;
-        }
-
-        // let accShare approach target: accShareRealized linearly.
-        if (accShareRealized > accShareForView) {
-            uint256 secondsPassed = block.timestamp - accShareSnapshotTime;
-            uint256 accSharePerSecond = (accShareRealized - accShareSnapshot) / (accShareRealizingTime - accShareSnapshotTime);
-            accShareForView = accShareSnapshot + secondsPassed * accSharePerSecond;
-        }
-
-        return info.rewardBalance + (accShareForView - info.accSharePoint) * info.amount / MULTIPLIER;
+        return info.rewardBalance + (_getCurrentAccShare() - info.accSharePoint) * info.amount / MULTIPLIER;
      }
 
     /** 
@@ -218,17 +205,8 @@ contract LPStaking is Initializable, OwnableUpgradeable, PausableUpgradeable, Re
      * @dev compare balance remembered to current balance to find the increased reward.
      */
     function _updateReward() internal {
-        // make sure previous accShare has been updated if it's been a week
-        if (block.timestamp > accShareRealizingTime) {
-            accShare = accShareRealized;
-        }
-
-        // let accShare approach target: accShareRealized linearly.
-        if (accShareRealized > accShare) {
-            uint256 secondsPassed = block.timestamp - accShareSnapshotTime;
-            uint256 accSharePerSecond = (accShareRealized - accShareSnapshot) / (accShareRealizingTime - accShareSnapshotTime);
-            accShare = accShareSnapshot + secondsPassed * accSharePerSecond;
-        }
+        // update accShare to latest
+        accShare = _getCurrentAccShare();
 
         // accumulate new rewards
         uint256 balance = IERC20(rewardToken).balanceOf(address(this));
@@ -238,15 +216,40 @@ contract LPStaking is Initializable, OwnableUpgradeable, PausableUpgradeable, Re
 
             // here we update accShareRealized first
             // then accShare is calculated on linear base:
-            //  accShare(block.timestamp) ---> accShareRealized(week ends)
-            //     |                          |
-            //     |----- duration -----------|
+            //  accShareSnapshot(block.timestamp) ---> accShareRealized(week ends)
+            //     |                                            |
+            //     |----- seconds passed------------------------|
 
             accShareRealized += rewards * MULTIPLIER / totalShares;
             accShareRealizingTime = _getWeek(block.timestamp + WEEK);
-            accShareSnapshot = accShare;
+
+            accShareSnapshot = accShare;    // capture current accShare for release speed calculation
             accShareSnapshotTime = block.timestamp;
         }
+    }
+
+    /** 
+     * @dev calculate current accShare
+     */
+    function _getCurrentAccShare() private view returns (uint256) {
+        // make sure the previous accShare has been updated if it's beyond the realizing time
+        uint256 accShareForView = accShare;
+        if (accShareRealized > accShareForView) {
+            if (block.timestamp > accShareRealizingTime) {
+                accShareForView = accShareRealized;
+            } else if (accShareRealized > accShare && block.timestamp > accShareSnapshotTime) {
+                // let accShare approach target: accShareRealized linearly.
+                // y = ax + b, which:
+                // y is accShare
+                // x is secondsPassed
+                // a is accSharePerSecond
+                // b is accShareSnapshot
+                uint256 secondsPassed = block.timestamp - accShareSnapshotTime;
+                uint256 accSharePerSecond = (accShareRealized - accShareSnapshot) / (accShareRealizingTime - accShareSnapshotTime);
+                accShareForView = accShareSnapshot + secondsPassed * accSharePerSecond;
+            }
+        }
+        return accShareForView;
     }
 
     /**
