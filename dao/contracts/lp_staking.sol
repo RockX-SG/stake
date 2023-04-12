@@ -14,6 +14,7 @@
 // ⡀⡀⡀⡀⡀⡀⡀⡀⡀⡀⡀⡀⡀⡀⡀⡀⡀⡀⡀⡀⡀⡀⡀⡀⡀⡀⡀⡀⡀⡀⡀⡀⡀⡀⡀⡀⡀⡀⡀⡀⡀⡀⡀⡀⡀⡀⡀⡀⡀⡀⡀⡀
 pragma solidity ^0.8.9;
 
+import "interfaces/IStaking.sol";
 import "@openzeppelin/contracts/utils/math/SafeMath.sol";
 import "@openzeppelin/contracts/token/ERC20/utils/SafeERC20.sol";
 import "@openzeppelin/contracts-upgradeable/access/OwnableUpgradeable.sol";
@@ -25,7 +26,7 @@ import "@openzeppelin/contracts-upgradeable/proxy/utils/Initializable.sol";
  * @title Rockx Liquid Staking LP Pair Incentives
  * @author RockX Team
  */
-contract LPStaking is Initializable, OwnableUpgradeable, PausableUpgradeable, ReentrancyGuardUpgradeable {
+contract LPStaking is IStaking, Initializable, OwnableUpgradeable, PausableUpgradeable, ReentrancyGuardUpgradeable {
     using SafeERC20 for IERC20;
     using SafeMath for uint;
     
@@ -100,7 +101,7 @@ contract LPStaking is Initializable, OwnableUpgradeable, PausableUpgradeable, Re
      /**
      * @dev stake assets
      */
-    function deposit(uint256 amount) external nonReentrant whenNotPaused {
+    function deposit(uint256 amount) external override nonReentrant whenNotPaused {
         _updateReward();
 
         UserInfo storage info = userInfo[msg.sender];
@@ -123,7 +124,7 @@ contract LPStaking is Initializable, OwnableUpgradeable, PausableUpgradeable, Re
     /**
      * @dev havest rewards
      */
-    function havest(uint256 amount) external nonReentrant whenNotPaused {
+    function havest(uint256 amount) external override nonReentrant whenNotPaused {
         _updateReward();
 
         UserInfo storage info = userInfo[msg.sender];
@@ -147,7 +148,7 @@ contract LPStaking is Initializable, OwnableUpgradeable, PausableUpgradeable, Re
     /**
      * @dev withdraw the staked assets
      */
-    function withdraw(uint256 amount) external nonReentrant {
+    function withdraw(uint256 amount) override external nonReentrant {
         _updateReward();
 
         UserInfo storage info = userInfo[msg.sender];
@@ -171,7 +172,7 @@ contract LPStaking is Initializable, OwnableUpgradeable, PausableUpgradeable, Re
     /**
      * @dev updateReward
      */
-    function updateReward() external {  _updateReward(); }
+    function updateReward() external override {  _updateReward(); }
 
     /** 
      * ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
