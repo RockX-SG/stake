@@ -65,10 +65,20 @@ def main():
     print('''transparent_staking.getPendingReward(owner)''', transparent_staking.getPendingReward(owner))
     print("chain.mine(100)", chain.mine(100))
     print('''transparent_staking.getPendingReward(owner)''', transparent_staking.getPendingReward(owner))
-    print("chain.sleep(86400*7)", chain.sleep(86400*7))
+    print("reward balance:", transparent_token.balanceOf(owner))
+    print("withdraw lp:", transparent_staking.userInfo(owner)[1], transparent_staking.withdraw(transparent_staking.userInfo(owner)[1], {"from":owner}))
+    print("havest after withdraw",transparent_staking.havest(transparent_staking.getPendingReward(owner), {'from':owner}))
+    print("reward balance:", transparent_token.balanceOf(owner))
+    print("LP balance:", transparent_lp_token.balanceOf(owner))
+
+    print("deposit LP to staking again")
+    transparent_staking.deposit(100*1e18, {'from':owner})
+
+    print('''chain.sleep(86400*7)''')
+    chain.sleep(86400*7)
     chain.mine(1)
     print('''transparent_staking.getPendingReward(owner)''', transparent_staking.getPendingReward(owner))
-    print("havest:")
+    print("havest")
     transparent_staking.havest(transparent_staking.getPendingReward(owner), {'from':owner})
-    print("balance:", transparent_token.balanceOf(owner))
+    print("reward balance:", transparent_token.balanceOf(owner))
 

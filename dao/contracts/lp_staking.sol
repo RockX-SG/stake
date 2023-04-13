@@ -44,10 +44,9 @@ contract LPStaking is IStaking, Initializable, OwnableUpgradeable, PausableUpgra
 
     // current realized profit delivery rate, this profit should be distributed linearly in a week,
     // otherwise, users can sandwich stake & unstake on newly received rewards
-    uint256 public accShareSnapshot;   // the accShare snapshot at the time
-    uint256 public accShareSnapshotTime;   // the accShare snapshot time
-    uint256 public accShareRealized;   // the realized accShare in the future.
-    uint256 public accShareRealizingTime;  // the accShare expected to be realized at this time
+    uint256 public unrealizedProfits;   // current unrealized profits(to be distributed to users at some rate)
+    uint256 public unrealizedProfitsUpdateTime;   // latest profits update time
+    uint256 public profitsRealizingTime;  // the expected profits realizing time
 
     mapping(address => UserInfo) public userInfo; // claimaddr -> info
     uint256 private accountedBalance;   // for tracking of rewards
@@ -190,7 +189,8 @@ contract LPStaking is IStaking, Initializable, OwnableUpgradeable, PausableUpgra
             return info.rewardBalance;
         }
 
-        return info.rewardBalance + (_getCurrentAccShare() - info.accSharePoint) * info.amount / MULTIPLIER;
+        uint256 realized = _getRealized();
+        return info.rewardBalance + (accShare + realized * MULTIPLIER / totalShares - info.accSharePoint) * info.amount / MULTIPLIER;
      }
 
     /**
@@ -206,8 +206,13 @@ contract LPStaking is IStaking, Initializable, OwnableUpgradeable, PausableUpgra
      * @dev compare balance remembered to current balance to find the increased reward.
      */
     function _updateReward() internal {
-        // update accShare to latest
-        accShare = _getCurrentAccShare();
+        // reward distribution first
+        uint256 realized = _getRealized();
+        if (realized > 0 && totalShares > 0) {
+            accShare += realized * MULTIPLIER / totalShares;
+            unrealizedProfits -= realized;
+            unrealizedProfitsUpdateTime = block.timestamp;
+        }
 
         // accumulate new rewards
         uint256 balance = IERC20(rewardToken).balanceOf(address(this));
@@ -215,42 +220,37 @@ contract LPStaking is IStaking, Initializable, OwnableUpgradeable, PausableUpgra
             uint256 rewards = balance - accountedBalance;
             accountedBalance = balance;
 
-            // here we update accShareRealized first
-            // then accShare is calculated on linear base:
-            //  accShareSnapshot(block.timestamp) ---> accShareRealized(week ends)
-            //     |                                            |
-            //     |----- seconds passed------------------------|
+            // profits linear realization
+            //  unrealizedProfits(unrealizedProfitsUpdateTime) ---> 0(profitsRealizingTime)
+            //     |                                                |
+            //     |----- seconds passed----------------------------|
 
-            accShareRealized += rewards * MULTIPLIER / totalShares;
-            accShareRealizingTime = _getWeek(block.timestamp + WEEK);
-
-            accShareSnapshot = accShare;    // capture current accShare for release speed calculation
-            accShareSnapshotTime = block.timestamp;
+            unrealizedProfits += rewards;
+            unrealizedProfitsUpdateTime = block.timestamp;
+            profitsRealizingTime = _getWeek(block.timestamp + WEEK);
         }
     }
 
     /**
-     * @dev calculate current accShare
+     * @dev calculate realized profits
      */
-    function _getCurrentAccShare() private view returns (uint256) {
-        // make sure the previous accShare has been updated if it's beyond the realizing time
-        uint256 currentAccShare = accShare;
-        if (accShareRealized > currentAccShare) {
-            if (block.timestamp > accShareRealizingTime) {
-                currentAccShare = accShareRealized;
-            } else if (block.timestamp > accShareSnapshotTime) {
-                // let accShare approach target: accShareRealized linearly.
-                // y = ax + b, which:
-                // y is accShare
-                // x is secondsPassed
-                // a is accSharePerSecond
-                // b is accShareSnapshot
-                uint256 secondsPassed = block.timestamp - accShareSnapshotTime;
-                uint256 accSharePerSecond = (accShareRealized - accShareSnapshot) / (accShareRealizingTime - accShareSnapshotTime);
-                currentAccShare = accShareSnapshot + secondsPassed * accSharePerSecond;
+    function _getRealized() private view returns (
+        uint256 realized
+    ) {
+        if (unrealizedProfits > 0) {
+            if (block.timestamp > profitsRealizingTime) {
+                realized = unrealizedProfits;
+            } else {
+                uint256 duration = profitsRealizingTime - unrealizedProfitsUpdateTime;
+                uint256 timePassed = block.timestamp - unrealizedProfitsUpdateTime;
+                realized = timePassed * unrealizedProfits / duration;
+            }
+
+            // make sure realized never exceeds unrealizedProfits
+            if (realized > unrealizedProfits) {
+                realized = unrealizedProfits;
             }
         }
-        return currentAccShare;
     }
 
     /**
