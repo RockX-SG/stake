@@ -55,7 +55,7 @@ def main():
     transparent_token = Contract.from_abi("BedrockDAO", token_proxy.address, BedrockDAO.abi)
     transparent_token.initialize({'from': owner})
 
-    print("BDR ADDRESS:", transparent_token)
+    print("BRT ADDRESS:", transparent_token)
 
     transparent_ve = Contract.from_abi("VotingEscrow", ve_proxy.address, VotingEscrow.abi)
     transparent_ve.initialize( "voting-escrow BDR", "veBDR", {'from': owner})

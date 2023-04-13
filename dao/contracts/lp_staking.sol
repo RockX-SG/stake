@@ -44,10 +44,10 @@ contract LPStaking is IStaking, Initializable, OwnableUpgradeable, PausableUpgra
 
     // current realized profit delivery rate, this profit should be distributed linearly in a week,
     // otherwise, users can sandwich stake & unstake on newly received rewards
-    uint256 private accShareSnapshot;   // the accShare snapshot at the time
-    uint256 private accShareSnapshotTime;   // the accShare snapshot time
-    uint256 private accShareRealized;   // the realized accShare in the future.
-    uint256 private accShareRealizingTime;  // the accShare expected to be realized at this time
+    uint256 public accShareSnapshot;   // the accShare snapshot at the time
+    uint256 public accShareSnapshotTime;   // the accShare snapshot time
+    uint256 public accShareRealized;   // the realized accShare in the future.
+    uint256 public accShareRealizingTime;  // the accShare expected to be realized at this time
 
     mapping(address => UserInfo) public userInfo; // claimaddr -> info
     uint256 private accountedBalance;   // for tracking of rewards
