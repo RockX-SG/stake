@@ -68,5 +68,7 @@ def main():
     print("chain.sleep(86400*7)", chain.sleep(86400*7))
     chain.mine(1)
     print('''transparent_staking.getPendingReward(owner)''', transparent_staking.getPendingReward(owner))
-
+    print("havest:")
+    transparent_staking.havest(transparent_staking.getPendingReward(owner), {'from':owner})
+    print("balance:", transparent_token.balanceOf(owner))
 
