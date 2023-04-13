@@ -56,7 +56,7 @@ def main():
     print("deposit LP to staking")
     transparent_staking.deposit(100*1e18, {'from':owner})
 
-    print("ming rewards to transparent_staking")
+    print("mint rewards to transparent_staking")
     transparent_token.mint(transparent_staking, 200 * 1e18, {'from':owner})
 
     print("calling updateReward()")
@@ -71,6 +71,7 @@ def main():
     print("reward balance:", transparent_token.balanceOf(owner))
     print("LP balance:", transparent_lp_token.balanceOf(owner))
 
+    print('''transparent_staking.getPendingReward(owner)''', transparent_staking.getPendingReward(owner))
     print("deposit LP to staking again")
     transparent_staking.deposit(100*1e18, {'from':owner})
 
