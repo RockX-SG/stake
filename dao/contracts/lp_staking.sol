@@ -93,7 +93,7 @@ contract LPStaking is IStaking, Initializable, OwnableUpgradeable, PausableUpgra
      * ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
      *
      *      EXTERNAL FUNCTIONS
-     *
+    * 
      * ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
      */
 
@@ -240,15 +240,10 @@ contract LPStaking is IStaking, Initializable, OwnableUpgradeable, PausableUpgra
         if (unrealizedProfits > 0) {
             if (block.timestamp > profitsRealizingTime) {
                 realized = unrealizedProfits;
-            } else {
+            } else { // block.timestamp <= profitsRealizingTime
                 uint256 duration = profitsRealizingTime - unrealizedProfitsUpdateTime;
                 uint256 timePassed = block.timestamp - unrealizedProfitsUpdateTime;
                 realized = timePassed * unrealizedProfits / duration;
-            }
-
-            // make sure realized never exceeds unrealizedProfits
-            if (realized > unrealizedProfits) {
-                realized = unrealizedProfits;
             }
         }
     }
