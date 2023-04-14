@@ -232,7 +232,8 @@ contract LPStaking is IStaking, Initializable, OwnableUpgradeable, PausableUpgra
     }
 
     /**
-     * @dev calculate realized profits
+     * @dev calculate realized profits， this procedure is quite like
+     *  "Capacitance" in electrical circuits, which turns "pulses" into direct current.
      */
     function _getRealized() private view returns (
         uint256 realized
