@@ -73,7 +73,7 @@ contract VotingEscrow is IVotingEscrow, Initializable, PausableUpgradeable, Acce
     string public symbol;
     uint256 public decimals = 18;
     uint256 public totalLocked;
-    address public veAsset;
+    address public assetToken;
 
     /// @custom:oz-upgrades-unsafe-allow constructor
     constructor() {
@@ -83,9 +83,9 @@ contract VotingEscrow is IVotingEscrow, Initializable, PausableUpgradeable, Acce
     function initialize(
         string memory _name,
         string memory _symbol,
-        address _asset) initializer public 
+        address _assetToken) initializer public 
     {
-        require(_asset != address(0x0), "Asset address nil");
+        require(_assetToken != address(0x0), "Asset address nil");
         __Pausable_init();
         __AccessControl_init();
         __ReentrancyGuard_init();
@@ -107,8 +107,8 @@ contract VotingEscrow is IVotingEscrow, Initializable, PausableUpgradeable, Acce
         name = _name;
         symbol = _symbol;
 
-        // bind asset
-        veAsset = _asset;
+        // bind asset token
+        assetToken = _assetToken;
     }
   
     /** 
@@ -255,7 +255,7 @@ contract VotingEscrow is IVotingEscrow, Initializable, PausableUpgradeable, Acce
         totalLocked -= value;
 
         _checkpoint(account, oldLock, currentLock);
-        IERC20(veAsset).safeTransfer(account, value);
+        IERC20(assetToken).safeTransfer(account, value);
 
         emit Unlocked(account, value, block.timestamp);
     }
@@ -469,7 +469,7 @@ contract VotingEscrow is IVotingEscrow, Initializable, PausableUpgradeable, Acce
 
         if (_value != 0) {
             totalLocked += _value;
-            IERC20(veAsset).safeTransferFrom(
+            IERC20(assetToken).safeTransferFrom(
                 _addr,
                 address(this),
                 _value
