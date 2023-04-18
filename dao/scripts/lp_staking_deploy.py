@@ -5,6 +5,8 @@ from pathlib import Path
 import time
 import pytest
 
+# this scripts simulates staking a lp token and 
+# rewards are deliveried to staking contract instantly, and accounts receives rewards linearly
 def main():
     deps = project.load(  Path.home() / ".brownie" / "packages" / config["dependencies"][0])
     TransparentUpgradeableProxy = deps.TransparentUpgradeableProxy

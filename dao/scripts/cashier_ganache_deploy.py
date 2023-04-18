@@ -10,6 +10,8 @@ def get_week(n=0):
     this_week = (chain.time() // WEEK) * WEEK
     return this_week + (n * WEEK)
 
+# this script simulates voters locks to get veToken, and votes on different gauges,
+# cashier distribute rewards to gauges based on their weights
 def main():
     deps = project.load(  Path.home() / ".brownie" / "packages" / config["dependencies"][0])
     TransparentUpgradeableProxy = deps.TransparentUpgradeableProxy

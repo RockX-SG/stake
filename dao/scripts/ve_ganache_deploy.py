@@ -5,6 +5,7 @@ from pathlib import Path
 import time
 import pytest
 
+# this script simulates voters locks to get veToken
 def main():
     deps = project.load(  Path.home() / ".brownie" / "packages" / config["dependencies"][0])
     TransparentUpgradeableProxy = deps.TransparentUpgradeableProxy
