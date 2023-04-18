@@ -59,7 +59,7 @@ def main():
     print("BRT ADDRESS:", transparent_token)
 
     transparent_ve = Contract.from_abi("VotingEscrow", ve_proxy.address, VotingEscrow.abi)
-    transparent_ve.initialize( "voting-escrow BDR", "veBDR", transparent_token, {'from': owner})
+    transparent_ve.initialize( "voting-escrow BRT", "veBRT", transparent_token, {'from': owner})
 
     print("VE ADDRESS:", transparent_ve)
 
@@ -83,9 +83,9 @@ def main():
     transparent_gauge.addGauge(lp_gauge2, 0, 0, {'from':owner})
 
     for voter in voters: 
-        print("mint BRT token to: ", voter)
+        print("minting BRT token to: ", voter)
         transparent_token.mint(voter, 100 * 1e18, {'from':owner})
-        print("approve BRT token to veBDR")
+        print("Approving BRT token to veBRT")
         transparent_token.approve(transparent_ve, 0xffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffff, {'from':voter})
         print("lock 100 * 1e18 value of account", voter, "for 300 days:")
         transparent_ve.createLock(100 * 1e18, chain.time() + 86400 * 300, {'from': voter})

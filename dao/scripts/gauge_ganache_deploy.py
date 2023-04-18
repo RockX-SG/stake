@@ -40,7 +40,7 @@ def main():
 
 
     transparent_ve = Contract.from_abi("VotingEscrow", ve_proxy.address, VotingEscrow.abi)
-    transparent_ve.initialize( "voting-escrow BDR", "veBDR", {'from': owner})
+    transparent_ve.initialize( "voting-escrow BRT", "veBRT", {'from': owner})
 
     print("VE ADDRESS:", transparent_ve)
 

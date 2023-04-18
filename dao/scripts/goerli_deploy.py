@@ -25,7 +25,7 @@ def main():
             {'from': deployer}, publish_source=shouldPublishSource)
 
     transparent_ve = Contract.from_abi("VotingEscrow", ve_proxy.address, VotingEscrow.abi)
-    transparent_ve.initialize( "voting-escrow BDR", "veBDR", 18, {'from': owner})
+    transparent_ve.initialize( "voting-escrow BRT", "veBRT", 18, {'from': owner})
 
     govern_contract = BedrockGovernor.deploy(
             {'from': deployer}, publish_source=shouldPublishSource)
