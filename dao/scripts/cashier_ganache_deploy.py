@@ -16,8 +16,7 @@ def main():
 
     owner = accounts[0]
     deployer = accounts[1]
-    voter1 = accounts[2]
-    voter2 = accounts[3]
+    voters = [accounts[2],accounts[3]]
     lp_gauge1 = accounts[8]
     lp_gauge2 = accounts[9]
     approved_account = accounts[4]
@@ -58,7 +57,7 @@ def main():
     print("BRT ADDRESS:", transparent_token)
 
     transparent_ve = Contract.from_abi("VotingEscrow", ve_proxy.address, VotingEscrow.abi)
-    transparent_ve.initialize( "voting-escrow BDR", "veBDR", {'from': owner})
+    transparent_ve.initialize( "voting-escrow BDR", "veBDR", transparent_token, {'from': owner})
 
     print("VE ADDRESS:", transparent_ve)
 
@@ -70,16 +69,8 @@ def main():
     transparent_cashier = Contract.from_abi("Cashier", cashier_proxy.address, Cashier.abi)
     transparent_cashier.initialize(transparent_token, 100000 * 1e18, transparent_gauge, approved_account, {'from': owner})
 
-    print("CASHIER ADDRESS:", transparent_gauge)
+    print("CASHIER ADDRESS:", transparent_cashier)
 
-    print("granting AUTHORIZED LOCKER ROLE to owner")
-    transparent_ve.grantRole( transparent_ve.AUTHORIZED_LOCKER_ROLE(), owner, {'from': owner})
-
-    print("lock 100 * 1e18 value of account", voter1, "for 300 days:")
-    transparent_ve.createLock(voter1, 100 * 1e18, chain.time() + 86400 * 300, {'from': owner})
-    print("lock 100 * 1e18 value of account", voter2, "for 300 days:")
-    transparent_ve.createLock(voter2, 100 * 1e18, chain.time() + 86400 * 300, {'from': owner})
-    
     print("########## GAUGE CONTROLLER INIT #############")
     print(r'''addType("LP-TYPE0", 1, {'from':owner})''')
     transparent_gauge.addType("TYPE0", 1, {'from':owner})
@@ -89,16 +80,21 @@ def main():
     print(r'''addGauge(lp_gauge2, 0, 0, {'from':owner})''', lp_gauge2)
     transparent_gauge.addGauge(lp_gauge2, 0, 0, {'from':owner})
 
-    print(r'''voteForGaugeWeight(lp_gauge1, 5000, {'from': voter1})''')
-    transparent_gauge.voteForGaugeWeight(lp_gauge1, 5000, {'from': voter1})
-    print(r'''voteForGaugeWeight(lp_gauge2, 8000, {'from': voter2})''')
-    transparent_gauge.voteForGaugeWeight(lp_gauge2, 8000, {'from': voter2})
+    for voter in voters: 
+        print("mint BRT token to: ", voter)
+        transparent_token.mint(voter, 100 * 1e18, {'from':owner})
+        print("approve BRT token to veBDR")
+        transparent_token.approve(transparent_ve, 0xffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffff, {'from':voter})
+        print("lock 100 * 1e18 value of account", voter, "for 300 days:")
+        transparent_ve.createLock(100 * 1e18, chain.time() + 86400 * 300, {'from': voter})
 
-    print(r'''transparent_gauge.gaugeRelativeWeight(lp_gauge1, get_week(1))''',
-            transparent_gauge.gaugeRelativeWeight(lp_gauge1, get_week(1)))
-    print(r'''transparent_gauge.gaugeRelativeWeight(lp_gauge2, get_week(1))''',
-            transparent_gauge.gaugeRelativeWeight(lp_gauge2, get_week(1)))
+        print(r'''voteForGaugeWeight(lp_gauge1, 5000, {'from': voter})''')
+        transparent_gauge.voteForGaugeWeight(lp_gauge1, 3000, {'from': voter})
+        print(r'''voteForGaugeWeight(lp_gauge2, 8000, {'from': voter})''')
+        transparent_gauge.voteForGaugeWeight(lp_gauge2, 7000, {'from': voter})
 
+        print(r'''transparent_gauge.gaugeRelativeWeight(lp_gauge1, get_week(1))''', transparent_gauge.gaugeRelativeWeight(lp_gauge1, get_week(1)))
+        print(r'''transparent_gauge.gaugeRelativeWeight(lp_gauge2, get_week(1))''', transparent_gauge.gaugeRelativeWeight(lp_gauge2, get_week(1)))
 
     print("########## CASHIER INIT #############")
     transparent_token.mint(approved_account, 100000 * 1e18, {'from':owner})
@@ -114,8 +110,4 @@ def main():
     transparent_cashier.distributeRewards(lp_gauge2, {'from':owner})
     print('''transparent_token.balanceOf(lp_gauge1)''',transparent_token.balanceOf(lp_gauge1))
     print('''transparent_token.balanceOf(lp_gauge2)''',transparent_token.balanceOf(lp_gauge2))
-
-
-
-
 
