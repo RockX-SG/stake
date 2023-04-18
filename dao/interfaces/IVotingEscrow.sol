@@ -17,25 +17,24 @@ pragma solidity ^0.8.9;
 
 interface IVotingEscrow {
     /// @notice Creates a new lock
-    /// @param _account The account to put lock on
     /// @param _value Total units of token to lock
     /// @param _unlockTime Time at which the lock expires
-    function createLock(address _account, uint256 _value, uint256 _unlockTime) external;
+    function createLock(uint256 _value, uint256 _unlockTime) external;
 
     /// @notice Locks more tokens in an existing lock
     /// @param _value Additional units of `token` to add to the lock
     /// @dev Does not update the lock's expiration.
     /// @dev Does increase the user's voting power
-    function increaseLockAmount(address _account, uint256 _value) external;
+    function increaseLockAmount(uint256 _value) external;
 
     /// @notice Extends the expiration of an existing lock
     /// @param _unlockTime New lock expiration time
     /// @dev Does not update the amount of tokens locked.
     /// @dev Does increase the user's voting power
-    function increaseLockLength(address _account, uint256 _unlockTime) external;
+    function increaseLockLength(uint256 _unlockTime) external;
 
     /// @notice Withdraws all the senders tokens, providing lockup is over
-    function withdraw(address _account) external;
+    function withdraw() external;
 
     /// @notice Get current user voting power
     /// @param _account User for which to return the voting power

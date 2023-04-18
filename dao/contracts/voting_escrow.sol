@@ -15,6 +15,7 @@
 pragma solidity ^0.8.9;
 
 import "interfaces/IVotingEscrow.sol";
+import "@openzeppelin/contracts/token/ERC20/utils/SafeERC20.sol";
 import "@openzeppelin/contracts-upgradeable/security/ReentrancyGuardUpgradeable.sol";
 import "@openzeppelin/contracts-upgradeable/security/PausableUpgradeable.sol";
 import "@openzeppelin/contracts-upgradeable/access/AccessControlUpgradeable.sol";
@@ -29,14 +30,13 @@ import "@openzeppelin/contracts/utils/math/SafeCast.sol";
  *              (see https://github.com/mstable/mStable-contracts/blob/master/contracts/governance/IncentivisedVotingLockup.sol)
  *          RockX Team - this version
  * @notice Adjustments
- *          1) virtual locking, this contract does not hold any assets, while farming protocol does,
- *               this enhances the flexbility of veToken.
- *          2) role based, only authorized contracts(farming protocol) can create/extend locks.
+ *          1) role based ACL.
  */
 
 contract VotingEscrow is IVotingEscrow, Initializable, PausableUpgradeable, AccessControlUpgradeable, ReentrancyGuardUpgradeable {
+    using SafeERC20 for IERC20;
+
     bytes32 public constant PAUSER_ROLE = keccak256("PAUSER_ROLE");
-    bytes32 public constant AUTHORIZED_LOCKER_ROLE = keccak256("AUTHORIZED_LOCKER_ROLE");
     
     uint256 public constant WEEK = 7 days;
     uint256 public constant MAXTIME = 365 days;
@@ -72,6 +72,8 @@ contract VotingEscrow is IVotingEscrow, Initializable, PausableUpgradeable, Acce
     string public name;
     string public symbol;
     uint256 public decimals = 18;
+    uint256 public totalLocked;
+    address public veAsset;
 
     /// @custom:oz-upgrades-unsafe-allow constructor
     constructor() {
@@ -80,8 +82,10 @@ contract VotingEscrow is IVotingEscrow, Initializable, PausableUpgradeable, Acce
 
     function initialize(
         string memory _name,
-        string memory _symbol) initializer public 
+        string memory _symbol,
+        address _asset) initializer public 
     {
+        require(_asset != address(0x0), "Asset address nil");
         __Pausable_init();
         __AccessControl_init();
         __ReentrancyGuard_init();
@@ -102,6 +106,9 @@ contract VotingEscrow is IVotingEscrow, Initializable, PausableUpgradeable, Acce
         // injection of ERC20 concept
         name = _name;
         symbol = _symbol;
+
+        // bind asset
+        veAsset = _asset;
     }
   
     /** 
@@ -150,21 +157,20 @@ contract VotingEscrow is IVotingEscrow, Initializable, PausableUpgradeable, Acce
      */
      /**
      * @dev Creates a new lock
-     * @param _account The account to put lock on
      * @param _value Total units of StakingToken to lockup
      * @param _unlockTime Time at which the stake should unlock
      */
-    function createLock(address _account, uint256 _value, uint256 _unlockTime)
+    function createLock(uint256 _value, uint256 _unlockTime)
         external
         override
         nonReentrant
         whenNotPaused
-        onlyRole(AUTHORIZED_LOCKER_ROLE)
     {
+        address account = msg.sender;
         uint256 unlock_time = _floorToWeek(_unlockTime); // Locktime is rounded down to weeks
         LockedBalance memory locked_ = LockedBalance({
-            amount: locked[_account].amount,
-            end: locked[_account].end
+            amount: locked[account].amount,
+            end: locked[account].end
         });
 
         require(_value > 0, "Must stake non zero amount");
@@ -173,47 +179,46 @@ contract VotingEscrow is IVotingEscrow, Initializable, PausableUpgradeable, Acce
         require(unlock_time > block.timestamp, "Can only lock until time in the future");
         require(unlock_time <= block.timestamp + MAXTIME, "Exceeds maxtime");
 
-        _depositFor(_account, _value, unlock_time, locked_, LockAction.CREATE_LOCK);
+        _depositFor(account, _value, unlock_time, locked_, LockAction.CREATE_LOCK);
     }
 
     /**
      * @dev Increases amount of stake thats locked up & resets decay
-     * @param _account The account to put lock on
      * @param _value Additional units of StakingToken to add to exiting stake
      */
-    function increaseLockAmount(address _account, uint256 _value)
+    function increaseLockAmount(uint256 _value)
         external
         override
         nonReentrant
         whenNotPaused
-        onlyRole(AUTHORIZED_LOCKER_ROLE)
     {
+        address account = msg.sender;
         LockedBalance memory locked_ = LockedBalance({
-            amount: locked[_account].amount,
-            end: locked[_account].end
+            amount: locked[account].amount,
+            end: locked[account].end
         });
 
         require(_value > 0, "Must stake non zero amount");
         require(locked_.amount > 0, "No existing lock found");
         require(locked_.end > block.timestamp, "Cannot add to expired lock. Withdraw");
 
-        _depositFor(_account, _value, 0, locked_, LockAction.INCREASE_AMOUNT);
+        _depositFor(account, _value, 0, locked_, LockAction.INCREASE_AMOUNT);
     }
 
     /**
      * @dev Increases length of lockup & resets decay
      * @param _unlockTime New unlocktime for lockup
      */
-    function increaseLockLength(address _account, uint256 _unlockTime)
+    function increaseLockLength(uint256 _unlockTime)
         external
         override
         nonReentrant
         whenNotPaused
-        onlyRole(AUTHORIZED_LOCKER_ROLE)
     {
+        address account = msg.sender;
         LockedBalance memory locked_ = LockedBalance({
-            amount: locked[msg.sender].amount,
-            end: locked[msg.sender].end
+            amount: locked[account].amount,
+            end: locked[account].end
         });
         uint256 unlock_time = _floorToWeek(_unlockTime); // Locktime is rounded down to weeks
 
@@ -222,23 +227,22 @@ contract VotingEscrow is IVotingEscrow, Initializable, PausableUpgradeable, Acce
         require(unlock_time > locked_.end, "Can only increase lock WEEK");
         require(unlock_time <= block.timestamp + MAXTIME, "Exceeds maxtime");
 
-        _depositFor(_account, 0, unlock_time, locked_, LockAction.INCREASE_TIME);
+        _depositFor(account, 0, unlock_time, locked_, LockAction.INCREASE_TIME);
     }
 
     /**
      * @dev Withdraws all the senders stake, providing lockup is over
-     * @param _account User for which to withdraw
      */
-    function withdraw(address _account) 
+    function withdraw() 
         external
         override
         nonReentrant
         whenNotPaused
-        onlyRole(AUTHORIZED_LOCKER_ROLE)
     {
+        address account = msg.sender;
         LockedBalance memory oldLock = LockedBalance({
-            end: locked[_account].end,
-            amount: locked[_account].amount
+            end: locked[account].end,
+            amount: locked[account].amount
         });
 
         require(block.timestamp >= oldLock.end, "The lock didn't expire");
@@ -247,11 +251,13 @@ contract VotingEscrow is IVotingEscrow, Initializable, PausableUpgradeable, Acce
         uint256 value = SafeCast.toUint256(oldLock.amount);
 
         LockedBalance memory currentLock = LockedBalance({ end: 0, amount: 0 });
-        locked[_account] = currentLock;
+        locked[account] = currentLock;
+        totalLocked -= value;
 
-        _checkpoint(_account, oldLock, currentLock);
+        _checkpoint(account, oldLock, currentLock);
+        IERC20(veAsset).safeTransfer(account, value);
 
-        emit Unlocked(_account, value, block.timestamp);
+        emit Unlocked(account, value, block.timestamp);
     }
     
     /** 
@@ -460,6 +466,15 @@ contract VotingEscrow is IVotingEscrow, Initializable, PausableUpgradeable, Acce
         // value == 0 (extend lock) or value > 0 (add to lock or extend lock)
         // newLocked.end > block.timestamp (always)
         _checkpoint(_addr, _oldLocked, newLocked);
+
+        if (_value != 0) {
+            totalLocked += _value;
+            IERC20(veAsset).safeTransferFrom(
+                _addr,
+                address(this),
+                _value
+            );
+        }
 
         emit Locked(_addr, _value, newLocked.end, _action, block.timestamp);
     }
