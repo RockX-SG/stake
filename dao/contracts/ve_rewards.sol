@@ -84,6 +84,7 @@ contract VeRewards is IStaking, Initializable, OwnableUpgradeable, PausableUpgra
 
         firstWeek = _getWeek(block.timestamp);
         lastRealizedProfitsTime = firstWeek;
+        profitsRealizingTime = _getWeek(block.timestamp+WEEK);
     }
 
     function pause() public onlyOwner {
@@ -141,9 +142,9 @@ contract VeRewards is IStaking, Initializable, OwnableUpgradeable, PausableUpgra
         (uint256 rewards,) = _calcPendingRewards(account);
 
         // check if profits has realized
-        if (unrealizedProfits > 0 && block.timestamp > profitsRealizingTime) {
+        if (block.timestamp > profitsRealizingTime) {
             // accumulate rewards
-            rewards += unrealizedProfits * IVotingEscrow(votingEscrow).balanceOfAt(msg.sender, profitsRealizingTime) / IVotingEscrow(votingEscrow).totalSupplyAt(profitsRealizingTime);
+            rewards += unrealizedProfits * IVotingEscrow(votingEscrow).balanceOfAt(account, profitsRealizingTime) / IVotingEscrow(votingEscrow).totalSupplyAt(profitsRealizingTime);
         }
         return rewards;
      }
@@ -169,10 +170,11 @@ contract VeRewards is IStaking, Initializable, OwnableUpgradeable, PausableUpgra
 
         // claim to maxWeeks rewards
         for (uint i=0; i<maxWeeks;i++) {
-            if (settledToWeek + WEEK > lastRealizedProfitsTime) {
+            uint256 nextWeek = settledToWeek + WEEK;
+            if (nextWeek > lastRealizedProfitsTime || nextWeek > block.timestamp) {
                 break;
             }
-            settledToWeek += WEEK;
+            settledToWeek = nextWeek;
 
             // settle this week ==> lastSettledWeek
             rewards += profitsRealizedWeekly[settledToWeek] 
@@ -187,29 +189,22 @@ contract VeRewards is IStaking, Initializable, OwnableUpgradeable, PausableUpgra
      * @dev compare balance remembered to current balance to find the increased reward.
      */
     function _updateReward() internal {
-        // check if profits has realized
-        if (unrealizedProfits > 0 && block.timestamp > profitsRealizingTime) {
+        // check if pending profits has realized
+        if (block.timestamp > profitsRealizingTime) {
             lastRealizedProfitsTime = profitsRealizingTime;
-            profitsRealizedWeekly[profitsRealizingTime] = unrealizedProfits;
+            profitsRealizedWeekly[profitsRealizingTime] = unrealizedProfits; // <- profits realized
 
-            // rewwards reset to 0 in next week.
+            // rewards reset to 0 in next week.
             unrealizedProfits = 0;
             profitsRealizingTime = _getWeek(block.timestamp+WEEK);
         }
 
-        // accumulate new rewards
+        // accumulate new rewards to 'unrealizedProfits' .
         uint256 balance = IERC20(rewardToken).balanceOf(address(this));
         if (balance > accountedBalance) {
             uint256 rewards = balance - accountedBalance;
             accountedBalance = balance;
-
-            // profits linear realization
-            //  unrealizedProfits(unrealizedProfitsUpdateTime) ---> 0(profitsRealizingTime)
-            //     |                                                |
-            //     |----- seconds passed----------------------------|
-
             unrealizedProfits += rewards;
-            profitsRealizingTime = _getWeek(block.timestamp + WEEK);
         }
     }
 
