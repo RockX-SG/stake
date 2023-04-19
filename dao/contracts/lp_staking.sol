@@ -75,6 +75,9 @@ contract LPStaking is IStaking, Initializable, OwnableUpgradeable, PausableUpgra
         __Pausable_init();
         __Ownable_init();
 
+        require(_lpToken != address(0x0), "_lpToken nil");
+        require(_rewardToken != address(0x0), "_rewardToken nil");
+
         lpToken = _lpToken;
         rewardToken = _rewardToken;
     }
@@ -98,7 +101,7 @@ contract LPStaking is IStaking, Initializable, OwnableUpgradeable, PausableUpgra
      /**
      * @dev stake assets
      */
-    function deposit(uint256 amount) external override nonReentrant whenNotPaused {
+    function deposit(uint256 amount) external nonReentrant whenNotPaused {
         _updateReward();
 
         UserInfo storage info = userInfo[msg.sender];
@@ -121,7 +124,7 @@ contract LPStaking is IStaking, Initializable, OwnableUpgradeable, PausableUpgra
     /**
      * @dev havest rewards
      */
-    function havest(uint256 amount) external override nonReentrant whenNotPaused {
+    function havest(uint256 amount) external nonReentrant whenNotPaused {
         _updateReward();
 
         UserInfo storage info = userInfo[msg.sender];
@@ -145,7 +148,7 @@ contract LPStaking is IStaking, Initializable, OwnableUpgradeable, PausableUpgra
     /**
      * @dev withdraw the staked assets
      */
-    function withdraw(uint256 amount) override external nonReentrant {
+    function withdraw(uint256 amount) external nonReentrant {
         _updateReward();
 
         UserInfo storage info = userInfo[msg.sender];

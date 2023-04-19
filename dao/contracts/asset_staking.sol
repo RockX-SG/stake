@@ -15,6 +15,7 @@
 pragma solidity ^0.8.9;
 
 import "interfaces/IStaking.sol";
+import "interfaces/IVotingEscrow.sol";
 import "@openzeppelin/contracts/utils/math/SafeMath.sol";
 import "@openzeppelin/contracts/token/ERC20/utils/SafeERC20.sol";
 import "@openzeppelin/contracts-upgradeable/access/OwnableUpgradeable.sol";
@@ -23,7 +24,7 @@ import "@openzeppelin/contracts-upgradeable/security/PausableUpgradeable.sol";
 import "@openzeppelin/contracts-upgradeable/proxy/utils/Initializable.sol";
 
  /**
-  * @title Rockx Liquid Staking uniETH Staking Incentives
+  * @title Rockx Asset Staking
   * @author RockX Team
   */
 contract AssetStaking is IStaking, Initializable, OwnableUpgradeable, PausableUpgradeable, ReentrancyGuardUpgradeable {
@@ -34,27 +35,23 @@ contract AssetStaking is IStaking, Initializable, OwnableUpgradeable, PausableUp
     uint256 public constant WEEK = 604800;
 
     struct UserInfo {
-        uint256 accSharePoint; // share starting point
-        uint256 amount; // user's share
-        uint256 rewardBalance;  // user's pending reward
+        uint256 weekSettled; // last settled week of a user
     }
 
-    uint256 private totalShares; // total shares
-    uint256 private accShare;   // accumulated earnings per 1 share
+    uint256 public maxWeeks = 50; // max number of weeks a user can claim rewards in a single transaction
+    mapping(address => uint256) public userLastSettledWeek; // user's last settled week
+    mapping(uint256 => uint256) public profitsRealizedWeekly; // week -> rewards
+    uint256 public lastRealizedProfitsTime; // the last realized profits time, the profits before which has finalized in weeklyRewards.
 
-    // current realized profit delivery rate, this profit should be distributed linearly in a week,
-    // otherwise, users can sandwich stake & unstake on newly received rewards
-    uint256 public unrealizedProfits;   // current unrealized profits(to be distributed to users at some rate)
-    uint256 public unrealizedProfitsUpdateTime;   // latest profits update time
-    uint256 public profitsRealizingTime;  // the expected profits realizing time
-
-    mapping(address => UserInfo) public userInfo; // claimaddr -> info
     uint256 private accountedBalance;   // for tracking of rewards
-
-    address public lpToken; // the ERC20 lp token to staking
+    address public votingEscrow; // the voting escrow contract
     address public rewardToken; // the reward token to distribute to users as rewards
+    address public approvedAccount; // the account who owns the to-be distributed rewards
+                                    // a multi-sig wallet is recommended.
 
-    uint256 private _lastRewardBlock = block.number;
+    uint256 public firstWeek; // the first week the contract deployed
+    uint256 public unrealizedProfits;  // unrealized profits to be distributed in next week
+    uint256 public profitsRealizingTime; // the expected profits realizing time
 
     /**
      * @dev empty reserved space for future adding of variables
@@ -73,12 +70,20 @@ contract AssetStaking is IStaking, Initializable, OwnableUpgradeable, PausableUp
         revert("Do not send ETH here");
     }
 
-    function initialize(address _lpToken, address _rewardToken) initializer public {
+    function initialize(address _votingEscrow, address _rewardToken, address _approvedAccount) initializer public {
         __Pausable_init();
         __Ownable_init();
 
-        lpToken = _lpToken;
+        require(_votingEscrow != address(0x0), "_lpToken nil");
+        require(_rewardToken != address(0x0), "_rewardToken nil");
+        require(_approvedAccount != address(0x0), "_rewardToken nil");
+
+        votingEscrow = _votingEscrow;
         rewardToken = _rewardToken;
+        approvedAccount = _approvedAccount;
+
+        firstWeek = _getWeek(block.timestamp);
+        lastRealizedProfitsTime = firstWeek;
     }
 
     function pause() public onlyOwner {
@@ -97,75 +102,25 @@ contract AssetStaking is IStaking, Initializable, OwnableUpgradeable, PausableUp
      * ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
      */
 
-     /**
-     * @dev stake assets
-     */
-    function deposit(uint256 amount) external override nonReentrant whenNotPaused {
-        _updateReward();
-
-        UserInfo storage info = userInfo[msg.sender];
-
-        // settle current pending distribution
-        info.rewardBalance += (accShare - info.accSharePoint) * info.amount / MULTIPLIER;
-        info.amount += amount;
-        info.accSharePoint = accShare;
-
-        // update total shares
-        totalShares += amount;
-
-        // transfer lp token
-        IERC20(lpToken).safeTransferFrom(msg.sender, address(this), amount);
-
-        // log
-        emit Deposit(msg.sender, amount);
-    }
-
     /**
-     * @dev havest rewards
+     * @dev claim rewards
      */
-    function havest(uint256 amount) external override nonReentrant whenNotPaused {
+    function claim() external nonReentrant whenNotPaused {
+        // try to realized profits
         _updateReward();
 
-        UserInfo storage info = userInfo[msg.sender];
+        // calc rewards and update settled week
+        (uint256 reward, uint256 settledToWeek) = _calcPendingRewards(msg.sender);
+        userLastSettledWeek[msg.sender] = settledToWeek;
 
-        // settle current pending distribution
-        info.rewardBalance += (accShare - info.accSharePoint) * info.amount / MULTIPLIER;
-        info.accSharePoint = accShare;
+        // transfer profits to user
+        IERC20(rewardToken).safeTransferFrom(approvedAccount, msg.sender, reward);
 
-        // check
-        require(info.rewardBalance >= amount, "INSUFFICIENT_REWARD");
-
-        // account & transfer
-        info.rewardBalance -= amount;
-        _balanceDecrease(amount);
-        IERC20(rewardToken).safeTransfer(msg.sender, amount);
+        // track balance decrease
+        _balanceDecrease(reward);
 
         // log
-        emit Havest(msg.sender, amount, 0);
-    }
-
-    /**
-     * @dev withdraw the staked assets
-     */
-    function withdraw(uint256 amount) override external nonReentrant {
-        _updateReward();
-
-        UserInfo storage info = userInfo[msg.sender];
-        require(info.amount >= amount, "INSUFFICIENT_AMOUNT");
-
-        // settle current pending distribution
-        info.rewardBalance += (accShare - info.accSharePoint) * info.amount / MULTIPLIER;
-        info.amount -= amount;
-        info.accSharePoint = accShare;
-
-        // update total shares
-        totalShares -= amount;
-
-        // transfer lp token back
-        IERC20(lpToken).safeTransfer(msg.sender, amount);
-
-        // log
-        emit Withdraw(msg.sender, amount);
+        emit Claim(msg.sender, reward);
     }
 
     /**
@@ -180,17 +135,17 @@ contract AssetStaking is IStaking, Initializable, OwnableUpgradeable, PausableUp
      *
      * ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
      */
-     function getTotalShare() external view returns (uint256) { return totalShares; }
      function getAccountedBalance() external view returns (uint256) { return accountedBalance; }
 
-     function getPendingReward(address claimaddr) external view returns (uint256) {
-        UserInfo storage info = userInfo[claimaddr];
-        if (totalShares == 0) {
-            return info.rewardBalance;
-        }
+     function getPendingReward(address account) external view returns (uint256) {
+        (uint256 rewards,) = _calcPendingRewards(account);
 
-        uint256 realized = _getRealized();
-        return info.rewardBalance + (accShare + realized * MULTIPLIER / totalShares - info.accSharePoint) * info.amount / MULTIPLIER;
+        // check if profits has realized
+        if (unrealizedProfits > 0 && block.timestamp > profitsRealizingTime) {
+            // accumulate rewards
+            rewards += unrealizedProfits * IVotingEscrow(votingEscrow).balanceOfAt(msg.sender, profitsRealizingTime) / IVotingEscrow(votingEscrow).totalSupplyAt(profitsRealizingTime);
+        }
+        return rewards;
      }
 
     /**
@@ -203,20 +158,48 @@ contract AssetStaking is IStaking, Initializable, OwnableUpgradeable, PausableUp
     function _balanceDecrease(uint256 amount) internal { accountedBalance -= amount; }
 
     /**
+     * @dev internal calculation of rewards for a user
+     */
+    function _calcPendingRewards(address account) internal view returns (uint256 rewards, uint256 settledToWeek) {
+        // load user's last settled week
+        settledToWeek = userLastSettledWeek[account];
+        if (settledToWeek < firstWeek) {
+            settledToWeek = firstWeek;
+        }
+
+        // claim to maxWeeks rewards
+        for (uint i=0; i<maxWeeks;i++) {
+            if (settledToWeek + WEEK > lastRealizedProfitsTime) {
+                break;
+            }
+            settledToWeek += WEEK;
+
+            // settle this week ==> lastSettledWeek
+            rewards += profitsRealizedWeekly[settledToWeek] 
+                        * IVotingEscrow(votingEscrow).balanceOfAt(account, settledToWeek)
+                        / IVotingEscrow(votingEscrow).totalSupplyAt(settledToWeek);
+        }
+
+        return (rewards, settledToWeek);
+    }
+
+    /**
      * @dev compare balance remembered to current balance to find the increased reward.
      */
     function _updateReward() internal {
-        // reward distribution first
-        uint256 realized = _getRealized();
-        if (realized > 0 && totalShares > 0) {
-            accShare += realized * MULTIPLIER / totalShares;
-            unrealizedProfits -= realized;
-            unrealizedProfitsUpdateTime = block.timestamp;
+        // check if profits has realized
+        if (unrealizedProfits > 0 && block.timestamp > profitsRealizingTime) {
+            lastRealizedProfitsTime = profitsRealizingTime;
+            profitsRealizedWeekly[profitsRealizingTime] = unrealizedProfits;
+
+            // rewwards reset to 0 in next week.
+            unrealizedProfits = 0;
+            profitsRealizingTime = _getWeek(block.timestamp+WEEK);
         }
 
         // accumulate new rewards
         uint256 balance = IERC20(rewardToken).balanceOf(address(this));
-        if (balance > accountedBalance && totalShares > 0) {
+        if (balance > accountedBalance) {
             uint256 rewards = balance - accountedBalance;
             accountedBalance = balance;
 
@@ -226,26 +209,7 @@ contract AssetStaking is IStaking, Initializable, OwnableUpgradeable, PausableUp
             //     |----- seconds passed----------------------------|
 
             unrealizedProfits += rewards;
-            unrealizedProfitsUpdateTime = block.timestamp;
             profitsRealizingTime = _getWeek(block.timestamp + WEEK);
-        }
-    }
-
-    /**
-     * @dev calculate realized profits， this procedure is quite like
-     *  "Capacitance" in electrical circuits, which turns "pulses" into direct current.
-     */
-    function _getRealized() private view returns (
-        uint256 realized
-    ) {
-        if (unrealizedProfits > 0) {
-            if (block.timestamp > profitsRealizingTime) {
-                realized = unrealizedProfits;
-            } else { // block.timestamp <= profitsRealizingTime
-                uint256 duration = profitsRealizingTime - unrealizedProfitsUpdateTime;
-                uint256 timePassed = block.timestamp - unrealizedProfitsUpdateTime;
-                realized = timePassed * unrealizedProfits / duration;
-            }
         }
     }
 
@@ -265,7 +229,5 @@ contract AssetStaking is IStaking, Initializable, OwnableUpgradeable, PausableUp
      *
      * ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
      */
-     event Deposit(address account, uint256 amount);
-     event Withdraw(address account, uint256 amount);
-     event Havest(address account, uint256 amount, uint256 duration);
+     event Claim(address account, uint256 amount);
 }

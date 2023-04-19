@@ -16,8 +16,5 @@
 pragma solidity ^0.8.9;
 
 interface IStaking {
-    function deposit(uint256 amount) external;
-    function havest(uint256 amount) external;
-    function withdraw(uint256 amount) external;
     function updateReward() external;
 }
