@@ -54,8 +54,6 @@ contract LPStaking is IStaking, Initializable, OwnableUpgradeable, PausableUpgra
     address public lpToken; // the ERC20 lp token to staking
     address public rewardToken; // the reward token to distribute to users as rewards
 
-    uint256 private _lastRewardBlock = block.number;
-
     /**
      * @dev empty reserved space for future adding of variables
      */
