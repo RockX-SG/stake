@@ -64,17 +64,18 @@ contract VeRewards is IStaking, Initializable, OwnableUpgradeable, PausableUpgra
         revert("Do not send ETH here");
     }
 
-    function initialize(address _votingEscrow, address _rewardToken, address _approvedAccount) initializer public {
+    function initialize(
+        address _votingEscrow, 
+        address _rewardToken
+    ) initializer public {
         __Pausable_init();
         __Ownable_init();
 
         require(_votingEscrow != address(0x0), "_lpToken nil");
         require(_rewardToken != address(0x0), "_rewardToken nil");
-        require(_approvedAccount != address(0x0), "_rewardToken nil");
 
         votingEscrow = _votingEscrow;
         rewardToken = _rewardToken;
-        approvedAccount = _approvedAccount;
 
         genesis = _getWeek(block.timestamp);
         latestSettlement = genesis;
@@ -109,7 +110,7 @@ contract VeRewards is IStaking, Initializable, OwnableUpgradeable, PausableUpgra
         userLastSettledWeek[msg.sender] = settledWeek;
 
         // transfer profits to user
-        IERC20(rewardToken).safeTransferFrom(approvedAccount, msg.sender, reward);
+        IERC20(rewardToken).safeTransfer(msg.sender, reward);
 
         // track balance decrease
         _balanceDecrease(reward);
