@@ -33,9 +33,9 @@ contract VeRewards is IStaking, Initializable, OwnableUpgradeable, PausableUpgra
 
     uint256 public constant WEEK = 604800;
     uint256 public maxWeeks = 50; // max number of weeks a user can claim rewards in a single transaction
-    mapping(address => uint256) public userLastSettledWeek; // user's last settled week
-    mapping(uint256 => uint256) public profitsRealizedWeekly; // week -> rewards
-    uint256 public lastRealizedProfitsTime; // the last realized profits time, the profits before which has finalized in weeklyRewards.
+    mapping(address => uint256) public userLastSettledWeek; // user's last settlement week
+    mapping(uint256 => uint256) public profitsSettledWeekly; // week ts -> rewards settled
+    uint256 public latestSettlement; // latest profits settlement time, the profits before which has finalized in profitsRealizedWeekly.
 
     uint256 public accountedBalance; // for tracking of rewards
     address public votingEscrow; // the voting escrow contract
@@ -77,7 +77,7 @@ contract VeRewards is IStaking, Initializable, OwnableUpgradeable, PausableUpgra
         approvedAccount = _approvedAccount;
 
         genesis = _getWeek(block.timestamp);
-        lastRealizedProfitsTime = genesis;
+        latestSettlement = genesis;
         profitsRealizingTime = _getWeek(block.timestamp+WEEK);
     }
 
@@ -98,15 +98,15 @@ contract VeRewards is IStaking, Initializable, OwnableUpgradeable, PausableUpgra
      */
 
     /**
-     * @dev claim rewards
+     * @dev claim all rewards
      */
     function claim() external nonReentrant whenNotPaused {
         // try to realized profits
         _updateReward();
 
-        // calc rewards and update settled week
-        (uint256 reward, uint256 settledToWeek) = _calcPendingRewards(msg.sender);
-        userLastSettledWeek[msg.sender] = settledToWeek;
+        // calc realized rewards and update settled week
+        (uint256 reward, uint256 settledWeek) = _calcRealizedRewards(msg.sender);
+        userLastSettledWeek[msg.sender] = settledWeek;
 
         // transfer profits to user
         IERC20(rewardToken).safeTransferFrom(approvedAccount, msg.sender, reward);
@@ -131,9 +131,10 @@ contract VeRewards is IStaking, Initializable, OwnableUpgradeable, PausableUpgra
      * ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
      */
      function getPendingReward(address account) external view returns (uint256) {
-        (uint256 rewards,) = _calcPendingRewards(account);
+        // realized rewards
+        (uint256 rewards,) = _calcRealizedRewards(account);
 
-        // check if profits has realized
+        // check if unrealized profits could be realized.
         if (block.timestamp > profitsRealizingTime) {
             // accumulate rewards
             rewards += unrealizedProfits * IVotingEscrow(votingEscrow).balanceOfAt(account, profitsRealizingTime) / IVotingEscrow(votingEscrow).totalSupplyAt(profitsRealizingTime);
@@ -151,30 +152,31 @@ contract VeRewards is IStaking, Initializable, OwnableUpgradeable, PausableUpgra
     function _balanceDecrease(uint256 amount) internal { accountedBalance -= amount; }
 
     /**
-     * @dev internal calculation of rewards for a user
+     * @dev internal calculation of realized rewards for a user
      */
-    function _calcPendingRewards(address account) internal view returns (uint256 rewards, uint256 settledToWeek) {
+    function _calcRealizedRewards(address account) internal view returns (uint256 rewards, uint256 settledWeek) {
         // load user's last settled week
-        settledToWeek = userLastSettledWeek[account];
-        if (settledToWeek < genesis) {
-            settledToWeek = genesis;
+        settledWeek = userLastSettledWeek[account];
+        if (settledWeek < genesis) {
+            settledWeek = genesis;
         }
 
         // claim to maxWeeks rewards
         for (uint i=0; i<maxWeeks;i++) {
-            uint256 nextWeek = settledToWeek + WEEK;
-            if (nextWeek > lastRealizedProfitsTime || nextWeek > block.timestamp) {
+            // loop until we reached last settlement in the past
+            uint256 nextWeek = settledWeek + WEEK;
+            if (nextWeek > latestSettlement || nextWeek > block.timestamp) {
                 break;
             }
-            settledToWeek = nextWeek;
+            settledWeek = nextWeek;
 
             // settle this week ==> lastSettledWeek
-            rewards += profitsRealizedWeekly[settledToWeek]
-                        * IVotingEscrow(votingEscrow).balanceOfAt(account, settledToWeek)
-                        / IVotingEscrow(votingEscrow).totalSupplyAt(settledToWeek);
+            rewards += profitsSettledWeekly[settledWeek]
+                        * IVotingEscrow(votingEscrow).balanceOfAt(account, settledWeek)
+                        / IVotingEscrow(votingEscrow).totalSupplyAt(settledWeek);
         }
 
-        return (rewards, settledToWeek);
+        return (rewards, settledWeek);
     }
 
     /**
@@ -183,15 +185,15 @@ contract VeRewards is IStaking, Initializable, OwnableUpgradeable, PausableUpgra
     function _updateReward() internal {
         // check if pending profits has realized
         if (block.timestamp > profitsRealizingTime) {
-            lastRealizedProfitsTime = profitsRealizingTime;
-            profitsRealizedWeekly[profitsRealizingTime] = unrealizedProfits; // <- profits realized
+            profitsSettledWeekly[profitsRealizingTime] = unrealizedProfits; // <- profits settled
+            latestSettlement = profitsRealizingTime;
 
-            // rewards reset to 0 in next week.
+            // reset unrealized profits to 0 in the up-coming week.
             unrealizedProfits = 0;
             profitsRealizingTime = _getWeek(block.timestamp+WEEK);
         }
 
-        // accumulate new rewards to 'unrealizedProfits' .
+        // accumulate new profits to 'unrealizedProfits'
         uint256 balance = IERC20(rewardToken).balanceOf(address(this));
         if (balance > accountedBalance) {
             uint256 rewards = balance - accountedBalance;
