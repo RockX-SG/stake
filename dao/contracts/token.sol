@@ -17,7 +17,7 @@ contract BedrockDAO is Initializable, ERC20Upgradeable, ERC20BurnableUpgradeable
     }
 
     function initialize() initializer public {
-        __ERC20_init("Bedrock DAO", "BDR");
+        __ERC20_init("Bedrock DAO", "BRT");
         __ERC20Burnable_init();
         __ERC20Snapshot_init();
         __Ownable_init();
