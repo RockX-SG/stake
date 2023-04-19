@@ -32,7 +32,7 @@ contract VeRewards is IStaking, Initializable, OwnableUpgradeable, PausableUpgra
     using SafeMath for uint;
 
     uint256 public constant WEEK = 604800;
-    uint256 public maxWeeks = 50; // max number of weeks a user can claim rewards in a single transaction
+    uint256 public constant MAXWEEKS = 50; // max number of weeks a user can claim rewards in a single transaction
     mapping(address => uint256) public userLastSettledWeek; // user's last settlement week
     mapping(uint256 => uint256) public profitsSettledWeekly; // week ts -> rewards settled
     uint256 public latestSettlement; // latest profits settlement time, the profits before which has finalized in profitsRealizedWeekly.
@@ -129,10 +129,10 @@ contract VeRewards is IStaking, Initializable, OwnableUpgradeable, PausableUpgra
      *
      * ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
      */
-     function getPendingReward(address account) external view returns (uint256) {
+     function getPendingReward(address account) external view returns (uint256, uint256) {
         // realized rewards
-        (uint256 rewards,) = _calcRealizedRewards(account);
-        return rewards;
+        (uint256 rewards, uint256 settledWeek) = _calcRealizedRewards(account);
+        return (rewards,settledWeek);
      }
 
     /**
@@ -155,7 +155,7 @@ contract VeRewards is IStaking, Initializable, OwnableUpgradeable, PausableUpgra
         }
 
         // claim to maxWeeks rewards
-        for (uint i=0; i<maxWeeks;i++) {
+        for (uint i=0; i<MAXWEEKS;i++) {
             // loop until we reached last settlement in the past
             uint256 nextWeek = settledWeek + WEEK;
             if (nextWeek > latestSettlement || nextWeek > block.timestamp) {
