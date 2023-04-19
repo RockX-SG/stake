@@ -40,8 +40,6 @@ contract VeRewards is IStaking, Initializable, OwnableUpgradeable, PausableUpgra
     uint256 public accountedBalance; // for tracking of rewards
     address public votingEscrow; // the voting escrow contract
     address public rewardToken; // the reward token to distribute to users as rewards
-    address public approvedAccount; // the account who owns the to-be distributed rewards,
-                                    // a multi-sig wallet is recommended.
 
     uint256 public genesis; // the genesis week the contract has deployed
     uint256 public unrealizedProfits;  // unrealized profits to be distributed in next week
@@ -120,7 +118,7 @@ contract VeRewards is IStaking, Initializable, OwnableUpgradeable, PausableUpgra
     }
 
     /**
-     * @dev updateReward
+     * @dev updateReward, make sure this is called once a week.
      */
     function updateReward() external override {  _updateReward(); }
 
@@ -134,12 +132,6 @@ contract VeRewards is IStaking, Initializable, OwnableUpgradeable, PausableUpgra
      function getPendingReward(address account) external view returns (uint256) {
         // realized rewards
         (uint256 rewards,) = _calcRealizedRewards(account);
-
-        // check if unrealized profits could be realized.
-        if (block.timestamp > profitsRealizingTime) {
-            // accumulate rewards
-            rewards += unrealizedProfits * IVotingEscrow(votingEscrow).balanceOfAt(account, profitsRealizingTime) / IVotingEscrow(votingEscrow).totalSupplyAt(profitsRealizingTime);
-        }
         return rewards;
      }
 
@@ -173,8 +165,8 @@ contract VeRewards is IStaking, Initializable, OwnableUpgradeable, PausableUpgra
 
             // settle this week ==> lastSettledWeek
             rewards += profitsSettledWeekly[settledWeek]
-                        * IVotingEscrow(votingEscrow).balanceOfAt(account, settledWeek)
-                        / IVotingEscrow(votingEscrow).totalSupplyAt(settledWeek);
+                        * IVotingEscrow(votingEscrow).balanceOf(account, settledWeek)
+                        / IVotingEscrow(votingEscrow).totalSupply(settledWeek);
         }
 
         return (rewards, settledWeek);

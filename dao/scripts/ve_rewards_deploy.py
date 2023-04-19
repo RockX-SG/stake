@@ -5,11 +5,6 @@ from pathlib import Path
 import time
 import pytest
 
-def get_week(n=0):
-    WEEK = 604800
-    this_week = (chain.time() // WEEK) * WEEK
-    return this_week + (n * WEEK)
-
 # this script simulates voters locks to get veToken
 # get rewards based on their ve balance
 def main():
@@ -69,14 +64,15 @@ def main():
     print("########## MINT REWARDS TO VE_REWARDS #############")
     print('''transparent_token.mint(transparent_ve_rewards, 100000 * 1e18, {'from':owner})''')
     transparent_token.mint(transparent_ve_rewards, 100000 * 1e18, {'from':owner})
+    transparent_ve_rewards.updateReward({'from':owner})
     print('''transparent_token.balanceOf(transparent_ve_rewards)''',transparent_token.balanceOf(transparent_ve_rewards))
+    print("calling updateReward()")
 
-    lastweek = get_week(0)
     print(''' sleep one week ''')
     chain.sleep(86400*7)
     chain.mine(1)
+    transparent_ve_rewards.updateReward({'from':owner})
 
     for voter in voters: 
-        print('''transparent_ve.balanceOf(voter)''',transparent_ve.balanceOfAt(voter, lastweek))
         print('''transparent_ve_rewards.getPendingReward(voter)''',transparent_ve_rewards.getPendingReward(voter))
 

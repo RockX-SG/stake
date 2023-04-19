@@ -37,17 +37,17 @@ contract VotingEscrow is IVotingEscrow, Initializable, PausableUpgradeable, Acce
     using SafeERC20 for IERC20;
 
     bytes32 public constant PAUSER_ROLE = keccak256("PAUSER_ROLE");
-    
+
     uint256 public constant WEEK = 7 days;
     uint256 public constant MAXTIME = 365 days;
     uint256 public constant MULTIPLIER = 10**18;
-    
+
     enum LockAction {
         CREATE_LOCK,
         INCREASE_AMOUNT,
         INCREASE_TIME
     }
-    
+
     struct Point {
         int128 bias;
         int128 slope;
@@ -83,7 +83,7 @@ contract VotingEscrow is IVotingEscrow, Initializable, PausableUpgradeable, Acce
     function initialize(
         string memory _name,
         string memory _symbol,
-        address _assetToken) initializer public 
+        address _assetToken) initializer public
     {
         require(_assetToken != address(0x0), "Asset address nil");
         __Pausable_init();
@@ -110,12 +110,12 @@ contract VotingEscrow is IVotingEscrow, Initializable, PausableUpgradeable, Acce
         // bind asset token
         assetToken = _assetToken;
     }
-  
-    /** 
+
+    /**
      * ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
-     * 
+     *
      *      CONTRACT MANAGEMENT
-     * 
+     *
      * ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
      */
     /**
@@ -147,12 +147,12 @@ contract VotingEscrow is IVotingEscrow, Initializable, PausableUpgradeable, Acce
         _checkpoint(address(0), empty, empty);
     }
 
-    /** 
+    /**
      * ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
-     * 
+     *
      *      ACCOUNT LOCK MANAGEMENT VIA FARMING POOL
      *              OPERATED BY EXTERNAL ACCOUNTS
-     * 
+     *
      * ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
      */
      /**
@@ -233,7 +233,7 @@ contract VotingEscrow is IVotingEscrow, Initializable, PausableUpgradeable, Acce
     /**
      * @dev Withdraws all the senders stake, providing lockup is over
      */
-    function withdraw() 
+    function withdraw()
         external
         override
         nonReentrant
@@ -259,16 +259,16 @@ contract VotingEscrow is IVotingEscrow, Initializable, PausableUpgradeable, Acce
 
         emit Unlocked(account, value, block.timestamp);
     }
-    
-    /** 
+
+    /**
      * ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
-     * 
+     *
      *     EXTERNAL VIEW FUNCTIONS
-     * 
+     *
      * ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
      */
 
-    /** 
+    /**
      * @notice Returns a user's lock expiration
      * @param _addr The address of the user
      * @return Expiration of the user's lock
@@ -307,6 +307,35 @@ contract VotingEscrow is IVotingEscrow, Initializable, PausableUpgradeable, Acce
         if (epoch == 0) {
             return 0;
         }
+        Point memory lastPoint = userPointHistory[_account][epoch];
+        lastPoint.bias =
+            lastPoint.bias -
+            (lastPoint.slope * SafeCast.toInt128(int256(block.timestamp - lastPoint.ts)));
+        if (lastPoint.bias < 0) {
+            lastPoint.bias = 0;
+        }
+
+        return SafeCast.toUint256(lastPoint.bias);
+    }
+        
+    /**
+     * @notice Get the voting power for a user at the specified timestamp
+     * @dev Adheres to ERC20 `balanceOf` interface for Aragon compatibility
+     * @param _account User for which to return the voting power
+     * @param _ts Timestamp to get voting power at
+     * @return Voting power of user at timestamp
+     */
+    function balanceOf(address _account, uint256 _ts)
+        public
+        view
+        override
+        returns (uint256)
+    {
+        uint256 epoch = _findUserTimestampEpoch(_account, _ts);
+        if (epoch == 0) {
+            return 0;
+        }
+        
         Point memory lastPoint = userPointHistory[_account][epoch];
         lastPoint.bias =
             lastPoint.bias -
@@ -384,6 +413,16 @@ contract VotingEscrow is IVotingEscrow, Initializable, PausableUpgradeable, Acce
         Point memory lastPoint = pointHistory[epoch_];
         return _supplyAt(lastPoint, block.timestamp);
     }
+    
+    /**
+     * @notice Calculate total voting power at a given timestamp
+     * @return Total voting power at timestamp
+     */
+    function totalSupply(uint256 ts) public view override returns (uint256) {
+        uint256 _epoch = _findTimestampEpoch(ts);
+        Point memory lastPoint = pointHistory[_epoch];
+        return _supplyAt(lastPoint, ts);
+    }
 
     /**
      * @dev Calculate total supply of voting power at a given blockNumber
@@ -426,14 +465,14 @@ contract VotingEscrow is IVotingEscrow, Initializable, PausableUpgradeable, Acce
     }
 
 
-    /** 
+    /**
      * ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
-     * 
+     *
      *     INTERNAL CORE LOCK MANAGEMENT
-     * 
+     *
      * ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
      */
-    
+
     /**
      * @dev Deposits or creates a stake for a given address
      * @param _addr User address to assign the stake
@@ -478,7 +517,7 @@ contract VotingEscrow is IVotingEscrow, Initializable, PausableUpgradeable, Acce
 
         emit Locked(_addr, _value, newLocked.end, _action, block.timestamp);
     }
-   
+
     /**
      * @dev Records a checkpoint of both individual and global slope
      * @param _addr User address, or address(0) for only global
@@ -656,12 +695,12 @@ contract VotingEscrow is IVotingEscrow, Initializable, PausableUpgradeable, Acce
         }
     }
 
-  
-    /** 
+
+    /**
      * ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
-     * 
+     *
      *     INTERNAL HELPER FUNCTIONS
-     * 
+     *
      * ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
      */
     /**
@@ -699,6 +738,32 @@ contract VotingEscrow is IVotingEscrow, Initializable, PausableUpgradeable, Acce
     }
 
     /**
+     * @dev Uses binarysearch to find the most recent point history preceeding block
+     * @param _ts Find the most recent point history before this time
+     */
+    function _findTimestampEpoch(uint256 _ts)
+        internal
+        view
+        returns (uint256)
+    {
+        uint256 min = 0;
+        uint256 max = globalEpoch;
+
+        for (uint256 i = 0; i < 128; i++) {
+            if (min >= max) {
+                break;
+            }
+            uint256 mid = (min + max + 1) / 2;
+            if (pointHistory[mid].ts <= _ts) {
+                min = mid;
+            } else {
+                max = mid - 1;
+            }
+        }
+        return min;
+    }
+
+    /**
      * @dev Uses binarysearch to find the most recent user point history preceeding block
      * @param _addr User for which to search
      * @param _block Find the most recent point history before this block
@@ -725,6 +790,33 @@ contract VotingEscrow is IVotingEscrow, Initializable, PausableUpgradeable, Acce
     }
 
     
+    /**
+     * @dev Uses binarysearch to find the most recent user point history preceeding ts
+     * @param _addr User for which to search
+     * @param _ts Find the most recent point history before this timestamp
+     */
+    function _findUserTimestampEpoch(address _addr, uint256 _ts)
+        internal
+        view
+        returns (uint256)
+    {
+        uint256 min = 0;
+        uint256 max = userPointEpoch[_addr];
+        for (uint256 i = 0; i < 128; i++) {
+            if (min >= max) {
+                break;
+            }
+            uint256 mid = (min + max + 1) / 2;
+            if (userPointHistory[_addr][mid].ts <= _ts) {
+                min = mid;
+            } else {
+                max = mid - 1;
+            }
+        }
+        return min;
+    }
+
+
     /**
      * @notice Calculate total supply of voting power at a given time _t
      * @param _point Most recent point before time _t
@@ -770,7 +862,7 @@ contract VotingEscrow is IVotingEscrow, Initializable, PausableUpgradeable, Acce
 
     /**
      * ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
-     * 
+     *
      *     CONTRACT EVENTS
      *
      * ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~

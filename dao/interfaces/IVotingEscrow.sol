@@ -41,6 +41,16 @@ interface IVotingEscrow {
     /// @return Voting power of user
     function balanceOf(address _account) external view returns (uint256);
 
+    /// @notice Get the voting power for a user at the specified timestamp
+    /// @dev Adheres to ERC20 `balanceOf` interface for Aragon compatibility
+    /// @param addr User wallet address
+    /// @param ts Timestamp to get voting power at
+    /// @return Voting power of user at timestamp
+    function balanceOf(address addr, uint256 ts)
+        external
+        view
+        returns (uint256);
+
     /// @notice Get users voting power at a given blockNumber
     /// @param _account User for which to return the voting power
     /// @param _blockNumber Block at which to calculate voting power
@@ -53,6 +63,10 @@ interface IVotingEscrow {
     /// @notice Calculate current total supply of voting power
     /// @return Current totalSupply
     function totalSupply() external view returns (uint256);
+
+    /// @notice Calculate total voting power at a given timestamp
+    /// @return Total voting power at timestamp
+    function totalSupply(uint256 ts) external view returns (uint256);
 
     /// @notice Calculate total supply of voting power at a given blockNumber
     /// @param _blockNumber Block number at which to calculate total supply
