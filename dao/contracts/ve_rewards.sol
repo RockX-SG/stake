@@ -31,25 +31,19 @@ contract VeRewards is IStaking, Initializable, OwnableUpgradeable, PausableUpgra
     using SafeERC20 for IERC20;
     using SafeMath for uint;
 
-    uint256 private constant MULTIPLIER = 1e18;
     uint256 public constant WEEK = 604800;
-
-    struct UserInfo {
-        uint256 weekSettled; // last settled week of a user
-    }
-
     uint256 public maxWeeks = 50; // max number of weeks a user can claim rewards in a single transaction
     mapping(address => uint256) public userLastSettledWeek; // user's last settled week
     mapping(uint256 => uint256) public profitsRealizedWeekly; // week -> rewards
     uint256 public lastRealizedProfitsTime; // the last realized profits time, the profits before which has finalized in weeklyRewards.
 
-    uint256 private accountedBalance;   // for tracking of rewards
+    uint256 public accountedBalance; // for tracking of rewards
     address public votingEscrow; // the voting escrow contract
     address public rewardToken; // the reward token to distribute to users as rewards
-    address public approvedAccount; // the account who owns the to-be distributed rewards
+    address public approvedAccount; // the account who owns the to-be distributed rewards,
                                     // a multi-sig wallet is recommended.
 
-    uint256 public firstWeek; // the first week the contract deployed
+    uint256 public genesis; // the genesis week the contract has deployed
     uint256 public unrealizedProfits;  // unrealized profits to be distributed in next week
     uint256 public profitsRealizingTime; // the expected profits realizing time
 
@@ -82,8 +76,8 @@ contract VeRewards is IStaking, Initializable, OwnableUpgradeable, PausableUpgra
         rewardToken = _rewardToken;
         approvedAccount = _approvedAccount;
 
-        firstWeek = _getWeek(block.timestamp);
-        lastRealizedProfitsTime = firstWeek;
+        genesis = _getWeek(block.timestamp);
+        lastRealizedProfitsTime = genesis;
         profitsRealizingTime = _getWeek(block.timestamp+WEEK);
     }
 
@@ -99,7 +93,7 @@ contract VeRewards is IStaking, Initializable, OwnableUpgradeable, PausableUpgra
      * ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
      *
      *      EXTERNAL FUNCTIONS
-    * 
+    *
      * ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
      */
 
@@ -136,8 +130,6 @@ contract VeRewards is IStaking, Initializable, OwnableUpgradeable, PausableUpgra
      *
      * ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
      */
-     function getAccountedBalance() external view returns (uint256) { return accountedBalance; }
-
      function getPendingReward(address account) external view returns (uint256) {
         (uint256 rewards,) = _calcPendingRewards(account);
 
@@ -164,8 +156,8 @@ contract VeRewards is IStaking, Initializable, OwnableUpgradeable, PausableUpgra
     function _calcPendingRewards(address account) internal view returns (uint256 rewards, uint256 settledToWeek) {
         // load user's last settled week
         settledToWeek = userLastSettledWeek[account];
-        if (settledToWeek < firstWeek) {
-            settledToWeek = firstWeek;
+        if (settledToWeek < genesis) {
+            settledToWeek = genesis;
         }
 
         // claim to maxWeeks rewards
@@ -177,7 +169,7 @@ contract VeRewards is IStaking, Initializable, OwnableUpgradeable, PausableUpgra
             settledToWeek = nextWeek;
 
             // settle this week ==> lastSettledWeek
-            rewards += profitsRealizedWeekly[settledToWeek] 
+            rewards += profitsRealizedWeekly[settledToWeek]
                         * IVotingEscrow(votingEscrow).balanceOfAt(account, settledToWeek)
                         / IVotingEscrow(votingEscrow).totalSupplyAt(settledToWeek);
         }
