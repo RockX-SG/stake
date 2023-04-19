@@ -39,8 +39,8 @@ contract LPStaking is IStaking, Initializable, OwnableUpgradeable, PausableUpgra
         uint256 rewardBalance;  // user's pending reward
     }
 
-    uint256 private totalShares; // total shares
-    uint256 private accShare;   // accumulated earnings per 1 share
+    uint256 public totalShares; // total shares
+    uint256 public accShare;   // accumulated earnings per 1 share
 
     // current realized profit delivery rate, this profit should be distributed linearly in a week,
     // otherwise, users can sandwich stake & unstake on newly received rewards
@@ -49,7 +49,7 @@ contract LPStaking is IStaking, Initializable, OwnableUpgradeable, PausableUpgra
     uint256 public profitsRealizingTime;  // the expected profits realizing time
 
     mapping(address => UserInfo) public userInfo; // claimaddr -> info
-    uint256 private accountedBalance;   // for tracking of rewards
+    uint256 public accountedBalance;   // for tracking of rewards
 
     address public lpToken; // the ERC20 lp token to staking
     address public rewardToken; // the reward token to distribute to users as rewards
@@ -94,7 +94,7 @@ contract LPStaking is IStaking, Initializable, OwnableUpgradeable, PausableUpgra
      * ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
      *
      *      EXTERNAL FUNCTIONS
-    * 
+    *
      * ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
      */
 
@@ -181,9 +181,6 @@ contract LPStaking is IStaking, Initializable, OwnableUpgradeable, PausableUpgra
      *
      * ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
      */
-     function getTotalShare() external view returns (uint256) { return totalShares; }
-     function getAccountedBalance() external view returns (uint256) { return accountedBalance; }
-
      function getPendingReward(address claimaddr) external view returns (uint256) {
         UserInfo storage info = userInfo[claimaddr];
         if (totalShares == 0) {
