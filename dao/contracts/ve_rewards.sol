@@ -154,6 +154,12 @@ contract VeRewards is IStaking, Initializable, OwnableUpgradeable, PausableUpgra
             settledWeek = genesis;
         }
 
+        // lookup user's first ve deposit
+        (,,uint256 ts) = IVotingEscrow(votingEscrow).getFirstUserPoint(account);
+        if (settledWeek < ts) {
+            settledWeek = _getWeek(ts);
+        }
+
         // claim to maxWeeks rewards
         for (uint i=0; i<MAXWEEKS;i++) {
             // loop until we reached last settlement in the past

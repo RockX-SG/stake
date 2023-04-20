@@ -298,6 +298,26 @@ contract VotingEscrow is IVotingEscrow, Initializable, PausableUpgradeable, Acce
     }
 
     /**
+     * @notice Returns the first available user point for a user
+     * @param _account User address
+     * @return bias i.e. y
+     * @return slope i.e. linear gradient
+     * @return ts i.e. time point was logged
+     */
+    function getFirstUserPoint(address _account) external view returns (
+        int128 bias,
+        int128 slope,
+        uint256 ts
+    ) {
+        uint256 uepoch = userPointEpoch[_account];
+        if (uepoch == 0) {
+            return (0, 0, 0);
+        }
+        Point memory point = userPointHistory[_account][1];
+        return (point.bias, point.slope, point.ts);
+    }
+
+    /**
      * @dev Get current user voting power
      * @param _account User for which to return the voting power
      * @return Voting power of user
