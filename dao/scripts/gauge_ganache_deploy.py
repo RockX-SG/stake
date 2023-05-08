@@ -18,10 +18,18 @@ def main():
     deployer = accounts[1]
     voter1 = accounts[2]
     voter2 = accounts[3]
+    voters = [voter1,voter2]
     lp_gauge1 = accounts[8]
     lp_gauge2 = accounts[9]
 
     print(f'contract owner account: {owner.address}\n')
+
+    token_contract = BedrockDAO.deploy(
+            {'from': deployer})
+
+    token_proxy =  TransparentUpgradeableProxy.deploy(
+            token_contract, deployer, b'',
+            {'from': deployer})
 
     ve_contract = VotingEscrow.deploy(
             {'from': deployer})
@@ -38,9 +46,11 @@ def main():
             gauge_contract, deployer, b'',
             {'from': deployer})
 
+    transparent_token = Contract.from_abi("BedrockDAO", token_proxy.address, BedrockDAO.abi)
+    transparent_token.initialize({'from': owner})
 
     transparent_ve = Contract.from_abi("VotingEscrow", ve_proxy.address, VotingEscrow.abi)
-    transparent_ve.initialize( "voting-escrow BRT", "veBRT", {'from': owner})
+    transparent_ve.initialize( "voting-escrow BRT", "veBRT", transparent_token, {'from': owner})
 
     print("VE ADDRESS:", transparent_ve)
 
@@ -49,14 +59,7 @@ def main():
 
     print("GAUGE ADDRESS:", transparent_gauge)
 
-    print("granting AUTHORIZED LOCKER ROLE to owner")
-    transparent_ve.grantRole( transparent_ve.AUTHORIZED_LOCKER_ROLE(), owner, {'from': owner})
-
-    print("lock 100 * 1e18 value of account", voter1, "for 300 days:")
-    transparent_ve.createLock(voter1, 100 * 1e18, chain.time() + 86400 * 300, {'from': owner})
-    print("lock 100 * 1e18 value of account", voter2, "for 300 days:")
-    transparent_ve.createLock(voter2, 100 * 1e18, chain.time() + 86400 * 300, {'from': owner})
-    
+        
     print("########## GAUGE CONTROLLER INIT")
     print(r'''addType("LP-TYPE0", 1, {'from':owner})''')
     transparent_gauge.addType("TYPE0", 1, {'from':owner})
@@ -65,6 +68,14 @@ def main():
     transparent_gauge.addGauge(lp_gauge1, 0, 0, {'from':owner})
     print(r'''addGauge(lp_gauge2, 0, 0, {'from':owner})''', lp_gauge2)
     transparent_gauge.addGauge(lp_gauge2, 0, 0, {'from':owner})
+
+    for voter in voters: 
+        print("minting BRT token to: ", voter)
+        transparent_token.mint(voter, 100 * 1e18, {'from':owner})
+        print("Approving BRT token to veBRT")
+        transparent_token.approve(transparent_ve, 0xffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffff, {'from':voter})
+        print("lock 100 * 1e18 value of account", voter, "for 300 days:")
+        transparent_ve.createLock(100 * 1e18, chain.time() + 86400 * 300, {'from': voter})
 
     print(r'''voteForGaugeWeight(lp_gauge1, 5000, {'from': voter1})''')
     transparent_gauge.voteForGaugeWeight(lp_gauge1, 5000, {'from': voter1})
