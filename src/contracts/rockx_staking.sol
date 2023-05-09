@@ -101,6 +101,9 @@ import "@openzeppelin/contracts-upgradeable/security/ReentrancyGuardUpgradeable.
  *          ReportedValidators = aliveValidator
  *          ReportedValidatorBalance = aliveBalance
  *
+ * CHANGELOG
+ *      v1(20230509):     remove the use of aliveBalance after shanghai merge, this parameter is omited in pushBeacon
+ *
  */
 contract RockXStaking is Initializable, PausableUpgradeable, AccessControlUpgradeable, ReentrancyGuardUpgradeable {
     using SafeERC20 for IERC20;
@@ -469,23 +472,22 @@ contract RockXStaking is Initializable, PausableUpgradeable, AccessControlUpgrad
      * @dev operator reports current alive validators count and overall balance
      * with default appreciation limit
      */
-    function pushBeacon(uint256 _aliveValidators, uint256 _aliveBalance, bytes32 clock) external onlyRole(ORACLE_ROLE) {
-        _pushBeacon(_aliveValidators, _aliveBalance, clock, 5);
+    function pushBeacon(uint256 _aliveValidators, uint256, bytes32 clock) external onlyRole(ORACLE_ROLE) {
+        _pushBeacon(_aliveValidators, clock, 5);
     }
 
     /**
      * @dev operator reports current alive validators count and overall balance
      * with custom appreciation limit
      */
-    function pushBeacon(uint256 _aliveValidators, uint256 _aliveBalance, bytes32 clock, uint256 limit) external onlyRole(ORACLE_ROLE) {
-        _pushBeacon(_aliveValidators, _aliveBalance, clock, limit);
+    function pushBeacon(uint256 _aliveValidators, uint256, bytes32 clock, uint256 limit) external onlyRole(ORACLE_ROLE) {
+        _pushBeacon(_aliveValidators, clock, limit);
     }
 
 
-    function _pushBeacon(uint256 _aliveValidators, uint256 _aliveBalance, bytes32 clock, uint256 limit) internal {
+    function _pushBeacon(uint256 _aliveValidators, bytes32 clock, uint256 limit) internal {
         require(vectorClock == clock, "SYS012");
         require(_aliveValidators + stoppedValidators <= nextValidatorId, "SYS013");
-        require(_aliveBalance >= _aliveValidators * DEPOSIT_SIZE, "SYS014");
 
         // step 0. collect new revenue if there is any.
         _syncBalance();
@@ -520,7 +522,7 @@ contract RockXStaking is Initializable, PausableUpgradeable, AccessControlUpgrad
         //          recentReceived = 16 ETH (the ethers left)
         //          recentSlashed = 16 ETH (assumed slashed ethers)
         // 
-
+        uint256 _aliveBalance = _aliveValidators * DEPOSIT_SIZE;  // computed balance
         require(_aliveBalance + recentReceived + recentSlashed >= rewardBase, "SYS015");
         uint256 rewards = _aliveBalance + recentReceived + recentSlashed - rewardBase;
         if (totalDebts > 0) {
