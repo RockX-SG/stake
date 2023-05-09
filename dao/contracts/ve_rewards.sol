@@ -40,7 +40,6 @@ contract VeRewards is IStaking, Initializable, OwnableUpgradeable, PausableUpgra
     uint256 public accountedBalance; // for tracking of rewards
     address public votingEscrow; // the voting escrow contract
     address public rewardToken; // the reward token to distribute to users as rewards
-
     uint256 public genesisWeek; // the genesis week the contract has deployed
 
     /**
@@ -100,9 +99,9 @@ contract VeRewards is IStaking, Initializable, OwnableUpgradeable, PausableUpgra
         // try to realized profits
         _updateReward();
 
-        // calc realized rewards and update settled week
-        (uint256 profits, uint256 settledWeek) = _calcRealizedRewards(msg.sender);
-        userLastSettledWeek[msg.sender] = settledWeek;
+        // calc profits and update settled week
+        (uint256 profits, uint256 settleToWeek) = _calcProfits(msg.sender);
+        userLastSettledWeek[msg.sender] = settleToWeek;
 
         // transfer profits to user
         IERC20(rewardToken).safeTransfer(msg.sender, profits);
@@ -130,7 +129,7 @@ contract VeRewards is IStaking, Initializable, OwnableUpgradeable, PausableUpgra
     /**
      * @dev return accumulated  rewards claimable.
      */
-     function getPendingReward(address account) external view returns (uint256, uint256) { return _calcRealizedRewards(account); }
+     function getPendingReward(address account) external view returns (uint256, uint256) { return _calcProfits(account); }
 
     /**
      * ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
@@ -145,39 +144,39 @@ contract VeRewards is IStaking, Initializable, OwnableUpgradeable, PausableUpgra
     function _balanceDecrease(uint256 amount) internal { accountedBalance -= amount; }
 
     /**
-     * @dev internal calculation of realized rewards for a user
+     * @dev internal calculation of profits for a user
      */
-    function _calcRealizedRewards(address account) internal view returns (uint256 profits, uint256 lastSettledWeek) {
+    function _calcProfits(address account) internal view returns (uint256 profits, uint256 settleToWeek) {
         // load user's last settled week
-        lastSettledWeek = userLastSettledWeek[account];
-        if (lastSettledWeek < genesisWeek) {
-            lastSettledWeek = genesisWeek;
+        settleToWeek = userLastSettledWeek[account];
+        if (settleToWeek < genesisWeek) {
+            settleToWeek = genesisWeek;
         }
 
         // lookup user's first ve deposit
         (,,uint256 ts) = IVotingEscrow(votingEscrow).getFirstUserPoint(account);
-        if (lastSettledWeek < ts) {
-            lastSettledWeek = _getWeek(ts);
+        if (settleToWeek < ts) {
+            settleToWeek = _getWeek(ts);
         }
 
         // loop throught weeks to accumulates profits
         for (uint i=0; i<MAXWEEKS;i++) {
-            uint256 nextWeek = lastSettledWeek + WEEK;
+            uint256 nextWeek = settleToWeek + WEEK;
             if (nextWeek > block.timestamp || nextWeek > lastProfitsUpdate) {
                 break;
             }
-            lastSettledWeek = nextWeek;
+            settleToWeek = nextWeek;
 
             // get the total supply of the week
-            uint256 totalSupply = IVotingEscrow(votingEscrow).totalSupply(lastSettledWeek);
+            uint256 totalSupply = IVotingEscrow(votingEscrow).totalSupply(settleToWeek);
             if (totalSupply > 0) {  // avert division by zero 
-                profits += weeklyProfits[lastSettledWeek]
-                            * IVotingEscrow(votingEscrow).balanceOf(account, lastSettledWeek)
+                profits += weeklyProfits[settleToWeek]
+                            * IVotingEscrow(votingEscrow).balanceOf(account, settleToWeek)
                             / totalSupply;
             }
         }
 
-        return (profits, lastSettledWeek);
+        return (profits, settleToWeek);
     }
 
     /**
