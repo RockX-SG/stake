@@ -28,18 +28,18 @@ import "@openzeppelin/contracts-upgradeable/security/ReentrancyGuardUpgradeable.
  * @title RockX Ethereum 2.0 Staking Contract
  *
  * Description:
- *
+ * 
  * ───╔═╦═╗─╔╗╔═╗──────╔╗──╔╗╔╗─╔╦╗╔╗─╔═╗─╔╗───────╔╦╗
  * ╔═╗║═╣═╬═╣╚╣═╣╔══╗╔╗╠╬═╗║╚╬╬╗╠╣╚╬╬═╣═╣╔╝╚╗╔═╦═╦╦╬╣╚╦╦╗
  * ║╬╚╬═╠═║╩╣╔╬═║╠══╣║╚╣║╬╚╣╬║║╚╣║╔╣║╩╬═║╚╗╔╝║╩╣╬║║║║╔╣║║
  * ╚══╩═╩═╩═╩═╩═╝╚══╝╚═╩╩══╩═╩╩═╩╩═╩╩═╩═╝─╚╝─╚═╩╗╠═╩╩═╬╗║
  * ─────────────────────────────────────────────╚╝────╚═╝
- *
+ * 
  * Term:
  *  ExchangeRatio:              Exchange Ratio of xETH to ETH, normally >= 1.0
  *  TotalXETH:                  Total Supply of xETH
  *  TotalStaked:                Total Ethers Staked to Validators
- *  TotalDebts:                 Total unpaid debts(generated from redeemFromValidators),
+ *  TotalDebts:                 Total unpaid debts(generated from redeemFromValidators), 
  *                              awaiting to be paid by turn off validators to clean debts.
  *  TotalPending:               Pending Ethers(<32 Ethers), awaiting to be staked
  *  RewardDebts:                The amount re-staked into TotalPending
@@ -62,10 +62,10 @@ import "@openzeppelin/contracts-upgradeable/security/ReentrancyGuardUpgradeable.
  *          ethersToMint:               The amount user deposits
  *
  *          (deprecated)
- *          TotalDebts = TotalDebts - Min(ethersToMint, TotalDebts)
+ *          TotalDebts = TotalDebts - Min(ethersToMint, TotalDebts)    
  *          TotalPending = TotalPending + Max(0, ethersToMint - TotalDebts)
  *          TotalXETH = TotalXETH + ethersToMint / ExchangeRatio
- *
+ *          
  *          (updated)
  *          TotalPending = TotalPending + ethersToMint
  *          TotalXETH = TotalXETH + ethersToMint / ExchangeRatio
@@ -80,7 +80,7 @@ import "@openzeppelin/contracts-upgradeable/security/ReentrancyGuardUpgradeable.
  *          valueStopped:               The value sent-back via receive() funtion
  *          amountUnstaked:             The amount of unstaked node (base 32ethers)
  *          validatorStopped:           The count of validator stopped
- *
+ *          
  *          incrRewardDebt := valueStopped - amountUnstaked
  *          RewardDebts = RewardDebt + incrRewardDebt
  *          RecentReceived = RecentReceived + valueStopped
@@ -89,7 +89,7 @@ import "@openzeppelin/contracts-upgradeable/security/ReentrancyGuardUpgradeable.
  *
  * Rule 4.1: (function pushBeacon) Oracle push balance, rebase if new validator is alive:
  *          aliveValidator:             The count of validators alive
- *
+ *          
  *          RewardBase = ReportedValidatorBalance + Max(0, aliveValidator - ReportedValidators) * 32 ETH
  *
  * Rule 4.2: (function pushBeacon) Oracle push balance, revenue calculation:
@@ -100,9 +100,6 @@ import "@openzeppelin/contracts-upgradeable/security/ReentrancyGuardUpgradeable.
  *          RecentReceived = 0
  *          ReportedValidators = aliveValidator
  *          ReportedValidatorBalance = aliveBalance
- *
-* CHANGELOG
-*   v1(20230508):     remove the use of aliveBalance, this augument is omited in pushBeacon
  *
  */
 contract RockXStaking is Initializable, PausableUpgradeable, AccessControlUpgradeable, ReentrancyGuardUpgradeable {
@@ -116,7 +113,7 @@ contract RockXStaking is Initializable, PausableUpgradeable, AccessControlUpgrad
         bytes signature;
         bool stopped;
     }
-
+    
     // track ether debts to return to async caller
     struct Debt {
         address account;
@@ -145,25 +142,25 @@ contract RockXStaking is Initializable, PausableUpgradeable, AccessControlUpgrad
     */
 
     // Always extend storage instead of modifying it
-    // Variables in implementation v0
+    // Variables in implementation v0 
     bytes32 public constant MANAGER_ROLE = keccak256("MANAGER_ROLE");
     bytes32 public constant ORACLE_ROLE = keccak256("ORACLE_ROLE");
     bytes32 public constant REGISTRY_ROLE = keccak256("REGISTRY_ROLE");
     bytes32 public constant PAUSER_ROLE = keccak256("PAUSER_ROLE");
     uint256 public constant DEPOSIT_SIZE = 32 ether;
 
-    uint256 private constant MULTIPLIER = 1e18;
+    uint256 private constant MULTIPLIER = 1e18; 
     uint256 private constant DEPOSIT_AMOUNT_UNIT = 1000000000 wei;
     uint256 private constant SIGNATURE_LENGTH = 96;
     uint256 private constant PUBKEY_LENGTH = 48;
-
+    
     address public ethDepositContract;      // ETH 2.0 Deposit contract
     address public xETHAddress;             // xETH token address
     address public redeemContract;          // redeeming contract for user to pull ethers
 
     uint256 public managerFeeShare;         // manager's fee in 1/1000
     bytes32 public withdrawalCredentials;   // WithdrawCredential for all validator
-
+    
     // credentials, pushed by owner
     ValidatorCredential [] private validatorRegistry;
     mapping(bytes32 => uint256) private pubkeyIndices; // indices of validatorRegistry by pubkey hash, starts from 1
@@ -226,11 +223,11 @@ contract RockXStaking is Initializable, PausableUpgradeable, AccessControlUpgrad
     // auto-compounding
     bool private autoCompoundEnabled;
 
-    /**
+    /** 
      * ======================================================================================
-     *
+     * 
      * SYSTEM SETTINGS, OPERATED VIA OWNER(DAO/TIMELOCK)
-     *
+     * 
      * ======================================================================================
      */
     receive() external payable { }
@@ -349,7 +346,7 @@ contract RockXStaking is Initializable, PausableUpgradeable, AccessControlUpgrad
 
         emit WhiteListToggle(account, whiteList[account]);
     }
-
+    
     /**
      * @dev toggle autocompound
      */
@@ -358,7 +355,7 @@ contract RockXStaking is Initializable, PausableUpgradeable, AccessControlUpgrad
 
         emit AutoCompoundToggle(autoCompoundEnabled);
     }
-
+    
     /**
      * @dev set manager's fee in 1/1000
      */
@@ -402,7 +399,7 @@ contract RockXStaking is Initializable, PausableUpgradeable, AccessControlUpgrad
     function setWithdrawCredential(bytes32 withdrawalCredentials_) external onlyRole(DEFAULT_ADMIN_ROLE) {
         withdrawalCredentials = withdrawalCredentials_;
         emit WithdrawCredentialSet(withdrawalCredentials);
-    }
+    } 
 
     /**
      * @dev stake into eth2 staking contract by calling this function
@@ -423,7 +420,7 @@ contract RockXStaking is Initializable, PausableUpgradeable, AccessControlUpgrad
      */
     function withdrawManagerFee(uint256 amount, address to) external nonReentrant onlyRole(MANAGER_ROLE)  {
         _syncBalance();
-
+        
         require(amount <= accountedManagerRevenue, "SYS010");
         // debts + userRevenue + managersRevenue + pending ethers
         require(address(this).balance >= amount + totalPending + totalDebts, "SYS011");
@@ -453,7 +450,7 @@ contract RockXStaking is Initializable, PausableUpgradeable, AccessControlUpgrad
      * @dev balance sync, also moves the vector clock if it has different value
      */
     function syncBalance() external onlyRole(ORACLE_ROLE) { _syncBalance(); }
-
+    
     /**
      * @dev balance sync, also moves the vector clock if it has different value
      */
@@ -467,27 +464,28 @@ contract RockXStaking is Initializable, PausableUpgradeable, AccessControlUpgrad
             emit BalanceSynced(diff);
         }
     }
-
+    
     /**
      * @dev operator reports current alive validators count and overall balance
      * with default appreciation limit
      */
-    function pushBeacon(uint256 _aliveValidators, uint256, bytes32 clock) external onlyRole(ORACLE_ROLE) {
-        _pushBeacon(_aliveValidators, clock, 5);
+    function pushBeacon(uint256 _aliveValidators, uint256 _aliveBalance, bytes32 clock) external onlyRole(ORACLE_ROLE) {
+        _pushBeacon(_aliveValidators, _aliveBalance, clock, 5);
     }
 
     /**
      * @dev operator reports current alive validators count and overall balance
      * with custom appreciation limit
      */
-    function pushBeacon(uint256 _aliveValidators, uint256, bytes32 clock, uint256 limit) external onlyRole(ORACLE_ROLE) {
-        _pushBeacon(_aliveValidators, clock, limit);
+    function pushBeacon(uint256 _aliveValidators, uint256 _aliveBalance, bytes32 clock, uint256 limit) external onlyRole(ORACLE_ROLE) {
+        _pushBeacon(_aliveValidators, _aliveBalance, clock, limit);
     }
 
 
-    function _pushBeacon(uint256 _aliveValidators, bytes32 clock, uint256 limit) internal {
+    function _pushBeacon(uint256 _aliveValidators, uint256 _aliveBalance, bytes32 clock, uint256 limit) internal {
         require(vectorClock == clock, "SYS012");
         require(_aliveValidators + stoppedValidators <= nextValidatorId, "SYS013");
+        require(_aliveBalance >= _aliveValidators * DEPOSIT_SIZE, "SYS014");
 
         // step 0. collect new revenue if there is any.
         _syncBalance();
@@ -501,18 +499,18 @@ contract RockXStaking is Initializable, PausableUpgradeable, AccessControlUpgrad
             rewardBase += newValidators * DEPOSIT_SIZE;
         }
 
-        // step 2. calc rewards, this also considers recentReceived ethers from
+        // step 2. calc rewards, this also considers recentReceived ethers from 
         // either stopped validators or withdrawed ethers as rewards.
         //
-        // During two consecutive pushBeacon operation, the ethers will ONLY:
+        // During two consecutive pushBeacon operation, the ethers will ONLY: 
         //  1. staked to new validators
         //  2. move from active validators to this contract
         //  3. slashed and stopped then the remaining ethers returned to this contract
-        //
+        // 
         // so, at any time, revenue generated if:
         //
-        //  current active validator balance
-        //      + recent received from validators(since last pushBeacon)
+        //  current active validator balance 
+        //      + recent received from validators(since last pushBeacon) 
         //      + recent slashed(since last pushBeacon)
         //  >（GREATER THAN) reward base(last active validator balance + new nodes balance)
         //
@@ -521,9 +519,8 @@ contract RockXStaking is Initializable, PausableUpgradeable, AccessControlUpgrad
         //          _aliveBalance = 0 （slashed)
         //          recentReceived = 16 ETH (the ethers left)
         //          recentSlashed = 16 ETH (assumed slashed ethers)
-        //
+        // 
 
-        uint256 _aliveBalance = _aliveValidators * DEPOSIT_SIZE;  // computed balance
         require(_aliveBalance + recentReceived + recentSlashed >= rewardBase, "SYS015");
         uint256 rewards = _aliveBalance + recentReceived + recentSlashed - rewardBase;
         if (totalDebts > 0) {
@@ -535,9 +532,9 @@ contract RockXStaking is Initializable, PausableUpgradeable, AccessControlUpgrad
         _distributeRewards(rewards);
         _autocompound();
 
-        // step 3. update reportedValidators
+        // step 3. update reportedValidators & reportedValidatorBalance
         // reset the recentReceived to 0
-        reportedValidatorBalance = _aliveBalance;
+        reportedValidatorBalance = _aliveBalance; 
         reportedValidators = _aliveValidators;
         recentReceived = 0;
         recentSlashed = 0;
@@ -567,7 +564,7 @@ contract RockXStaking is Initializable, PausableUpgradeable, AccessControlUpgrad
 
         // NOTE(x) The following procedure MUST keep currentReserve unchanged:
         // ASSUMING: paid == amountUnstaked
-        //
+        // 
         // totalPending + (totalStaked - amountUnstaked) + accountedUserRevenue - rewardDebt - (totalDebts - paid)
         //  ==
         //  totalPending + totalStaked + accountedUserRevenue - totalDebts - rewardDebt
@@ -578,7 +575,7 @@ contract RockXStaking is Initializable, PausableUpgradeable, AccessControlUpgrad
         require(paid == amountUnstaked, "SYS021");
         // track total staked ethers
         totalStaked -= amountUnstaked;
-
+        
         // log
         emit ValidatorStopped(_stoppedPubKeys.length);
 
@@ -616,16 +613,16 @@ contract RockXStaking is Initializable, PausableUpgradeable, AccessControlUpgrad
 
         // log
         emit ValidatorSlashedStopped(_stoppedPubKeys.length);
-
+        
         // vector clock moves
         _vectorClockTick();
     }
 
     /**
      * ======================================================================================
-     *
+     * 
      * VIEW FUNCTIONS
-     *
+     * 
      * ======================================================================================
      */
 
@@ -708,7 +705,7 @@ contract RockXStaking is Initializable, PausableUpgradeable, AccessControlUpgrad
     function getRegisteredValidatorsCount() external view returns (uint256) {
         return validatorRegistry.length;
     }
-
+    
     /**
      * @dev return a batch of validators credential
      */
@@ -777,9 +774,9 @@ contract RockXStaking is Initializable, PausableUpgradeable, AccessControlUpgrad
 
     /**
      * ======================================================================================
-     *
+     * 
      * EXTERNAL FUNCTIONS
-     *
+     * 
      * ======================================================================================
      */
     /**
@@ -794,7 +791,7 @@ contract RockXStaking is Initializable, PausableUpgradeable, AccessControlUpgrad
             require(quotaUsed[msg.sender] + msg.value <= DEPOSIT_SIZE, "USR003");
             quotaUsed[msg.sender] += msg.value;
         }
-
+        
         // track balance
         _balanceIncrease(msg.value);
 
@@ -821,7 +818,7 @@ contract RockXStaking is Initializable, PausableUpgradeable, AccessControlUpgrad
      * after the validator has turned off.
      *
      * this function is dedicated for institutional operations.
-     *
+     * 
      * redeem keeps the ratio invariant
      */
     function redeemFromValidators(uint256 ethersToRedeem, uint256 maxToBurn, uint256 deadline) external nonReentrant onlyPhase(1) returns(uint256 burned) {
@@ -840,15 +837,15 @@ contract RockXStaking is Initializable, PausableUpgradeable, AccessControlUpgrad
         // queue ether debts
         _enqueueDebt(msg.sender, ethersToRedeem);
 
-        // return burned
+        // return burned 
         return xETHToBurn;
     }
 
-    /**
+    /** 
      * ======================================================================================
-     *
+     * 
      * INTERNAL FUNCTIONS
-     *
+     * 
      * ======================================================================================
      */
 
@@ -905,14 +902,14 @@ contract RockXStaking is Initializable, PausableUpgradeable, AccessControlUpgrad
             // transfer money to debt contract
             IRockXRedeem(redeemContract).pay{value:toPay}(debt.account);
 
-            // dequeue if cleared
+            // dequeue if cleared 
             if (debt.amount == 0) {
                 _dequeueDebt();
             }
         }
-
+        
         totalDebts -= amountPaid;
-
+        
         // track balance
         _balanceDecrease(amountPaid);
     }
@@ -954,7 +951,7 @@ contract RockXStaking is Initializable, PausableUpgradeable, AccessControlUpgrad
          // load credential
         ValidatorCredential memory cred = validatorRegistry[nextValidatorId];
         _stake(cred.pubkey, cred.signature);
-        nextValidatorId++;
+        nextValidatorId++;        
 
         // track total staked & total pending ethers
         totalStaked += DEPOSIT_SIZE;
@@ -977,7 +974,7 @@ contract RockXStaking is Initializable, PausableUpgradeable, AccessControlUpgrad
             sha256(BytesLib.slice(signature, 0, 64)),
             sha256(abi.encodePacked(BytesLib.slice(signature, 64, SIGNATURE_LENGTH - 64), bytes32(0)))
         ));
-
+        
         bytes memory amount = to_little_endian_64(uint64(depositAmount));
 
         bytes32 depositDataRoot = sha256(abi.encodePacked(
@@ -1012,7 +1009,7 @@ contract RockXStaking is Initializable, PausableUpgradeable, AccessControlUpgrad
 
     /**
      * ======================================================================================
-     *
+     * 
      * ROCKX SYSTEM EVENTS
      *
      * ======================================================================================
