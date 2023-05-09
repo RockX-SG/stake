@@ -70,16 +70,21 @@ def main():
     print('''transparent_token.mint(transparent_ve_rewards, 100000 * 1e18, {'from':owner})''')
     transparent_token.mint(transparent_ve_rewards, 100000 * 1e18, {'from':owner})
     print('''transparent_token.balanceOf(transparent_ve_rewards)''',transparent_token.balanceOf(transparent_ve_rewards))
-    print("calling updateReward()")
-    transparent_ve_rewards.updateReward({'from':owner})
+    print('''transparent_ve_rewards.updateReward({'from':owner})''', transparent_ve_rewards.updateReward({'from':owner}))
 
-    print(''' sleep one week ''')
+    print('''#### SLEEP ONE WEEK ####''')
     chain.sleep(86400*7)
     chain.mine(1)
 
+    print("### GET VOTERS REWARDS ###")
     transparent_ve_rewards.updateReward({'from':owner})
-    print("ve.totalSupply", transparent_ve.totalSupply(get_week(0)))
+    print("transparent_ve.totalSupply(get_week(0))", transparent_ve.totalSupply(get_week(0)))
     for voter in voters: 
-        print("ve.balanceOf", transparent_ve.balanceOf(voter, get_week(0))) 
+        print('''transparent_ve.balanceOf(voter, get_week(0)))''', transparent_ve.balanceOf(voter, get_week(0)))
+        print('''transparent_ve_rewards.getPendingReward(voter)''',transparent_ve_rewards.getPendingReward(voter))
+
+    print("### VOTERS CLAIM REWARDS ###")
+    for voter in voters: 
+        print('''transparent_ve_rewards.claim({'from':voter})''', transparent_ve_rewards.claim({'from':voter})) 
         print('''transparent_ve_rewards.getPendingReward(voter)''',transparent_ve_rewards.getPendingReward(voter))
 
