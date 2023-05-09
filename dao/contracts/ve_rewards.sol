@@ -34,10 +34,10 @@ contract VeRewards is IStaking, Initializable, OwnableUpgradeable, PausableUpgra
     uint256 public constant WEEK = 604800;
     uint256 public constant MAXWEEKS = 50; // max number of weeks a user can claim rewards in a single transaction
     mapping(address => uint256) public userLastSettledWeek; // user's last settlement week
-    mapping(uint256 => uint256) public weeklyProfits; // week ts -> profits settled
+    mapping(uint256 => uint256) public weeklyProfits; // week ts -> profits for this week
     uint256 public lastProfitsUpdate; // latest week which has profits updated
 
-    uint256 public accountedBalance; // for tracking of rewards
+    uint256 public accountedBalance; // for tracking of balance change
     address public votingEscrow; // the voting escrow contract
     address public rewardToken; // the reward token to distribute to users as rewards
     uint256 public genesisWeek; // the genesis week the contract has deployed
@@ -185,12 +185,14 @@ contract VeRewards is IStaking, Initializable, OwnableUpgradeable, PausableUpgra
     function _updateReward() internal {
         uint256 balance = IERC20(rewardToken).balanceOf(address(this));
         if (balance > accountedBalance) {
-            uint256 rewards = balance - accountedBalance;
+            // by comparing recorded balance and actual balance,
+            // we can find the increment.
+            uint256 profits = balance - accountedBalance;
             accountedBalance = balance; // balance sync
 
             // rewards received this week is scheduled to release in next week.
             uint256 week = _getWeek(block.timestamp+WEEK);
-            weeklyProfits[week] += rewards;
+            weeklyProfits[week] += profits;
             lastProfitsUpdate = week;
         }
     }
