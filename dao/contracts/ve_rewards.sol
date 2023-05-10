@@ -96,7 +96,6 @@ contract VeRewards is IStaking, Initializable, OwnableUpgradeable, PausableUpgra
      * @dev claim all rewards
      */
     function claim() external nonReentrant whenNotPaused {
-        // try to realized profits
         _updateReward();
 
         // calc profits and update settled week
@@ -110,11 +109,11 @@ contract VeRewards is IStaking, Initializable, OwnableUpgradeable, PausableUpgra
         _balanceDecrease(profits);
 
         // log
-        emit Claim(msg.sender, profits);
+        emit Claimed(msg.sender, profits);
     }
 
     /**
-     * @dev updateReward, make sure this is called once a week.
+     * @dev updateReward, make sure this is called once a week if no one claims.
      */
     function updateReward() external override { _updateReward(); }
 
@@ -127,7 +126,7 @@ contract VeRewards is IStaking, Initializable, OwnableUpgradeable, PausableUpgra
      */
 
     /**
-     * @dev return accumulated  rewards claimable.
+     * @dev return accumulated rewards claimable.
      */
      function getPendingReward(address account) external view returns (uint256, uint256) { return _calcProfits(account); }
 
@@ -147,19 +146,19 @@ contract VeRewards is IStaking, Initializable, OwnableUpgradeable, PausableUpgra
      * @dev internal calculation of profits for a user
      */
     function _calcProfits(address account) internal view returns (uint256 profits, uint256 settleToWeek) {
-        // load user's last settled week
+        // load user's latest settled week
         settleToWeek = userLastSettledWeek[account];
         if (settleToWeek < genesisWeek) {
             settleToWeek = genesisWeek;
         }
 
-        // lookup user's first ve deposit
+        // lookup user's first ve deposit timestamp
         (,,uint256 ts) = IVotingEscrow(votingEscrow).getFirstUserPoint(account);
         if (settleToWeek < ts) {
             settleToWeek = _getWeek(ts);
         }
 
-        // loop throught weeks to accumulates profits
+        // loop throught weeks to accumulate profits
         for (uint i=0; i<MAXWEEKS;i++) {
             uint256 nextWeek = settleToWeek + WEEK;
             if (nextWeek > block.timestamp || nextWeek > lastProfitsUpdate) {
@@ -167,7 +166,7 @@ contract VeRewards is IStaking, Initializable, OwnableUpgradeable, PausableUpgra
             }
             settleToWeek = nextWeek;
 
-            // get the total supply of the week
+            // get total supply of the week
             uint256 totalSupply = IVotingEscrow(votingEscrow).totalSupply(settleToWeek);
             if (totalSupply > 0) {  // avert division by zero 
                 profits += weeklyProfits[settleToWeek]
@@ -213,5 +212,5 @@ contract VeRewards is IStaking, Initializable, OwnableUpgradeable, PausableUpgra
      *
      * ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
      */
-     event Claim(address account, uint256 amount);
+     event Claimed(address account, uint256 amount);
 }
