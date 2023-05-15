@@ -30,3 +30,24 @@ def test_registerValidators(setup_contracts, owner, pubkeys, sigs):
     for i in range(len(pubkeys)):
         assert(results["pubkeys"][i] == hex(pubkeys[i]))
         assert(results["signatures"][i] == hex(sigs[i]))
+
+""" test of replacing validators """
+def test_replaceValidator(setup_contracts, owner, pubkeys, sigs):
+    transparent_xeth, transparent_staking, transparent_redeem = setup_contracts
+    print(transparent_xeth, transparent_staking, transparent_redeem)
+
+    transparent_staking.registerValidator(pubkeys[0], sigs[0], {'from': owner})
+
+    assert transparent_staking.getRegisteredValidatorsCount() == 1
+    results = transparent_staking.getRegisteredValidators(0, 1)
+    assert(results["pubkeys"][0] == hex(pubkeys[0]))
+    assert(results["signatures"][0] == hex(sigs[0]))
+
+    # replace
+    transparent_staking.replaceValidator(pubkeys[0], pubkeys[1], sigs[1], {'from': owner})
+    assert transparent_staking.getRegisteredValidatorsCount() == 1
+    results = transparent_staking.getRegisteredValidators(0, 1)
+    assert(results["pubkeys"][0] == hex(pubkeys[1]))
+    assert(results["signatures"][0] == hex(sigs[1]))
+
+
