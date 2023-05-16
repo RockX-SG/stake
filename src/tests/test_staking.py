@@ -100,6 +100,10 @@ def test_mint(setup_contracts, owner):
         
     ''' compare uniETH balance with totalDeposits '''
     assert transparent_xeth.balanceOf(owner) == totalDeposits
+    ''' total supply check '''
+    assert transparent_xeth.totalSupply() == totalDeposits
+    ''' totalPending check '''
+    assert transparent_staking.getPendingEthers() == totalDeposits
 
     ''' approve uniETH to staking for redeeming '''
     transparent_xeth.approve(transparent_staking, totalDeposits, {'from': owner})
