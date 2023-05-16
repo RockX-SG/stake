@@ -84,6 +84,21 @@ def test_whiteListing(setup_contracts, owner):
     with brownie.reverts("USR003"):
         transparent_staking.mint(0, time.time() + 600, {'from':owner, 'value': '64 ether'})
 
+""" test of quota change"""
+def test_quota(setup_contracts, owner):
+    transparent_xeth, transparent_staking, transparent_redeem = setup_contracts
+
+    ''' random mint to reach the quota '''
+    quotaUsed = 0
+    while transparent_staking.getQuota(owner) < 32e18:
+        ethers = random.randint(1e17, 1e18)
+        if ethers + transparent_staking.getQuota(owner) > 32e18:
+            break
+        transparent_staking.mint(0, time.time() + 600, {'from':owner, 'value': ethers})
+        quotaUsed += ethers
+    
+    assert transparent_staking.getQuota(owner) == quotaUsed
+
 """ test of minting"""
 def test_mint(setup_contracts, owner):
     transparent_xeth, transparent_staking, transparent_redeem = setup_contracts
