@@ -1,6 +1,7 @@
 import pytest
 import time
 import sys
+import brownie
 
 from pathlib import Path
 from brownie import convert
@@ -51,7 +52,25 @@ def test_replaceValidator(setup_contracts, owner, pubkeys, sigs):
 """ test of whitelisting """
 def test_whiteListing(setup_contracts, owner):
     transparent_xeth, transparent_staking, transparent_redeem = setup_contracts
+
+    ''' initially it should be false '''
     assert transparent_staking.isWhiteListed(owner) == False
+
+    ''' minting more than 32 will revert too '''
+    with brownie.reverts("USR003"):
+        transparent_staking.mint(0, time.time() + 600, {'from':owner, 'value': '32.1 ether'})
+
+    with brownie.reverts("USR003"):
+        transparent_staking.mint(0, time.time() + 600, {'from':owner, 'value': '64 ether'})
+
+    ''' white list this account, minting should not revert '''
     transparent_staking.toggleWhiteList(owner, {'from':owner})
     assert transparent_staking.isWhiteListed(owner) == True
+    transparent_staking.mint(0, time.time() + 600, {'from':owner, 'value': '64 ether'})
+
+    ''' remove from white list, minting should revert again '''
+    transparent_staking.toggleWhiteList(owner, {'from':owner})
+    with brownie.reverts("USR003"):
+        transparent_staking.mint(0, time.time() + 600, {'from':owner, 'value': '64 ether'})
+
 
