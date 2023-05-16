@@ -93,11 +93,25 @@ def test_quota(setup_contracts, owner):
     while transparent_staking.getQuota(owner) < 32e18:
         ethers = random.randint(1e17, 1e18)
         if ethers + transparent_staking.getQuota(owner) > 32e18:
+            with brownie.reverts("USR003"):
+                transparent_staking.mint(0, time.time() + 600, {'from':owner, 'value': ethers})
             break
+
         transparent_staking.mint(0, time.time() + 600, {'from':owner, 'value': ethers})
         quotaUsed += ethers
     
     assert transparent_staking.getQuota(owner) == quotaUsed
+
+""" test of quota edge"""
+def test_quota_edge(setup_contracts, owner):
+    transparent_xeth, transparent_staking, transparent_redeem = setup_contracts
+
+    ''' edge case'''
+    transparent_staking.mint(0, time.time() + 600, {'from':accounts[9], 'value': '32 ether'})
+    
+    ''' one wei to break the edge'''
+    with brownie.reverts("USR003"):
+        transparent_staking.mint(0, time.time() + 600, {'from':accounts[9], 'value': 1})
 
 """ test of minting"""
 def test_mint(setup_contracts, owner):
