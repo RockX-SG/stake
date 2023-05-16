@@ -2,6 +2,7 @@ import pytest
 import time
 import sys
 import brownie
+import random
 
 from pathlib import Path
 from brownie import convert
@@ -12,6 +13,9 @@ def test_registerValidator(setup_contracts, owner, pubkeys, sigs):
     transparent_xeth, transparent_staking, transparent_redeem = setup_contracts
 
     transparent_staking.registerValidator(pubkeys[0], sigs[0], {'from': owner})
+    ''' register again should revert '''
+    with brownie.reverts("SYS005"):
+        transparent_staking.registerValidator(pubkeys[0], sigs[0], {'from': owner})
 
     assert transparent_staking.getRegisteredValidatorsCount() == 1
     results = transparent_staking.getRegisteredValidators(0, 1)
@@ -23,6 +27,9 @@ def test_registerValidators(setup_contracts, owner, pubkeys, sigs):
     transparent_xeth, transparent_staking, transparent_redeem = setup_contracts
 
     transparent_staking.registerValidators(pubkeys, sigs, {'from': owner})
+    ''' register again should revert '''
+    with brownie.reverts("SYS005"):
+        transparent_staking.registerValidators(pubkeys, sigs, {'from': owner})
 
     assert transparent_staking.getRegisteredValidatorsCount() == len(pubkeys)
     results = transparent_staking.getRegisteredValidators(0, len(pubkeys))
@@ -43,6 +50,10 @@ def test_replaceValidator(setup_contracts, owner, pubkeys, sigs):
 
     # replace
     transparent_staking.replaceValidator(pubkeys[0], pubkeys[1], sigs[1], {'from': owner})
+    ''' replacing again should revert '''
+    with brownie.reverts("SYS006"):
+        transparent_staking.replaceValidator(pubkeys[0], pubkeys[1], sigs[1], {'from': owner})
+
     assert transparent_staking.getRegisteredValidatorsCount() == 1
     results = transparent_staking.getRegisteredValidators(0, 1)
     assert(results["pubkeys"][0] == hex(pubkeys[1]))
@@ -73,4 +84,30 @@ def test_whiteListing(setup_contracts, owner):
     with brownie.reverts("USR003"):
         transparent_staking.mint(0, time.time() + 600, {'from':owner, 'value': '64 ether'})
 
+""" test of minting"""
+def test_mint(setup_contracts, owner):
+    transparent_xeth, transparent_staking, transparent_redeem = setup_contracts
+   
+    ''' white list this account ''' 
+    transparent_staking.toggleWhiteList(owner, {'from':owner})
 
+    ''' mint until account ethers depleted, randomly ''' 
+    totalDeposits = 0
+    while owner.balance() >= 1e18:
+        ethers = random.randint(1e18, owner.balance())
+        totalDeposits += ethers
+        transparent_staking.mint(0, time.time() + 600, {'from':owner, 'value': ethers})
+        
+    ''' compare uniETH balance with totalDeposits '''
+    assert transparent_xeth.balanceOf(owner) == totalDeposits
+
+    ''' approve uniETH to staking for redeeming '''
+    transparent_xeth.approve(transparent_staking, totalDeposits, {'from': owner})
+
+    ''' redeem all ethers '''
+    while transparent_xeth.balanceOf(owner) >=  32e18:
+        transparent_staking.redeemFromValidators('32 ethers', '32 ethers', time.time() + 600, {'from':owner})
+     
+    ''' make sure remaining uniETH + total debts is equal to totalDeposits ''' 
+    assert transparent_xeth.balanceOf(owner) + transparent_staking.debtOf(owner) == totalDeposits 
+    assert transparent_staking.debtOf(owner) == transparent_staking.getCurrentDebts()
