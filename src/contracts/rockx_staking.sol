@@ -784,7 +784,7 @@ contract RockXStaking is IRockXStaking, Initializable, PausableUpgradeable, Acce
     /**
      * @dev mint xETH with ETH
      */
-    function mint(uint256 minToMint, uint256 deadline) external payable nonReentrant whenNotPaused returns(uint256 minted){
+    function mint(uint256 minToMint, uint256 deadline) external override payable nonReentrant whenNotPaused returns(uint256 minted){
         require(block.timestamp < deadline, "USR001");
         require(msg.value > 0, "USR002");
 

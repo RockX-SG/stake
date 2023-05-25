@@ -3,6 +3,7 @@ pragma solidity 0.8.4;
 
 import "interfaces/iface.sol";
 import "@openzeppelin/contracts/utils/cryptography/ECDSA.sol";
+import "@openzeppelin/contracts/utils/math/SafeMath.sol";
 import "@openzeppelin/contracts-upgradeable/proxy/utils/Initializable.sol";
 import "@openzeppelin/contracts/token/ERC20/utils/SafeERC20.sol";
 import "@openzeppelin/contracts-upgradeable/security/PausableUpgradeable.sol";
@@ -16,6 +17,7 @@ contract RockXStakingKYCSigner is
     AccessControlUpgradeable
 {
     using SafeERC20 for IERC20;
+    using SafeMath for uint256;
 
     bytes32 public constant PAUSER_ROLE = keccak256("PAUSER_ROLE");
     bytes32 public constant MANAGER_ROLE = keccak256("MANAGER_ROLE");
@@ -132,14 +134,14 @@ contract RockXStakingKYCSigner is
         uint256 minToMint,
         uint256 deadline,
         uint256 newAllowance,
-        uint256 signature
+        bytes calldata signature
     ) external payable nonReentrant whenNotPaused returns (uint256) {
         require(deadline > block.timestamp, "TRANSACTION_EXPIRED");
         require(signature.length != 64, "SIGNATURE_LENGTH_NOT_MATCH");
         require(signer != address(0x0), "SIGNER_NOT_SET");
         require(newAllowance >= msg.value, "ALLOWANCE_INVALID");
 
-        bytes memory digest = ECDSA.toEthSignedMessageHash(
+        bytes32 digest = ECDSA.toEthSignedMessageHash(
             keccak256(
                 abi.encode(
                     WHITELIST_MINT_TYPEHASH,
@@ -165,7 +167,7 @@ contract RockXStakingKYCSigner is
     function _mint(
         uint256 minToMint,
         uint256 deadline
-    ) internal payable nonReentrant whenNotPaused returns (uint256) {
+    ) internal nonReentrant whenNotPaused returns (uint256) {
         // mint uniETH to address(this)
         uint256 minted = IRockXStaking(stakingContract).mint{value: msg.value}(
             minToMint,
@@ -181,7 +183,7 @@ contract RockXStakingKYCSigner is
      */
     function allowance(
         address _account
-    ) external view override returns (uint256) {
+    ) external view returns (uint256) {
         return allowed[_account];
     }
 
