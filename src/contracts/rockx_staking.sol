@@ -105,7 +105,7 @@ import "@openzeppelin/contracts-upgradeable/security/ReentrancyGuardUpgradeable.
  *      v1(20230509):     remove the use of aliveBalance after shanghai merge, this parameter is omited in pushBeacon
  *
  */
-contract RockXStaking is Initializable, PausableUpgradeable, AccessControlUpgradeable, ReentrancyGuardUpgradeable {
+contract RockXStaking is IRockXStaking, Initializable, PausableUpgradeable, AccessControlUpgradeable, ReentrancyGuardUpgradeable {
     using SafeERC20 for IERC20;
     using Address for address payable;
     using Address for address;

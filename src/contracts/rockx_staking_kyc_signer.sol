@@ -2,6 +2,7 @@
 pragma solidity 0.8.4;
 
 import "interfaces/iface.sol";
+import "@openzeppelin/contracts/utils/cryptography/ECDSA.sol";
 import "@openzeppelin/contracts-upgradeable/proxy/utils/Initializable.sol";
 import "@openzeppelin/contracts/token/ERC20/utils/SafeERC20.sol";
 import "@openzeppelin/contracts-upgradeable/security/PausableUpgradeable.sol";
@@ -59,7 +60,6 @@ contract RockXStakingKYCSigner is
         address _uniETHContract,
         address _stakingContract
     ) public initializer {
-        __Ownable_init();
         __Pausable_init();
         __ReentrancyGuard_init();
 
@@ -67,8 +67,8 @@ contract RockXStakingKYCSigner is
         _grantRole(PAUSER_ROLE, msg.sender);
         _grantRole(MANAGER_ROLE, msg.sender);
 
-        setStakingContract(_stakingContract);
         setUniETHContract(_uniETHContract);
+        setStakingContract(_stakingContract);
 
         setSigner(msg.sender);
     }
@@ -78,7 +78,7 @@ contract RockXStakingKYCSigner is
      */
     function setStakingContract(
         address _account
-    ) external onlyRole(DEFAULT_ADMIN_ROLE) {
+    ) public onlyRole(DEFAULT_ADMIN_ROLE) {
         stakingContract = _account;
 
         emit StakingContractSet(_account);
@@ -89,7 +89,7 @@ contract RockXStakingKYCSigner is
      */
     function setUniETHContract(
         address _account
-    ) external onlyRole(DEFAULT_ADMIN_ROLE) {
+    ) public onlyRole(DEFAULT_ADMIN_ROLE) {
         uniETHContract = _account;
 
         emit UniETHContractSet(_account);
@@ -98,7 +98,7 @@ contract RockXStakingKYCSigner is
     /**
      * @dev set signer
      */
-    function setSigner(address _account) external onlyRole(DEFAULT_ADMIN_ROLE) {
+    function setSigner(address _account) public onlyRole(DEFAULT_ADMIN_ROLE) {
         signer = _account;
 
         emit SignerSet(_account);
@@ -160,16 +160,14 @@ contract RockXStakingKYCSigner is
     }
 
     /**
-     * internal mint
-     * @param minToMint
-     * @param deadline
+     * internal staking contract mint
      */
     function _mint(
         uint256 minToMint,
         uint256 deadline
     ) internal payable nonReentrant whenNotPaused returns (uint256) {
         // mint uniETH to address(this)
-        uint256 minted = RockXStaking(stakingContract).mint{value: msg.value}(
+        uint256 minted = IRockXStaking(stakingContract).mint{value: msg.value}(
             minToMint,
             deadline
         );
