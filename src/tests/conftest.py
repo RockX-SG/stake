@@ -1,10 +1,10 @@
-import pytest
-import time
 import sys
-
+import time
 from pathlib import Path
-from brownie import convert
+
+import pytest
 from brownie import *
+from brownie import convert
 
 deps = project.load(  Path.home() / ".brownie" / "packages" / config["dependencies"][0])
 
@@ -31,6 +31,15 @@ def sigs():
             0xa4f9ffc0195dfff84a6469666ebb9661ca14a8d103afa758991bb9de58e71382b1d4d70c220c1458509cdcbcd580f6300cb70078ff194bbb540d4784b23206871ecb2f6c63f5eceae9d6c22de6d14e6df1787820963c796deb89c212c837944e,
             0x979b2452c2a784cc55fab298428ccea0cad2c267db45cab2a92b9b07bd9f0648c63eef60e48872c53b11b8800559adb90a01e15ac2e345bdf576afaa16b33b3ef4c5d28aea3ba86170d02eb5d26f2717fc75a566a041c215e1131991a2d8c67f,
             0x8e3879d53b77713dcbe2618fba82fddbbc348da60a34df6baf1d759e530ab9507cdf8022d01aa8fcea958b68861346a70774ef8945546c84b21fbbf171dc8101a7422e1c8ca38ccdfeb41cdfca0f3612f78c165cae7ebe267de72137593162c7]
+
+# emulated signer 
+@pytest.fixture
+def signerPub():
+    return "0x2C4594B11BaAD822B5be6a65348779Bb97473682"
+
+@pytest.fixture
+def signerPrivate():
+    return "a441e60dd489bdfa4a848bee22d9225a6d53f4aadad492ccae5014e1d88d84cc"
 
 @pytest.fixture
 def setup_contracts(owner, deployer):
@@ -71,3 +80,15 @@ def setup_contracts(owner, deployer):
     
     return transparent_xeth, transparent_staking, transparent_redeem
 
+@pytest.fixture
+def setup_kyc_signer_contract(setup_contracts, deployer):
+    transparent_xeth, transparent_staking = setup_contracts
+
+    staking_kyc_signer_contract = RockXStakingKYCSigner.deploy(transparent_xeth, transparent_staking, {'from': deployer})
+    staking_kyc_signer_proxy = deps.TransparentUpgradeableProxy.deploy(staking_kyc_signer_contract, deployer, b'', {'from': deployer})
+
+    transparent_staking_kyc_signer = Contract.from_abi("RockXStakingKYCSigner", staking_kyc_signer_proxy.address, RockXStakingKYCSigner.abi)
+    
+    # transparent_staking_kyc_signer.initialize({'from': owner})
+    
+    return transparent_staking_kyc_signer

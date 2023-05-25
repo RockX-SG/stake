@@ -1,12 +1,12 @@
-import pytest
-import time
-import sys
-import brownie
 import random
-
+import sys
+import time
 from pathlib import Path
-from brownie import convert
+
+import brownie
+import pytest
 from brownie import *
+from brownie import convert
 
 """ test of registering a validator """
 def test_registerValidator(setup_contracts, owner, pubkeys, sigs):
@@ -144,3 +144,24 @@ def test_mint(setup_contracts, owner):
     ''' make sure remaining uniETH + total debts is equal to totalDeposits ''' 
     assert transparent_xeth.balanceOf(owner) + transparent_staking.debtOf(owner) == totalDeposits 
     assert transparent_staking.debtOf(owner) == transparent_staking.getCurrentDebts()
+
+""" test of kyc signer minting"""
+def test_kyc_signer_mint(setup_contracts, setup_kyc_signer_contract, owner):
+    transparent_xeth, transparent_staking, transparent_redeem = setup_contracts
+    transparent_staking_kyc_signer = setup_kyc_signer_contract
+   
+    ''' white list kyc signer account ''' 
+    transparent_staking.toggleWhiteList(transparent_staking_kyc_signer, {'from':owner})
+
+    ethers = random.randint(1e18, owner.balance())
+    totalDeposits = transparent_staking_kyc_signer.mint(0, time.time() + 600, {'from':owner, 'value': ethers})
+
+    # ''' mint until account ethers depleted, randomly ''' 
+    # totalDeposits = 0
+    # while owner.balance() >= 1e18:
+    #     ethers = random.randint(1e18, owner.balance())
+    #     totalDeposits += ethers
+    #     transparent_staking.mint(0, time.time() + 600, {'from':owner, 'value': ethers})
+        
+    ''' compare uniETH balance with totalDeposits '''
+    assert transparent_xeth.balanceOf(owner) == totalDeposits

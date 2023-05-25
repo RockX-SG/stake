@@ -6,15 +6,19 @@ import "@openzeppelin/contracts-upgradeable/proxy/utils/Initializable.sol";
 import "@openzeppelin/contracts/token/ERC20/utils/SafeERC20.sol";
 import "@openzeppelin/contracts-upgradeable/security/PausableUpgradeable.sol";
 import "@openzeppelin/contracts-upgradeable/security/ReentrancyGuardUpgradeable.sol";
-import "@openzeppelin/contracts-upgradeable/access/OwnableUpgradeable.sol";
+import "@openzeppelin/contracts-upgradeable/access/AccessControlUpgradeable.sol";
 
 contract RockXStakingKYCSigner is
     Initializable,
     PausableUpgradeable,
     ReentrancyGuardUpgradeable,
-    OwnableUpgradeable
+    AccessControlUpgradeable
 {
     using SafeERC20 for IERC20;
+
+    bytes32 public constant PAUSER_ROLE = keccak256("PAUSER_ROLE");
+    bytes32 public constant MANAGER_ROLE = keccak256("MANAGER_ROLE");
+
     /**
      * @dev whitelist signature usage restrict
      */
@@ -25,35 +29,56 @@ contract RockXStakingKYCSigner is
     address public uniETHContract; // uniETH contract
 
     address public signer; // the signer for parameters in mint()
-    address public whitelister; // allows accounts to be whitelisted by a "whitelister" role
 
-    mapping(address => bool) internal whitelisted;
-    mapping(address => uint256) internal quotaUsed;
+    mapping(address => uint256) internal allowed;
+    mapping(address => uint256) private _mintNonces;
 
     /**
-     * @dev Throws if called by any account other than the whitelister
+     * @dev empty reserved space for future adding of variables
      */
-    modifier onlyWhitelister() {
-        require(
-            msg.sender == whitelister,
-            "Whitelistable: caller is not the whitelister"
-        );
-        _;
+    uint256[32] private __gap;
+
+    /**
+     * @dev pause the contract
+     */
+    function pause() public onlyRole(PAUSER_ROLE) {
+        _pause();
+    }
+
+    /**
+     * @dev unpause the contract
+     */
+    function unpause() public onlyRole(PAUSER_ROLE) {
+        _unpause();
     }
 
     /**
      * @dev initialization address
      */
-    function initialize() public initializer {
+    function initialize(
+        address _uniETHContract,
+        address _stakingContract
+    ) public initializer {
         __Ownable_init();
         __Pausable_init();
         __ReentrancyGuard_init();
+
+        _grantRole(DEFAULT_ADMIN_ROLE, msg.sender);
+        _grantRole(PAUSER_ROLE, msg.sender);
+        _grantRole(MANAGER_ROLE, msg.sender);
+
+        setStakingContract(_stakingContract);
+        setUniETHContract(_uniETHContract);
+
+        setSigner(msg.sender);
     }
 
     /**
      * @dev set staking contract address
      */
-    function setStakingContract(address _account) external onlyOwner {
+    function setStakingContract(
+        address _account
+    ) external onlyRole(DEFAULT_ADMIN_ROLE) {
         stakingContract = _account;
 
         emit StakingContractSet(_account);
@@ -62,7 +87,9 @@ contract RockXStakingKYCSigner is
     /**
      * @dev set uniETH contract address
      */
-    function setUniETHContract(address _account) external onlyOwner {
+    function setUniETHContract(
+        address _account
+    ) external onlyRole(DEFAULT_ADMIN_ROLE) {
         uniETHContract = _account;
 
         emit UniETHContractSet(_account);
@@ -71,23 +98,18 @@ contract RockXStakingKYCSigner is
     /**
      * @dev set signer
      */
-    function setSigner(address _account) external onlyOwner {
+    function setSigner(address _account) external onlyRole(DEFAULT_ADMIN_ROLE) {
         signer = _account;
 
         emit SignerSet(_account);
     }
 
     /**
-     * @dev set whitelister
-     * @param _account
+     * @notice Nonces for mint
+     * @return Next nonce
      */
-    function setWhitelister(address _account) external onlyOwner {
-        require(
-            _account != address(0),
-            "Whitelistable: new whitelister is the zero address"
-        );
-        whitelister = _account;
-        emit WhitelisterChanged(_account);
+    function nonces(address _account) external view returns (uint256) {
+        return _mintNonces[_account];
     }
 
     /**
@@ -97,21 +119,25 @@ contract RockXStakingKYCSigner is
         uint256 minToMint,
         uint256 deadline
     ) external payable nonReentrant whenNotPaused returns (uint256) {
-        require(isWhitelisted(_account), "ACCOUNT_NOT_WHITELISTED");
-
-        return _mint(minToMint, deadline);
+        require(msg.value <= allowed[msg.sender], "NEED_KYC_FOR_MORE");
+        uint256 minted = _mint(minToMint, deadline);
+        allowed[msg.sender] = allowed[msg.sender].sub(msg.value);
+        return minted;
     }
 
     /**
      * @dev whitelist and mint
      */
-    function mint(
+    function mintWithSig(
         uint256 minToMint,
         uint256 deadline,
+        uint256 newAllowance,
         uint256 signature
     ) external payable nonReentrant whenNotPaused returns (uint256) {
-        require(signature.length != 64, "SIG64");
-        require(signer != address(0x0), "SIGNER_NOT_INITIATED");
+        require(deadline > block.timestamp, "TRANSACTION_EXPIRED");
+        require(signature.length != 64, "SIGNATURE_LENGTH_NOT_MATCH");
+        require(signer != address(0x0), "SIGNER_NOT_SET");
+        require(newAllowance >= msg.value, "ALLOWANCE_INVALID");
 
         bytes memory digest = ECDSA.toEthSignedMessageHash(
             keccak256(
@@ -119,21 +145,24 @@ contract RockXStakingKYCSigner is
                     WHITELIST_MINT_TYPEHASH,
                     block.chainid,
                     signer,
-                    msg.sender
+                    msg.sender,
+                    newAllowance,
+                    // avoid signature reuse
+                    _mintNonces[msg.sender]++
                 )
             )
         );
         require(ECDSA.recover(digest, signature) == signer, "SIGNER_MISMATCH");
 
-        _whitelist(msg.sender);
-
-        return _mint(minToMint, deadline);
+        uint256 minted = _mint(minToMint, deadline);
+        allowed[msg.sender] = newAllowance.sub(msg.value);
+        return minted;
     }
 
     /**
      * internal mint
-     * @param minToMint 
-     * @param deadline 
+     * @param minToMint
+     * @param deadline
      */
     function _mint(
         uint256 minToMint,
@@ -145,55 +174,29 @@ contract RockXStakingKYCSigner is
             deadline
         );
         // transfer the uniETH to sender
-        IERC20(uniETHContract).safeTransferFrom(
-            address(this),
-            msg.sender,
-            minted
-        );
+        IERC20(uniETHContract).safeTransfer(msg.sender, minted);
         return minted;
     }
 
     /**
-     * @dev Checks if account is whitelisted
-     * @param _account The address to check
+     *
      */
-    function isWhitelisted(address _account) external view returns (bool) {
-        return whitelisted[_account];
+    function allowance(
+        address _account
+    ) external view override returns (uint256) {
+        return allowed[_account];
     }
 
     /**
-     * @dev Adds account to whitelist
-     * @param _account The address to whitelist
+     * @notice set the allowance
      */
-    function whitelist(address _account) external onlyWhitelister {
-        _whitelist(_account);
-    }
-
-    function _whitelist(address _account) internal {
-        whitelisted[_account] = true;
-
-        emit Whitelisted(_account);
-    }
-
-    /**
-     * @dev Removes account from whitelist
-     * @param _account The address to remove from the whitelist
-     */
-    function unWhitelist(address _account) external onlyWhitelister {
-        _unWhitelist(_account);
-    }
-
-    function _unWhitelist(address _account) internal onlyWhitelister {
-        whitelisted[_account] = false;
-
-        emit UnWhitelisted(_account);
-    }
-
-    /**
-     * @dev get used quota
-     */
-    function getQuota(address _account) external view returns (uint256) {
-        return quotaUsed[_account];
+    function setAllowance(
+        address _account,
+        uint256 value
+    ) external whenNotPaused onlyRole(MANAGER_ROLE) returns (bool) {
+        allowed[_account] = value;
+        emit AllowanceSet(_account, value);
+        return true;
     }
 
     /**
@@ -206,7 +209,5 @@ contract RockXStakingKYCSigner is
     event StakingContractSet(address _account);
     event UniETHContractSet(address _account);
     event SignerSet(address indexed _account);
-    event Whitelisted(address indexed _account);
-    event UnWhitelisted(address indexed _account);
-    event WhitelisterChanged(address indexed _account);
+    event AllowanceSet(address indexed _account, uint256 value);
 }
