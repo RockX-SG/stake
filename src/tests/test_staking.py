@@ -152,10 +152,16 @@ def test_mint(setup_contracts, owner):
 def test_mintWithSig(setup_contracts, setup_kycsigner_contract, signerPub, signerPrivate, owner):
     transparent_xeth, transparent_staking, transparent_redeem = setup_contracts
     transparent_staking_kycsigner = setup_kycsigner_contract
-   
+
+    # contract is whitelisted
     assert transparent_staking.isWhiteListed(transparent_staking_kycsigner)
-    assert transparent_xeth.balanceOf(owner) == 0
+
+    transparent_staking_kycsigner.setSigner(signerPub, {'from': owner})
+    
+    assert transparent_staking_kycsigner.signer() == signerPub
     assert transparent_staking_kycsigner.allowance(owner) == 0
+
+    assert transparent_xeth.balanceOf(owner) == 0
 
     new_allowance = eth_utils.to_wei(320, 'ether')
     ethers = eth_utils.to_wei(64, 'ether')
@@ -166,9 +172,6 @@ def test_mintWithSig(setup_contracts, setup_kycsigner_contract, signerPub, signe
     # 签名消息哈希
     signed_message = eth_account.Account.sign_message(message_hash, private_key=signerPrivate)
 
-    transparent_staking_kycsigner.setSigner(signerPub, {'from': owner})
-    
-    assert transparent_staking_kycsigner.signer() == signerPub
     assert transparent_staking_kycsigner.verifySigner(owner.address, new_allowance, bytes(signed_message.signature))
 
     totalDeposits = 0
