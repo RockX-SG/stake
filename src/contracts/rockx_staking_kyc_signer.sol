@@ -4,8 +4,8 @@ pragma solidity 0.8.4;
 import "interfaces/iface.sol";
 import "@openzeppelin/contracts/utils/cryptography/ECDSA.sol";
 import "@openzeppelin/contracts/utils/math/SafeMath.sol";
-import "@openzeppelin/contracts-upgradeable/proxy/utils/Initializable.sol";
 import "@openzeppelin/contracts/token/ERC20/utils/SafeERC20.sol";
+import "@openzeppelin/contracts-upgradeable/proxy/utils/Initializable.sol";
 import "@openzeppelin/contracts-upgradeable/security/PausableUpgradeable.sol";
 import "@openzeppelin/contracts-upgradeable/security/ReentrancyGuardUpgradeable.sol";
 import "@openzeppelin/contracts-upgradeable/access/AccessControlUpgradeable.sol";
@@ -28,12 +28,12 @@ contract RockXStakingKYCSigner is
     bytes32 public constant WHITELIST_MINT_TYPEHASH =
         0x64d9a0e1d66cc641ec9aa53707438ce4c55d4e6e06c37fc0d0830b06664c7ef5; // keccak256("mint(uint256 minToMint,uint256 deadline)")
 
-    address public stakingContract; // staking contract
     address public uniETHContract; // uniETH contract
+    address public stakingContract; // staking contract
 
     address public signer; // the signer for parameters in mint()
 
-    mapping(address => uint256) internal allowed;
+    mapping(address => uint256) internal _allowed;
     mapping(address => uint256) private _mintNonces;
 
     /**
@@ -55,6 +55,8 @@ contract RockXStakingKYCSigner is
         _unpause();
     }
 
+    receive() external payable {}
+
     /**
      * @dev initialization address
      */
@@ -63,6 +65,7 @@ contract RockXStakingKYCSigner is
         address _stakingContract
     ) public initializer {
         __Pausable_init();
+        __AccessControl_init();
         __ReentrancyGuard_init();
 
         _grantRole(DEFAULT_ADMIN_ROLE, msg.sender);
@@ -121,9 +124,9 @@ contract RockXStakingKYCSigner is
         uint256 minToMint,
         uint256 deadline
     ) external payable nonReentrant whenNotPaused returns (uint256) {
-        require(msg.value <= allowed[msg.sender], "NEED_KYC_FOR_MORE");
+        require(msg.value <= _allowed[msg.sender], "NEED_KYC_FOR_MORE");
         uint256 minted = _mint(minToMint, deadline);
-        allowed[msg.sender] = allowed[msg.sender].sub(msg.value);
+        _allowed[msg.sender] = _allowed[msg.sender].sub(msg.value);
         return minted;
     }
 
@@ -140,25 +143,37 @@ contract RockXStakingKYCSigner is
         require(signature.length != 64, "SIGNATURE_LENGTH_NOT_MATCH");
         require(signer != address(0x0), "SIGNER_NOT_SET");
         require(newAllowance >= msg.value, "ALLOWANCE_INVALID");
+        require(
+            verifySigner(msg.sender, newAllowance, signature),
+            "SIGNER_MISMATCH"
+        );
+        _mintNonces[msg.sender]++;
+        uint256 minted = _mint(minToMint, deadline);
+        _allowed[msg.sender] = newAllowance.sub(msg.value);
+        return minted;
+    }
 
+    /**
+     * @dev verify signer of the paramseters
+     */
+    function verifySigner(
+        address spender,
+        uint256 newAllowance,
+        bytes calldata signature
+    ) public view returns (bool) {
         bytes32 digest = ECDSA.toEthSignedMessageHash(
             keccak256(
                 abi.encode(
                     WHITELIST_MINT_TYPEHASH,
                     block.chainid,
-                    signer,
-                    msg.sender,
-                    newAllowance,
+                    spender,
                     // avoid signature reuse
-                    _mintNonces[msg.sender]++
+                    _mintNonces[spender],
+                    newAllowance
                 )
             )
         );
-        require(ECDSA.recover(digest, signature) == signer, "SIGNER_MISMATCH");
-
-        uint256 minted = _mint(minToMint, deadline);
-        allowed[msg.sender] = newAllowance.sub(msg.value);
-        return minted;
+        return (ECDSA.recover(digest, signature) == signer);
     }
 
     /**
@@ -167,7 +182,7 @@ contract RockXStakingKYCSigner is
     function _mint(
         uint256 minToMint,
         uint256 deadline
-    ) internal nonReentrant whenNotPaused returns (uint256) {
+    ) internal whenNotPaused returns (uint256) {
         // mint uniETH to address(this)
         uint256 minted = IRockXStaking(stakingContract).mint{value: msg.value}(
             minToMint,
@@ -175,16 +190,17 @@ contract RockXStakingKYCSigner is
         );
         // transfer the uniETH to sender
         IERC20(uniETHContract).safeTransfer(msg.sender, minted);
+
+        emit Minted(msg.sender, minted, msg.value);
+
         return minted;
     }
 
     /**
      *
      */
-    function allowance(
-        address _account
-    ) external view returns (uint256) {
-        return allowed[_account];
+    function allowance(address _account) external view returns (uint256) {
+        return _allowed[_account];
     }
 
     /**
@@ -194,7 +210,7 @@ contract RockXStakingKYCSigner is
         address _account,
         uint256 value
     ) external whenNotPaused onlyRole(MANAGER_ROLE) returns (bool) {
-        allowed[_account] = value;
+        _allowed[_account] = value;
         emit AllowanceSet(_account, value);
         return true;
     }
@@ -206,8 +222,9 @@ contract RockXStakingKYCSigner is
      *
      * ======================================================================================
      */
-    event StakingContractSet(address _account);
-    event UniETHContractSet(address _account);
-    event SignerSet(address indexed _account);
-    event AllowanceSet(address indexed _account, uint256 value);
+    event StakingContractSet(address account);
+    event UniETHContractSet(address account);
+    event SignerSet(address indexed account);
+    event AllowanceSet(address indexed account, uint256 value);
+    event Minted(address indexed account, uint256 amount, uint256 value);
 }

@@ -6,7 +6,10 @@ from pathlib import Path
 import brownie
 import pytest
 from brownie import *
-from brownie import convert
+
+import eth_account
+import eth_utils
+import eth_abi
 
 """ test of registering a validator """
 def test_registerValidator(setup_contracts, owner, pubkeys, sigs):
@@ -146,22 +149,56 @@ def test_mint(setup_contracts, owner):
     assert transparent_staking.debtOf(owner) == transparent_staking.getCurrentDebts()
 
 """ test of kyc signer minting"""
-def test_kyc_signer_mint(setup_contracts, setup_kyc_signer_contract, owner):
+def test_mintWithSig(setup_contracts, setup_kycsigner_contract, signerPub, signerPrivate, owner):
     transparent_xeth, transparent_staking, transparent_redeem = setup_contracts
-    transparent_staking_kyc_signer = setup_kyc_signer_contract
+    transparent_staking_kycsigner = setup_kycsigner_contract
    
-    ''' white list kyc signer account ''' 
-    transparent_staking.toggleWhiteList(transparent_staking_kyc_signer, {'from':owner})
+    assert transparent_staking.isWhiteListed(transparent_staking_kycsigner)
+    assert transparent_xeth.balanceOf(owner) == 0
+    assert transparent_staking_kycsigner.allowance(owner) == 0
 
-    ethers = random.randint(1e18, owner.balance())
-    totalDeposits = transparent_staking_kyc_signer.mint(0, time.time() + 600, {'from':owner, 'value': ethers})
+    new_allowance = eth_utils.to_wei(320, 'ether')
+    ethers = eth_utils.to_wei(64, 'ether')
 
-    # ''' mint until account ethers depleted, randomly ''' 
-    # totalDeposits = 0
-    # while owner.balance() >= 1e18:
-    #     ethers = random.randint(1e18, owner.balance())
-    #     totalDeposits += ethers
-    #     transparent_staking.mint(0, time.time() + 600, {'from':owner, 'value': ethers})
-        
-    ''' compare uniETH balance with totalDeposits '''
+    encoded_data = eth_abi.encode(['bytes32', 'uint256', 'address', 'uint256', 'uint256'], [transparent_staking_kycsigner.WHITELIST_MINT_TYPEHASH(), brownie.network.state.Chain().id, owner.address, transparent_staking_kycsigner.nonces(owner), new_allowance])
+    # 计算消息哈希
+    message_hash = eth_account.messages.encode_defunct(eth_utils.keccak(encoded_data))
+    # 签名消息哈希
+    signed_message = eth_account.Account.sign_message(message_hash, private_key=signerPrivate)
+
+    transparent_staking_kycsigner.setSigner(signerPub, {'from': owner})
+    
+    assert transparent_staking_kycsigner.signer() == signerPub
+    assert transparent_staking_kycsigner.verifySigner(owner.address, new_allowance, bytes(signed_message.signature))
+
+    totalDeposits = 0
+    mint_transaction = transparent_staking_kycsigner.mintWithSig(0, time.time() + 600, new_allowance, bytes(signed_message.signature), {"from": owner, 'value': ethers})
+    # Transfer or Minted event
+    mint_event = mint_transaction.events["Transfer"]
+    totalDeposits += mint_event["value"];
+    assert transparent_staking_kycsigner.allowance(owner) == new_allowance - ethers
     assert transparent_xeth.balanceOf(owner) == totalDeposits
+
+    mint_transaction = transparent_staking_kycsigner.mint(0, time.time() + 600, {"from": owner, 'value': ethers})
+    mint_event = mint_transaction.events["Transfer"]
+    totalDeposits += mint_event["value"];
+    assert transparent_staking_kycsigner.allowance(owner) == new_allowance - ethers - ethers
+    assert transparent_xeth.balanceOf(owner) == totalDeposits
+
+    transparent_staking_kycsigner.setAllowance(owner, 0, {"from": owner})
+    assert transparent_staking_kycsigner.allowance(owner) == 0
+
+    try:
+        transparent_staking_kycsigner.mint(0, time.time() + 600, {"from": owner, 'value': ethers})
+        assert False, "INSUFFICIENT_ALLOWANCE"
+    except Exception as e:
+        assert "NEED_KYC_FOR_MORE" in str(e)
+    
+    # avoid signature reuse
+    try:
+        transparent_staking_kycsigner.mintWithSig(0, time.time() + 600, new_allowance, bytes(signed_message.signature), {"from": owner, 'value': ethers})
+        assert False, "SIGNER_REUSE"
+    except Exception as e:
+        assert "SIGNER_MISMATCH" in str(e)
+    
+    assert transparent_staking_kycsigner.allowance(owner) == 0

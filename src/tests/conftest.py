@@ -81,14 +81,15 @@ def setup_contracts(owner, deployer):
     return transparent_xeth, transparent_staking, transparent_redeem
 
 @pytest.fixture
-def setup_kyc_signer_contract(setup_contracts, deployer):
-    transparent_xeth, transparent_staking = setup_contracts
+def setup_kycsigner_contract(setup_contracts, owner, deployer):
+    transparent_xeth, transparent_staking, transparent_redeem = setup_contracts
 
-    staking_kyc_signer_contract = RockXStakingKYCSigner.deploy(transparent_xeth, transparent_staking, {'from': deployer})
-    staking_kyc_signer_proxy = deps.TransparentUpgradeableProxy.deploy(staking_kyc_signer_contract, deployer, b'', {'from': deployer})
+    staking_kycsigner_contract = RockXStakingKYCSigner.deploy({'from': deployer})
+    staking_kycsigner_proxy = deps.TransparentUpgradeableProxy.deploy(staking_kycsigner_contract, deployer, b'', {'from': deployer})
+    transparent_staking_kycsigner = Contract.from_abi("RockXStakingKYCSigner", staking_kycsigner_proxy.address, RockXStakingKYCSigner.abi)
+    
+    transparent_staking_kycsigner.initialize(transparent_xeth, transparent_staking, {'from': owner})
 
-    transparent_staking_kyc_signer = Contract.from_abi("RockXStakingKYCSigner", staking_kyc_signer_proxy.address, RockXStakingKYCSigner.abi)
+    transparent_staking.toggleWhiteList(transparent_staking_kycsigner, {'from': owner})
     
-    # transparent_staking_kyc_signer.initialize({'from': owner})
-    
-    return transparent_staking_kyc_signer
+    return transparent_staking_kycsigner
