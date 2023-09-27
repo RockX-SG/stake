@@ -811,6 +811,12 @@ contract RockXStaking is Initializable, PausableUpgradeable, AccessControlUpgrad
         IMintableContract(xETHAddress).mint(msg.sender, toMint);
         totalPending += msg.value;
 
+        // immediate staking
+        while (totalPending >= DEPOSIT_SIZE && nextValidatorId < validatorRegistry.length) {
+            _spinup();
+        }
+        emit ValidatorActivated(nextValidatorId);
+
         return toMint;
     }
 
