@@ -825,7 +825,8 @@ contract RockXStaking is Initializable, PausableUpgradeable, AccessControlUpgrad
      */
     function redeemFromValidators(uint256 ethersToRedeem, uint256 maxToBurn, uint256 deadline) external nonReentrant onlyPhase(1) returns(uint256 burned) {
         require(block.timestamp < deadline, "USR001");
-        require(ethersToRedeem % DEPOSIT_SIZE == 0, "USR005");
+		require(ethersToRedeem % DEPOSIT_SIZE == 0, "USR005");
+		require(ethersToRedeem > 0, "USR005");
 
         uint256 totalXETH = IERC20(xETHAddress).totalSupply();
         uint256 xETHToBurn = totalXETH * ethersToRedeem / currentReserve();
