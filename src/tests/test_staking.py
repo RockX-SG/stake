@@ -80,9 +80,10 @@ def test_whiteListing(setup_contracts, owner):
     transparent_staking.mint(0, time.time() + 600, {'from':owner, 'value': '64 ether'})
 
     ''' remove from white list, minting should revert again '''
+    accounts[9].transfer(owner, "100 ether")
     transparent_staking.toggleWhiteList(owner, {'from':owner})
     with brownie.reverts("USR003"):
-        transparent_staking.mint(0, time.time() + 600, {'from':owner, 'value': '64 ether'})
+        transparent_staking.mint(0, time.time() + 600, {'from':owner, 'allow_revert':True, 'value': '64 ether'})
 
 """ test of quota change"""
 def test_quota(setup_contracts, owner):
