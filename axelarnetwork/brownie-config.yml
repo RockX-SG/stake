@@ -1,0 +1,23 @@
+# Brownie configuration file
+# https://eth-brownie.readthedocs.io/en/stable/config.html
+# required external contracts
+dependencies:
+  - axelarnetwork/axelar-gmp-sdk-solidity@5.6.4
+
+pytest:
+    # these settings replace the defaults when running pytest
+    default_contract_owner: true
+    reverting_tx_gas_limit: 6721975
+    revert_traceback: true
+
+compiler:
+    solc:
+        version: 0.8.9
+        optimizer:
+          enabled: true
+          runs: 200
+        remappings:
+          - "@axelar-network/axelar-gmp-sdk-solidity/contracts=axelarnetwork/axelar-gmp-sdk-solidity@5.6.4/contracts"  
+
+# automatically fetch contract sources from Etherscan
+autofetch_sources: true
