@@ -13,7 +13,7 @@
 // ⡀⡀⡀⡀⡀⡀⡀⡀⡀⡀⡀⡀⡀⡀⡀⡀⡀⡀⡀⡀⡀⡀⡀⡀⡀⡀⡀⡀⡀⡀⡀⡀⡀⡀⡀⡀⡀⡀⡀⡀⡀⡀⡀⡀⡀⡀⡀⡀⡀⡀⡀⡀
 // ⡀⡀⡀⡀⡀⡀⡀⡀⡀⡀⡀⡀⡀⡀⡀⡀⡀⡀⡀⡀⡀⡀⡀⡀⡀⡀⡀⡀⡀⡀⡀⡀⡀⡀⡀⡀⡀⡀⡀⡀⡀⡀⡀⡀⡀⡀⡀⡀⡀⡀⡀⡀
 
-pragma solidity 0.8.4;
+pragma solidity ^0.8.4;
 
 import "interfaces/iface.sol";
 import "solidity-bytes-utils/contracts/BytesLib.sol";
@@ -115,8 +115,9 @@ contract RockXStaking is Initializable, PausableUpgradeable, AccessControlUpgrad
         bytes pubkey;
         bytes signature;
         bool stopped;
+        bool restaking; // UPDATE(20240115) : flag the validator is using liquid staking address
     }
-    
+
     // track ether debts to return to async caller
     struct Debt {
         address account;
@@ -163,7 +164,7 @@ contract RockXStaking is Initializable, PausableUpgradeable, AccessControlUpgrad
 
     uint256 public managerFeeShare;         // manager's fee in 1/1000
     bytes32 public withdrawalCredentials;   // WithdrawCredential for all validator
-    
+
     // credentials, pushed by owner
     ValidatorCredential [] private validatorRegistry;
     mapping(bytes32 => uint256) private pubkeyIndices; // indices of validatorRegistry by pubkey hash, starts from 1
@@ -225,6 +226,11 @@ contract RockXStaking is Initializable, PausableUpgradeable, AccessControlUpgrad
 
     // auto-compounding
     bool private autoCompoundEnabled;
+
+    // UPDATE(20240115): eigenlayer's restaking withdrawal credential
+    bytes32 public restakingWithdrawalCredentials;  // restaking withdrawal credential, formatted in bytes32
+    address public restakingAddress;                // usually a restaking withdrawal credential adress(like eigenpod)
+                                                    // addr(0x0) suggests that we're not using restaking address
 
     /** 
      * ======================================================================================
@@ -301,7 +307,7 @@ contract RockXStaking is Initializable, PausableUpgradeable, AccessControlUpgrad
 
         bytes32 pubkeyHash = keccak256(pubkey);
         require(pubkeyIndices[pubkeyHash] == 0, "SYS005");
-        validatorRegistry.push(ValidatorCredential({pubkey:pubkey, signature:signature, stopped:false}));
+        validatorRegistry.push(ValidatorCredential({pubkey:pubkey, signature:signature, stopped:false, restaking: false}));
         pubkeyIndices[pubkeyHash] = validatorRegistry.length;
     }
 
@@ -320,8 +326,41 @@ contract RockXStaking is Initializable, PausableUpgradeable, AccessControlUpgrad
 
         // set new pubkey
         bytes32 pubkeyHash = keccak256(pubkey);
-        validatorRegistry[index] = ValidatorCredential({pubkey:pubkey, signature:signature, stopped:false});
+        validatorRegistry[index] = ValidatorCredential({pubkey:pubkey, signature:signature, stopped:false, restaking: false});
         pubkeyIndices[pubkeyHash] = index+1;
+    }
+
+    /**
+     * @dev replace validators in batch
+     */
+    function replaceValidators(bytes [] calldata oldpubkeys, bytes [] calldata pubkeys, bytes [] calldata signatures, bool restaking) external onlyRole(REGISTRY_ROLE) {
+        require(pubkeys.length == signatures.length, "SYS007");
+        require(oldpubkeys.length == pubkeys.length, "SYS007");
+        uint256 n = pubkeys.length;
+
+        for(uint256 i=0;i<n;i++) {
+            bytes calldata oldpubkey = oldpubkeys[i];
+            bytes calldata pubkey = pubkeys[i];
+            bytes calldata signature = signatures[i];
+
+            require(oldpubkey.length == PUBKEY_LENGTH, "SYS004");
+            require(pubkey.length == PUBKEY_LENGTH, "SYS004");
+            require(signature.length == SIGNATURE_LENGTH, "SYS003");
+
+            // mark old pub key to false
+            bytes32 oldPubKeyHash = keccak256(oldpubkey);
+            require(pubkeyIndices[oldPubKeyHash] > 0, "SYS006");
+            uint256 index = pubkeyIndices[oldPubKeyHash] - 1;
+            delete pubkeyIndices[oldPubKeyHash];
+
+            // set new pubkey
+            bytes32 pubkeyHash = keccak256(pubkey);
+            ValidatorCredential storage validator = validatorRegistry[index];
+            validator.pubkey = pubkey;
+            validator.signature = signature;
+            validator.restaking = restaking;
+            pubkeyIndices[pubkeyHash] = index+1;
+        }
     }
 
     /**
@@ -336,7 +375,25 @@ contract RockXStaking is Initializable, PausableUpgradeable, AccessControlUpgrad
 
             bytes32 pubkeyHash = keccak256(pubkeys[i]);
             require(pubkeyIndices[pubkeyHash] == 0, "SYS005");
-            validatorRegistry.push(ValidatorCredential({pubkey:pubkeys[i], signature:signatures[i], stopped:false}));
+            validatorRegistry.push(ValidatorCredential({pubkey:pubkeys[i], signature:signatures[i], stopped:false, restaking: false}));
+            pubkeyIndices[pubkeyHash] = validatorRegistry.length;
+        }
+    }
+
+    /**
+     * @dev register a batch of LRT validators
+     * UPDATE(20240115): register a batch of validators for Liquid Restaking (EigenLayer)
+     */
+    function registerRestakingValidators(bytes [] calldata pubkeys, bytes [] calldata signatures) external onlyRole(REGISTRY_ROLE) {
+        require(pubkeys.length == signatures.length, "SYS007");
+        uint256 n = pubkeys.length;
+        for(uint256 i=0;i<n;i++) {
+            require(pubkeys[i].length == PUBKEY_LENGTH, "SYS004");
+            require(signatures[i].length == SIGNATURE_LENGTH, "SYS003");
+
+            bytes32 pubkeyHash = keccak256(pubkeys[i]);
+            require(pubkeyIndices[pubkeyHash] == 0, "SYS005");
+            validatorRegistry.push(ValidatorCredential({pubkey:pubkeys[i], signature:signatures[i], stopped:false, restaking: true}));
             pubkeyIndices[pubkeyHash] = validatorRegistry.length;
         }
     }
@@ -349,7 +406,7 @@ contract RockXStaking is Initializable, PausableUpgradeable, AccessControlUpgrad
 
         emit WhiteListToggle(account, whiteList[account]);
     }
-    
+
     /**
      * @dev toggle autocompound
      */
@@ -358,7 +415,7 @@ contract RockXStaking is Initializable, PausableUpgradeable, AccessControlUpgrad
 
         emit AutoCompoundToggle(autoCompoundEnabled);
     }
-    
+
     /**
      * @dev set manager's fee in 1/1000
      */
@@ -397,11 +454,25 @@ contract RockXStaking is Initializable, PausableUpgradeable, AccessControlUpgrad
     }
 
     /**
-     @dev set withdraw credential to receive revenue, usually this should be the contract itself.
+     * @dev set withdraw credential to receive revenue, usually this should be the contract itself.
      */
     function setWithdrawCredential(bytes32 withdrawalCredentials_) external onlyRole(DEFAULT_ADMIN_ROLE) {
         withdrawalCredentials = withdrawalCredentials_;
         emit WithdrawCredentialSet(withdrawalCredentials);
+    } 
+
+    /**
+     * @dev (UPDATE20240115) set restaking withdraw credential
+     */
+    function setRestakingAddress(address addr) external onlyRole(DEFAULT_ADMIN_ROLE) {
+        require(addr != address(0x0), "SYS025");
+        restakingAddress = addr;
+
+        // set restaking withdrawal credentials
+        bytes memory cred = abi.encodePacked(bytes1(0x01), new bytes(11), addr);
+        restakingWithdrawalCredentials = BytesLib.toBytes32(cred, 0);
+
+        emit RestakingAddressSet(addr);
     } 
 
     /**
@@ -410,8 +481,11 @@ contract RockXStaking is Initializable, PausableUpgradeable, AccessControlUpgrad
     function stake() external onlyRole(REGISTRY_ROLE) {
         // spin up n nodes
         uint256 numValidators = totalPending / DEPOSIT_SIZE;
-        require(nextValidatorId + numValidators <= validatorRegistry.length, "SYS009");
-        for (uint256 i = 0;i<numValidators;i++) {
+        uint256 maxValidators = (nextValidatorId + numValidators <= validatorRegistry.length)?
+                                    numValidators:
+                                    validatorRegistry.length - nextValidatorId;
+
+        for (uint256 i = 0;i<maxValidators;i++) {
             _spinup();
         }
 
@@ -458,10 +532,22 @@ contract RockXStaking is Initializable, PausableUpgradeable, AccessControlUpgrad
      * @dev balance sync, also moves the vector clock if it has different value
      */
     function _syncBalance() internal {
-        assert(int256(address(this).balance) >= accountedBalance);
-        uint256 diff = uint256(int256(address(this).balance) - accountedBalance);
+        // UPDATE(20240115): account in restaking partial withdrawal balance
+        //  (eg: eigenpod address.)
+        uint256 restakingBalance;
+        if (restakingAddress!= address(0x0)) {
+            restakingBalance = address(restakingAddress).balance;
+        }
+        uint256 combinedBalance = address(this).balance + restakingBalance;
+	
+		// assert combined balance larger than accountedBalance
+        assert(int256(combinedBalance) >= accountedBalance);
+        // UPDATE(20240115, the diff is updated based on eigenlayer's liquid restaking, 
+        //  LRT has a different withdrawal address which of eigon pod) 
+        // 
+        uint256 diff = uint256(int256(combinedBalance) - accountedBalance);
         if (diff > 0) {
-            accountedBalance = int256(address(this).balance);
+            accountedBalance = int256(combinedBalance);
             recentReceived += diff;
             _vectorClockTick();
             emit BalanceSynced(diff);
@@ -727,6 +813,32 @@ contract RockXStaking is Initializable, PausableUpgradeable, AccessControlUpgrad
     }
 
     /**
+     * @dev return a batch of validators information
+     * UPDATE(20240119): V2 returns restaking info
+     */
+    function getRegisteredValidatorsV2(uint256 idx_from, uint256 idx_to) external view returns (
+         bytes [] memory pubkeys,
+         bytes [] memory signatures,
+         bool [] memory stopped,
+         bool [] memory restaking)
+    {
+        pubkeys = new bytes[](idx_to - idx_from);
+        signatures = new bytes[](idx_to - idx_from);
+        stopped = new bool[](idx_to - idx_from);
+        restaking = new bool[](idx_to - idx_from);
+
+        uint counter = 0;
+        for (uint i = idx_from; i < idx_to;i++) {
+            pubkeys[counter] = validatorRegistry[i].pubkey;
+            signatures[counter] = validatorRegistry[i].signature;
+            stopped[counter] = validatorRegistry[i].stopped;
+            restaking[counter] = validatorRegistry[i].restaking;
+            counter++;
+        }
+    }
+
+
+    /**
      * @dev return next validator id
      */
     function getNextValidatorId() external view returns (uint256) { return nextValidatorId; }
@@ -790,7 +902,7 @@ contract RockXStaking is Initializable, PausableUpgradeable, AccessControlUpgrad
 
         // for non KYC users, check the quota
         if (!whiteList[msg.sender]) {
-            require(quotaUsed[msg.sender] + msg.value <= DEPOSIT_SIZE, "USR003");
+            require(quotaUsed[msg.sender] + msg.value <= 50000 ether, "USR003");
             quotaUsed[msg.sender] += msg.value;
         }
         
@@ -811,19 +923,6 @@ contract RockXStaking is Initializable, PausableUpgradeable, AccessControlUpgrad
         IMintableContract(xETHAddress).mint(msg.sender, toMint);
         totalPending += msg.value;
 
-	// update(20231117)
-	// immediate staking
-	bool activated = false;
-	while (totalPending >= DEPOSIT_SIZE && nextValidatorId < validatorRegistry.length) {
-		_spinup();
-		activated = true;
-        }
-	
-	if (activated) {
-		emit ValidatorActivated(nextValidatorId);
-	}
-	// end of update(20231117)
-
         return toMint;
     }
 
@@ -838,8 +937,8 @@ contract RockXStaking is Initializable, PausableUpgradeable, AccessControlUpgrad
      */
     function redeemFromValidators(uint256 ethersToRedeem, uint256 maxToBurn, uint256 deadline) external nonReentrant onlyPhase(1) returns(uint256 burned) {
         require(block.timestamp < deadline, "USR001");
-		require(ethersToRedeem % DEPOSIT_SIZE == 0, "USR005");
-		require(ethersToRedeem > 0, "USR005");
+        require(ethersToRedeem % DEPOSIT_SIZE == 0, "USR005");
+        require(ethersToRedeem > 0, "USR005");
 
         uint256 totalXETH = IERC20(xETHAddress).totalSupply();
         uint256 xETHToBurn = totalXETH * ethersToRedeem / currentReserve();
@@ -966,7 +1065,14 @@ contract RockXStaking is Initializable, PausableUpgradeable, AccessControlUpgrad
     function _spinup() internal {
          // load credential
         ValidatorCredential memory cred = validatorRegistry[nextValidatorId];
-        _stake(cred.pubkey, cred.signature);
+        
+        // UPDATE(20240115):
+        //  switch withdrawal credential based on it's registration
+        if (!cred.restaking) {
+            _stake(cred.pubkey, cred.signature, withdrawalCredentials);
+        } else {
+            _stake(cred.pubkey, cred.signature, restakingWithdrawalCredentials);
+        }
         nextValidatorId++;        
 
         // track total staked & total pending ethers
@@ -976,9 +1082,10 @@ contract RockXStaking is Initializable, PausableUpgradeable, AccessControlUpgrad
 
     /**
      * @dev Invokes a deposit call to the official Deposit contract
+     *      UPDATE(20240115): add param withCred, instead of using contract variable
      */
-    function _stake(bytes memory pubkey, bytes memory signature) internal {
-        require(withdrawalCredentials != bytes32(0x0), "SYS024");
+    function _stake(bytes memory pubkey, bytes memory signature, bytes32 withCred) internal {
+        require(withCred != bytes32(0x0), "SYS024");
         uint256 value = DEPOSIT_SIZE;
         uint256 depositAmount = DEPOSIT_SIZE / DEPOSIT_AMOUNT_UNIT;
         assert(depositAmount * DEPOSIT_AMOUNT_UNIT == value);    // properly rounded
@@ -994,12 +1101,12 @@ contract RockXStaking is Initializable, PausableUpgradeable, AccessControlUpgrad
         bytes memory amount = to_little_endian_64(uint64(depositAmount));
 
         bytes32 depositDataRoot = sha256(abi.encodePacked(
-            sha256(abi.encodePacked(pubkey_root, withdrawalCredentials)),
+            sha256(abi.encodePacked(pubkey_root, withCred)),
             sha256(abi.encodePacked(amount, bytes24(0), signature_root))
         ));
 
         IDepositContract(ethDepositContract).deposit{value:DEPOSIT_SIZE} (
-            pubkey, abi.encodePacked(withdrawalCredentials), signature, depositDataRoot);
+            pubkey, abi.encodePacked(withCred), signature, depositDataRoot);
 
         // track balance
         _balanceDecrease(DEPOSIT_SIZE);
@@ -1038,6 +1145,7 @@ contract RockXStaking is Initializable, PausableUpgradeable, AccessControlUpgrad
     event ManagerFeeSet(uint256 milli);
     event ManagerFeeWithdrawed(uint256 amount, address);
     event WithdrawCredentialSet(bytes32 withdrawCredential);
+    event RestakingAddressSet(address addr);
     event DebtQueued(address creditor, uint256 amountEther);
     event XETHContractSet(address addr);
     event DepositContractSet(address addr);

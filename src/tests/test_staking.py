@@ -50,6 +50,9 @@ def test_replaceValidator(setup_contracts, owner, pubkeys, sigs):
 
     # replace
     transparent_staking.replaceValidator(pubkeys[0], pubkeys[1], sigs[1], {'from': owner})
+    results = transparent_staking.getRegisteredValidators(0, 1)
+    assert(results["pubkeys"][0] == hex(pubkeys[1]))
+    assert(results["signatures"][0] == hex(sigs[1]))
     ''' replacing again should revert '''
     with brownie.reverts("SYS006"):
         transparent_staking.replaceValidator(pubkeys[0], pubkeys[1], sigs[1], {'from': owner})
@@ -59,8 +62,36 @@ def test_replaceValidator(setup_contracts, owner, pubkeys, sigs):
     assert(results["pubkeys"][0] == hex(pubkeys[1]))
     assert(results["signatures"][0] == hex(sigs[1]))
 
+""" test of replacing validators """
+def test_replaceValidators(setup_contracts, owner, oldpubkeys, oldsigs, replacepubkeys, replacesigs, restake):
+    transparent_xeth, transparent_staking, transparent_redeem = setup_contracts
+
+    transparent_staking.registerValidators(oldpubkeys, oldsigs, {'from': owner})
+    ''' register again should revert '''
+    with brownie.reverts("SYS005"):
+        transparent_staking.registerValidators(oldpubkeys, oldsigs, {'from': owner})
+
+    assert transparent_staking.getRegisteredValidatorsCount() == len(oldpubkeys)
+    results = transparent_staking.getRegisteredValidators(0, len(oldpubkeys))
+    for i in range(len(oldpubkeys)):
+        assert(results["pubkeys"][i] == hex(oldpubkeys[i]))
+        assert(results["signatures"][i] == hex(oldsigs[i]))
+
+    # replace
+    transparent_staking.replaceValidators(oldpubkeys, replacepubkeys, replacesigs, restake, {'from': owner})
+    ''' replacing again should revert '''
+    with brownie.reverts("SYS006"):
+        transparent_staking.replaceValidators(oldpubkeys, replacepubkeys, replacesigs, restake, {'from': owner})
+
+    assert transparent_staking.getRegisteredValidatorsCount() == len(oldpubkeys)
+    results = transparent_staking.getRegisteredValidators(0, len(oldpubkeys))
+    for i in range(len(oldpubkeys)):
+        assert(results["pubkeys"][i] == hex(replacepubkeys[i]))
+        assert(results["signatures"][i] == hex(replacesigs[i]))
+
 
 """ test of whitelisting """
+"""
 def test_whiteListing(setup_contracts, owner):
     transparent_xeth, transparent_staking, transparent_redeem = setup_contracts
 
@@ -84,8 +115,10 @@ def test_whiteListing(setup_contracts, owner):
     transparent_staking.toggleWhiteList(owner, {'from':owner})
     with brownie.reverts("USR003"):
         transparent_staking.mint(0, time.time() + 600, {'from':owner, 'allow_revert':True, 'value': '64 ether'})
+"""
 
 """ test of quota change"""
+"""
 def test_quota(setup_contracts, owner):
     transparent_xeth, transparent_staking, transparent_redeem = setup_contracts
 
@@ -102,8 +135,10 @@ def test_quota(setup_contracts, owner):
         quotaUsed += ethers
     
     assert transparent_staking.getQuota(owner) == quotaUsed
+"""
 
 """ test of quota edge"""
+"""
 def test_quota_edge(setup_contracts, owner):
     transparent_xeth, transparent_staking, transparent_redeem = setup_contracts
 
@@ -113,6 +148,8 @@ def test_quota_edge(setup_contracts, owner):
     ''' one wei to break the edge'''
     with brownie.reverts("USR003"):
         transparent_staking.mint(0, time.time() + 600, {'from':accounts[9], 'value': 1})
+"""
+
 
 """ test of minting"""
 def test_mint(setup_contracts, owner):

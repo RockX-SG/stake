@@ -9,19 +9,25 @@ dependencies:
 pytest:
     # these settings replace the defaults when running pytest
     default_contract_owner: true
-    reverting_tx_gas_limit: 6721975
     revert_traceback: true
 
 compiler:
+  #evm_version: "shanghai"
     solc:
-        version: 0.8.4
+        version: 0.8.12
         optimizer:
           enabled: true
           runs: 200
         remappings:
+          - "@eigenlayer/contracts=./lib/eigenlayer-contracts-mainnet-deployment/src/contracts"
           - "@openzeppelin/contracts=OpenZeppelin/openzeppelin-contracts@4.4.2/contracts"
           - "@openzeppelin/contracts-upgradeable=OpenZeppelin/openzeppelin-contracts-upgradeable@4.5.2/contracts"
           - "solidity-bytes-utils/contracts=GNSPS/solidity-bytes-utils@0.8.0/contracts"
 
 # automatically fetch contract sources from Etherscan
 autofetch_sources: True
+networks:
+  default: mainnet-fork
+  mainnet-fork:
+    cmd_settings:
+      #    evm_version: "shanghai"
