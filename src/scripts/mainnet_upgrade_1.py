@@ -7,6 +7,4 @@ import pytest
 def main():
     deployer = accounts.load('mainnet-deployer')
 
-    staking_contract = RockXStaking.deploy(
-            {'from': deployer},publish_source=True
-            )
+    staking_contract = RockXStaking.deploy( {'from': deployer})
