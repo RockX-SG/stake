@@ -240,6 +240,7 @@ contract RockXStaking is Initializable, PausableUpgradeable, AccessControlUpgrad
      * ======================================================================================
      */
     receive() external payable { }
+    constructor() initializer {}
 
     /**
      * @dev only phase
