@@ -539,8 +539,8 @@ contract RockXStaking is Initializable, PausableUpgradeable, AccessControlUpgrad
             restakingBalance = address(restakingAddress).balance;
         }
         uint256 combinedBalance = address(this).balance + restakingBalance;
-	
-		// assert combined balance larger than accountedBalance
+    
+        // assert combined balance larger than accountedBalance
         assert(int256(combinedBalance) >= accountedBalance);
         // UPDATE(20240115, the diff is updated based on eigenlayer's liquid restaking, 
         //  LRT has a different withdrawal address which of eigon pod) 
