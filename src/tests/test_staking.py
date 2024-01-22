@@ -72,10 +72,11 @@ def test_replaceValidators(setup_contracts, owner, oldpubkeys, oldsigs, replacep
         transparent_staking.registerValidators(oldpubkeys, oldsigs, {'from': owner})
 
     assert transparent_staking.getRegisteredValidatorsCount() == len(oldpubkeys)
-    results = transparent_staking.getRegisteredValidators(0, len(oldpubkeys))
+    results = transparent_staking.getRegisteredValidatorsV2(0, len(oldpubkeys))
     for i in range(len(oldpubkeys)):
         assert(results["pubkeys"][i] == hex(oldpubkeys[i]))
         assert(results["signatures"][i] == hex(oldsigs[i]))
+        assert(results["restaking"][i] == restake)
 
     # replace
     transparent_staking.replaceValidators(oldpubkeys, replacepubkeys, replacesigs, restake, {'from': owner})
