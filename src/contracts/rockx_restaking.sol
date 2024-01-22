@@ -56,7 +56,12 @@ contract RockXRestaking is Initializable, AccessControlUpgradeable, ReentrancyGu
      */
     uint256[32] private __gap;
 
-    receive() external payable { }
+    /**
+     * @dev forward to staking contract
+     */
+    receive() external payable { 
+        payable(stakingAddress).sendValue(msg.value);
+    }
     constructor() initializer {}
 
     /**
@@ -138,12 +143,5 @@ contract RockXRestaking is Initializable, AccessControlUpgradeable, ReentrancyGu
         uint256 maxNumberOfWithdrawalsToClaim
     ) external onlyRole(OPERATOR_ROLE) {
         IDelayedWithdrawalRouter(delayedWithdrawalRouter).claimDelayedWithdrawals(maxNumberOfWithdrawalsToClaim);
-    }
-
-    /**
-     * @notice Withdraw ether assets of this contract to Staking Contract
-     */
-    function withdrawBalance() external nonReentrant onlyRole(OPERATOR_ROLE) {
-        payable(stakingAddress).sendValue(address(this).balance);
     }
 }
