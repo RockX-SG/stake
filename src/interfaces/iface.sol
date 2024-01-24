@@ -48,5 +48,5 @@ interface IRockXRedeem {
 }
 
 interface IRockXRestaking {
-    function getPendingWithdrawalAmount() external returns (uint256);
+    function getPendingWithdrawalAmount() external view returns (uint256);
 }

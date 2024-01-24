@@ -159,7 +159,7 @@ contract RockXRestaking is Initializable, AccessControlUpgradeable, ReentrancyGu
      * @dev get amount withdrawed from eigenpod to IDelayedRouter
      */
     function getPendingWithdrawalAmount(
-    ) external returns (uint256) {
+    ) external view returns (uint256) {
         return pendingWithdrawal;
     }
 }
