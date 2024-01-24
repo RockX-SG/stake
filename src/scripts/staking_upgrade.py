@@ -23,5 +23,5 @@ def main():
     transparent_staking = Contract.from_abi("RockXStaking",staking_proxy, RockXStaking.abi)
    
     # simulate syncBalance
-    print(transparent_staking.RESTAKING_CONTRACT())
     transparent_staking.syncBalance({"from":oracle})
+    print("restaking contract constant:", transparent_staking.RESTAKING_CONTRACT())
