@@ -61,9 +61,7 @@ contract RockXRestaking is Initializable, AccessControlUpgradeable, ReentrancyGu
     /**
      * @dev forward to staking contract
      */
-    receive() external payable { 
-        payable(stakingAddress).sendValue(msg.value);
-    }
+    receive() external payable { }
     constructor() initializer {}
 
     /**
@@ -127,9 +125,9 @@ contract RockXRestaking is Initializable, AccessControlUpgradeable, ReentrancyGu
     function withdrawBeforeRestaking() external onlyRole(OPERATOR_ROLE) {
         uint256 balanceBefore = address(eigenPod).balance;
         IEigenPod(eigenPod).withdrawBeforeRestaking();
-        uint256 balanceAfter = address(eigenPod).balance;
+        uint256 diff = balanceBefore - address(eigenPod).balance;
 
-        pendingWithdrawal += balanceBefore - balanceAfter;
+        pendingWithdrawal += diff;
     }
 
     /** 
@@ -148,7 +146,13 @@ contract RockXRestaking is Initializable, AccessControlUpgradeable, ReentrancyGu
     function claimDelayedWithdrawals(
         uint256 maxNumberOfWithdrawalsToClaim
     ) external onlyRole(OPERATOR_ROLE) {
+        uint256 balanceBefore = address(this).balance;
         IDelayedWithdrawalRouter(delayedWithdrawalRouter).claimDelayedWithdrawals(maxNumberOfWithdrawalsToClaim);
+        uint256 diff = address(this).balance - balanceBefore;
+
+        pendingWithdrawal -= diff;
+        // forward to staking address
+        payable(stakingAddress).sendValue(diff); 
     }
 
     /**
