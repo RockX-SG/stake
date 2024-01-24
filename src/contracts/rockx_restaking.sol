@@ -145,7 +145,7 @@ contract RockXRestaking is Initializable, AccessControlUpgradeable, ReentrancyGu
      */
     function claimDelayedWithdrawals(
         uint256 maxNumberOfWithdrawalsToClaim
-    ) external onlyRole(OPERATOR_ROLE) {
+    ) external onlyRole(OPERATOR_ROLE) nonReentrant {
         uint256 balanceBefore = address(this).balance;
         IDelayedWithdrawalRouter(delayedWithdrawalRouter).claimDelayedWithdrawals(maxNumberOfWithdrawalsToClaim);
         uint256 diff = address(this).balance - balanceBefore;
