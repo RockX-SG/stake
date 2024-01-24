@@ -46,3 +46,7 @@ interface IDepositContract {
 interface IRockXRedeem {
     function pay(address account) external payable;
 }
+
+interface IRockXRestaking {
+    function getPendingWithdrawalAmount() external returns (uint256);
+}

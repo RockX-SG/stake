@@ -50,11 +50,13 @@ contract RockXRestaking is Initializable, AccessControlUpgradeable, ReentrancyGu
     address public strategyManager;
     /// @dev the DelayedWithdrawalRouter contract
     address public delayedWithdrawalRouter;
+    /// @dev record pending withdrawal amount from EigenPod to DelayedWithdrawalRouter 
+    uint256 private pendingWithdrawal;
 
     /**
      * @dev empty reserved space for future adding of variables
      */
-    uint256[32] private __gap;
+    uint256[31] private __gap;
 
     /**
      * @dev forward to staking contract
@@ -123,7 +125,11 @@ contract RockXRestaking is Initializable, AccessControlUpgradeable, ReentrancyGu
 
     /// @notice Called by the pod owner to withdraw the balance of the pod when `hasRestaked` is set to false
     function withdrawBeforeRestaking() external onlyRole(OPERATOR_ROLE) {
+        uint256 balanceBefore = address(eigenPod).balance;
         IEigenPod(eigenPod).withdrawBeforeRestaking();
+        uint256 balanceAfter = address(eigenPod).balance;
+
+        pendingWithdrawal += balanceBefore - balanceAfter;
     }
 
     /** 
@@ -143,5 +149,13 @@ contract RockXRestaking is Initializable, AccessControlUpgradeable, ReentrancyGu
         uint256 maxNumberOfWithdrawalsToClaim
     ) external onlyRole(OPERATOR_ROLE) {
         IDelayedWithdrawalRouter(delayedWithdrawalRouter).claimDelayedWithdrawals(maxNumberOfWithdrawalsToClaim);
+    }
+
+    /**
+     * @dev get amount withdrawed from eigenpod to IDelayedRouter
+     */
+    function getPendingWithdrawalAmount(
+    ) external returns (uint256) {
+        return pendingWithdrawal;
     }
 }
