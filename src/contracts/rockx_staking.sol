@@ -158,7 +158,7 @@ contract RockXStaking is Initializable, PausableUpgradeable, AccessControlUpgrad
     uint256 private constant SIGNATURE_LENGTH = 96;
     uint256 private constant PUBKEY_LENGTH = 48;
 
-    address public constant rockxRestakingContract = 0x3F4eaCeb930b0Edfa78a1DFCbaE5c5494E6e9850;
+    address public constant RESTAKING_CONTRACT = 0x3F4eaCeb930b0Edfa78a1DFCbaE5c5494E6e9850;
     
     address public ethDepositContract;      // ETH 2.0 Deposit contract
     address public xETHAddress;             // xETH token address
@@ -544,7 +544,7 @@ contract RockXStaking is Initializable, PausableUpgradeable, AccessControlUpgrad
 
         uint256 combinedBalance = address(this).balance
                                     + restakingBalance
-                                    + IRockXRestaking(rockxRestakingContract).getPendingWithdrawalAmount(); // pending withdrawal which eventually belongs to this
+                                    + IRockXRestaking(RESTAKING_CONTRACT).getPendingWithdrawalAmount(); // pending withdrawal which eventually belongs to this
     
         // assert combined balance larger than accountedBalance
         assert(int256(combinedBalance) >= accountedBalance);
