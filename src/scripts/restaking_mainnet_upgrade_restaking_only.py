@@ -16,3 +16,4 @@ def main():
     restaking_proxy.upgradeTo(restaking_contract,{'from': deployer})
     transparent_restaking = Contract.from_abi("RockXRestaking",restaking_proxy, RockXRestaking.abi)
     print(transparent_restaking.getPendingWithdrawalAmount())
+    print("pod:", transparent_restaking.eigenPod())
