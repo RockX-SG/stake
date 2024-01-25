@@ -128,6 +128,8 @@ contract RockXRestaking is Initializable, AccessControlUpgradeable, ReentrancyGu
         uint256 diff = balanceBefore - address(eigenPod).balance;
 
         pendingWithdrawal += diff;
+
+        emit Pending(diff);
     }
 
     /** 
@@ -173,4 +175,5 @@ contract RockXRestaking is Initializable, AccessControlUpgradeable, ReentrancyGu
      * ======================================================================================
      */
     event Claimed(uint256 amount);
+    event Pending(uint256 amount);
 }
