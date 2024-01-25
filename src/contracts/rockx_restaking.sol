@@ -153,6 +153,8 @@ contract RockXRestaking is Initializable, AccessControlUpgradeable, ReentrancyGu
         pendingWithdrawal -= diff;
         // forward to staking address
         payable(stakingAddress).sendValue(diff); 
+
+        emit Claimed(diff);
     }
 
     /**
@@ -162,4 +164,13 @@ contract RockXRestaking is Initializable, AccessControlUpgradeable, ReentrancyGu
     ) external view returns (uint256) {
         return pendingWithdrawal;
     }
+
+    /**
+     * ======================================================================================
+     * 
+     * EVENTS
+     *
+     * ======================================================================================
+     */
+    event Claimed(uint256 amount);
 }
