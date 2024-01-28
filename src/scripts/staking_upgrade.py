@@ -25,3 +25,6 @@ def main():
     # simulate syncBalance
     transparent_staking.syncBalance({"from":oracle})
     print("restaking contract constant:", transparent_staking.RESTAKING_CONTRACT())
+
+    # simulate mint
+    transparent_staking.mint(0, time.time() + 600, {'from':accounts[0], 'value': '64 ether'})

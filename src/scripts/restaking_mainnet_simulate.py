@@ -16,5 +16,4 @@ def main():
     transparent_staking = Contract.from_abi("RockXStaking",staking_proxy, RockXStaking.abi)
 
     # simulate
-    transparent_staking.mint(0, time.time() + 600, {'from':accounts[0], 'value': '32 ether'})
-    transparent_staking.stake({'from':operator})
+    transparent_staking.mint(0, time.time() + 600, {'from':accounts[0], 'value': '64 ether'})
