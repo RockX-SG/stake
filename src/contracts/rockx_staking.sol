@@ -466,10 +466,10 @@ contract RockXStaking is Initializable, PausableUpgradeable, AccessControlUpgrad
     } 
 
     /**
-     * @dev (UPDATE20240115) set restaking withdraw credential
+     * @dev (UPDATE20240115) set restaking withdraw credential, setting to 0 address to disable restaking
      */
     function setRestakingAddress(address addr) external onlyRole(DEFAULT_ADMIN_ROLE) {
-        _require(addr != address(0x0), "SYS025");
+        // _require(addr != address(0x0), "SYS025");
         restakingAddress = addr;
 
         // set restaking withdrawal credentials
