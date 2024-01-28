@@ -49,4 +49,7 @@ interface IRockXRedeem {
 
 interface IRockXRestaking {
     function getPendingWithdrawalAmount() external view returns (uint256);
+    function withdrawBeforeRestaking() external view;
+    function claimDelayedWithdrawals(uint256 maxNumberOfWithdrawalsToClaim) external;
+    function eigenPod() external view returns (address);
 }
