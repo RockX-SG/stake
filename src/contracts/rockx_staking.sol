@@ -248,7 +248,7 @@ contract RockXStaking is Initializable, PausableUpgradeable, AccessControlUpgrad
      * @dev only phase
      */
     modifier onlyPhase(uint256 requiredPhase) {
-        require(phase >= requiredPhase, "SYS001");
+        _require(phase >= requiredPhase, "SYS001");
         _;
     }
 
@@ -305,11 +305,11 @@ contract RockXStaking is Initializable, PausableUpgradeable, AccessControlUpgrad
      * @dev register a validator
      */
     function registerValidator(bytes calldata pubkey, bytes calldata signature) external onlyRole(REGISTRY_ROLE) {
-        require(signature.length == SIGNATURE_LENGTH, "SYS003");
-        require(pubkey.length == PUBKEY_LENGTH, "SYS004");
+        _require(signature.length == SIGNATURE_LENGTH, "SYS003");
+        _require(pubkey.length == PUBKEY_LENGTH, "SYS004");
 
         bytes32 pubkeyHash = keccak256(pubkey);
-        require(pubkeyIndices[pubkeyHash] == 0, "SYS005");
+        _require(pubkeyIndices[pubkeyHash] == 0, "SYS005");
         validatorRegistry.push(ValidatorCredential({pubkey:pubkey, signature:signature, stopped:false, restaking: false}));
         pubkeyIndices[pubkeyHash] = validatorRegistry.length;
     }
@@ -318,12 +318,12 @@ contract RockXStaking is Initializable, PausableUpgradeable, AccessControlUpgrad
      * @dev replace a validator in case of msitakes
      */
     function replaceValidator(bytes calldata oldpubkey, bytes calldata pubkey, bytes calldata signature) external onlyRole(REGISTRY_ROLE) {
-        require(pubkey.length == PUBKEY_LENGTH, "SYS004");
-        require(signature.length == SIGNATURE_LENGTH, "SYS003");
+        _require(pubkey.length == PUBKEY_LENGTH, "SYS004");
+        _require(signature.length == SIGNATURE_LENGTH, "SYS003");
 
         // mark old pub key to false
         bytes32 oldPubKeyHash = keccak256(oldpubkey);
-        require(pubkeyIndices[oldPubKeyHash] > 0, "SYS006");
+        _require(pubkeyIndices[oldPubKeyHash] > 0, "SYS006");
         uint256 index = pubkeyIndices[oldPubKeyHash] - 1;
         delete pubkeyIndices[oldPubKeyHash];
 
@@ -337,8 +337,8 @@ contract RockXStaking is Initializable, PausableUpgradeable, AccessControlUpgrad
      * @dev replace validators in batch
      */
     function replaceValidators(bytes [] calldata oldpubkeys, bytes [] calldata pubkeys, bytes [] calldata signatures, bool restaking) external onlyRole(REGISTRY_ROLE) {
-        require(pubkeys.length == signatures.length, "SYS007");
-        require(oldpubkeys.length == pubkeys.length, "SYS007");
+        _require(pubkeys.length == signatures.length, "SYS007");
+        _require(oldpubkeys.length == pubkeys.length, "SYS007");
         uint256 n = pubkeys.length;
 
         for(uint256 i=0;i<n;i++) {
@@ -346,13 +346,13 @@ contract RockXStaking is Initializable, PausableUpgradeable, AccessControlUpgrad
             bytes calldata pubkey = pubkeys[i];
             bytes calldata signature = signatures[i];
 
-            require(oldpubkey.length == PUBKEY_LENGTH, "SYS004");
-            require(pubkey.length == PUBKEY_LENGTH, "SYS004");
-            require(signature.length == SIGNATURE_LENGTH, "SYS003");
+            _require(oldpubkey.length == PUBKEY_LENGTH, "SYS004");
+            _require(pubkey.length == PUBKEY_LENGTH, "SYS004");
+            _require(signature.length == SIGNATURE_LENGTH, "SYS003");
 
             // mark old pub key to false
             bytes32 oldPubKeyHash = keccak256(oldpubkey);
-            require(pubkeyIndices[oldPubKeyHash] > 0, "SYS006");
+            _require(pubkeyIndices[oldPubKeyHash] > 0, "SYS006");
             uint256 index = pubkeyIndices[oldPubKeyHash] - 1;
             delete pubkeyIndices[oldPubKeyHash];
 
@@ -370,14 +370,14 @@ contract RockXStaking is Initializable, PausableUpgradeable, AccessControlUpgrad
      * @dev register a batch of validators
      */
     function registerValidators(bytes [] calldata pubkeys, bytes [] calldata signatures) external onlyRole(REGISTRY_ROLE) {
-        require(pubkeys.length == signatures.length, "SYS007");
+        _require(pubkeys.length == signatures.length, "SYS007");
         uint256 n = pubkeys.length;
         for(uint256 i=0;i<n;i++) {
-            require(pubkeys[i].length == PUBKEY_LENGTH, "SYS004");
-            require(signatures[i].length == SIGNATURE_LENGTH, "SYS003");
+            _require(pubkeys[i].length == PUBKEY_LENGTH, "SYS004");
+            _require(signatures[i].length == SIGNATURE_LENGTH, "SYS003");
 
             bytes32 pubkeyHash = keccak256(pubkeys[i]);
-            require(pubkeyIndices[pubkeyHash] == 0, "SYS005");
+            _require(pubkeyIndices[pubkeyHash] == 0, "SYS005");
             validatorRegistry.push(ValidatorCredential({pubkey:pubkeys[i], signature:signatures[i], stopped:false, restaking: false}));
             pubkeyIndices[pubkeyHash] = validatorRegistry.length;
         }
@@ -388,14 +388,14 @@ contract RockXStaking is Initializable, PausableUpgradeable, AccessControlUpgrad
      * UPDATE(20240115): register a batch of validators for Liquid Restaking (EigenLayer)
      */
     function registerRestakingValidators(bytes [] calldata pubkeys, bytes [] calldata signatures) external onlyRole(REGISTRY_ROLE) {
-        require(pubkeys.length == signatures.length, "SYS007");
+        _require(pubkeys.length == signatures.length, "SYS007");
         uint256 n = pubkeys.length;
         for(uint256 i=0;i<n;i++) {
-            require(pubkeys[i].length == PUBKEY_LENGTH, "SYS004");
-            require(signatures[i].length == SIGNATURE_LENGTH, "SYS003");
+            _require(pubkeys[i].length == PUBKEY_LENGTH, "SYS004");
+            _require(signatures[i].length == SIGNATURE_LENGTH, "SYS003");
 
             bytes32 pubkeyHash = keccak256(pubkeys[i]);
-            require(pubkeyIndices[pubkeyHash] == 0, "SYS005");
+            _require(pubkeyIndices[pubkeyHash] == 0, "SYS005");
             validatorRegistry.push(ValidatorCredential({pubkey:pubkeys[i], signature:signatures[i], stopped:false, restaking: true}));
             pubkeyIndices[pubkeyHash] = validatorRegistry.length;
         }
@@ -423,7 +423,7 @@ contract RockXStaking is Initializable, PausableUpgradeable, AccessControlUpgrad
      * @dev set manager's fee in 1/1000
      */
     function setManagerFeeShare(uint256 milli) external onlyRole(DEFAULT_ADMIN_ROLE)  {
-        require(milli >=0 && milli <=1000, "SYS008");
+        _require(milli >=0 && milli <=1000, "SYS008");
         managerFeeShare = milli;
 
         emit ManagerFeeSet(milli);
@@ -468,7 +468,7 @@ contract RockXStaking is Initializable, PausableUpgradeable, AccessControlUpgrad
      * @dev (UPDATE20240115) set restaking withdraw credential
      */
     function setRestakingAddress(address addr) external onlyRole(DEFAULT_ADMIN_ROLE) {
-        require(addr != address(0x0), "SYS025");
+        _require(addr != address(0x0), "SYS025");
         restakingAddress = addr;
 
         // set restaking withdrawal credentials
@@ -506,9 +506,9 @@ contract RockXStaking is Initializable, PausableUpgradeable, AccessControlUpgrad
     function withdrawManagerFee(uint256 amount, address to) external nonReentrant onlyRole(MANAGER_ROLE)  {
         _syncBalance();
         
-        require(amount <= accountedManagerRevenue, "SYS010");
+        _require(amount <= accountedManagerRevenue, "SYS010");
         // debts + userRevenue + managersRevenue + pending ethers
-        require(address(this).balance >= amount + totalPending + totalDebts, "SYS011");
+        _require(address(this).balance >= amount + totalPending + totalDebts, "SYS011");
 
         // mint uniETH while keeping the exchange ratio invariant
         uint256 totalXETH = IERC20(xETHAddress).totalSupply();
@@ -583,8 +583,8 @@ contract RockXStaking is Initializable, PausableUpgradeable, AccessControlUpgrad
 
 
     function _pushBeacon(uint256 _aliveValidators, bytes32 clock, uint256 limit) internal {
-        require(vectorClock == clock, "SYS012");
-        require(_aliveValidators + stoppedValidators <= nextValidatorId, "SYS013");
+        _require(vectorClock == clock, "SYS012");
+        _require(_aliveValidators + stoppedValidators <= nextValidatorId, "SYS013");
 
         // step 0. collect new revenue if there is any.
         _syncBalance();
@@ -620,12 +620,12 @@ contract RockXStaking is Initializable, PausableUpgradeable, AccessControlUpgrad
         //          recentSlashed = 16 ETH (assumed slashed ethers)
         // 
         uint256 _aliveBalance = _aliveValidators * DEPOSIT_SIZE;  // computed balance
-        require(_aliveBalance + recentReceived + recentSlashed >= rewardBase, "SYS015");
+        _require(_aliveBalance + recentReceived + recentSlashed >= rewardBase, "SYS015");
         uint256 rewards = _aliveBalance + recentReceived + recentSlashed - rewardBase;
         if (totalDebts > 0) {
             // as we cannot differentiate the ethers from full withdrawal & partial withdrawal,
             // to make sure we only take partial withdrawal(revenue) into reward calculation
-            require(rewards * 1000 / currentReserve() < limit, "SYS016");
+            _require(rewards * 1000 / currentReserve() < limit, "SYS016");
         }
 
         _distributeRewards(rewards);
@@ -644,18 +644,18 @@ contract RockXStaking is Initializable, PausableUpgradeable, AccessControlUpgrad
      * @dev notify some validators stopped, and pay the debts
      */
     function validatorStopped(bytes [] calldata _stoppedPubKeys, bytes32 clock) external nonReentrant onlyRole(ORACLE_ROLE) {
-        require(vectorClock == clock, "SYS012");
+        _require(vectorClock == clock, "SYS012");
         uint256 amountUnstaked = _stoppedPubKeys.length * DEPOSIT_SIZE;
-        require(_stoppedPubKeys.length > 0, "SYS017");
-        require(_stoppedPubKeys.length + stoppedValidators <= nextValidatorId, "SYS018");
-        require(address(this).balance >= amountUnstaked + totalPending + accountedManagerRevenue, "SYS019");
+        _require(_stoppedPubKeys.length > 0, "SYS017");
+        _require(_stoppedPubKeys.length + stoppedValidators <= nextValidatorId, "SYS018");
+        _require(address(this).balance >= amountUnstaked + totalPending + accountedManagerRevenue, "SYS019");
 
         // track stopped validators
         for (uint i=0;i<_stoppedPubKeys.length;i++) {
             bytes32 pubkeyHash = keccak256(_stoppedPubKeys[i]);
-            require(pubkeyIndices[pubkeyHash] > 0, "SYS006");
+            _require(pubkeyIndices[pubkeyHash] > 0, "SYS006");
             uint256 index = pubkeyIndices[pubkeyHash] - 1;
-            require(!validatorRegistry[index].stopped, "SYS020");
+            _require(!validatorRegistry[index].stopped, "SYS020");
             validatorRegistry[index].stopped = true;
         }
         stoppedValidators += _stoppedPubKeys.length;
@@ -671,7 +671,7 @@ contract RockXStaking is Initializable, PausableUpgradeable, AccessControlUpgrad
 
         // pay debts
         uint256 paid = _payDebts(amountUnstaked);
-        require(paid == amountUnstaked, "SYS021");
+        _require(paid == amountUnstaked, "SYS021");
         // track total staked ethers
         totalStaked -= amountUnstaked;
         
@@ -686,17 +686,17 @@ contract RockXStaking is Initializable, PausableUpgradeable, AccessControlUpgrad
      * @dev notify some validators has been slashed, turn off those stopped validator
      */
     function validatorSlashedStop(bytes [] calldata _stoppedPubKeys, bytes32 clock) external nonReentrant onlyRole(ORACLE_ROLE) {
-        require(vectorClock == clock, "SYS012");
+        _require(vectorClock == clock, "SYS012");
         uint256 amountUnstaked = _stoppedPubKeys.length * DEPOSIT_SIZE;
-        require(_stoppedPubKeys.length > 0, "SYS017");
-        require(address(this).balance >= _stoppedPubKeys.length * 16 ether + totalPending + accountedManagerRevenue, "SYS019");
+        _require(_stoppedPubKeys.length > 0, "SYS017");
+        _require(address(this).balance >= _stoppedPubKeys.length * 16 ether + totalPending + accountedManagerRevenue, "SYS019");
 
         // record slashed validators.
         for (uint i=0;i<_stoppedPubKeys.length;i++) {
             bytes32 pubkeyHash = keccak256(_stoppedPubKeys[i]);
-            require(pubkeyIndices[pubkeyHash] > 0, "SYS006");
+            _require(pubkeyIndices[pubkeyHash] > 0, "SYS006");
             uint256 index = pubkeyIndices[pubkeyHash] - 1;
-            require(!validatorRegistry[index].stopped, "SYS020");
+            _require(!validatorRegistry[index].stopped, "SYS020");
             validatorRegistry[index].stopped = true;
         }
         stoppedValidators += _stoppedPubKeys.length;
@@ -908,12 +908,12 @@ contract RockXStaking is Initializable, PausableUpgradeable, AccessControlUpgrad
      * @dev mint xETH with ETH
      */
     function mint(uint256 minToMint, uint256 deadline) external payable nonReentrant whenNotPaused returns(uint256 minted){
-        require(block.timestamp < deadline, "USR001");
-        require(msg.value > 0, "USR002");
+        _require(block.timestamp < deadline, "USR001");
+        _require(msg.value > 0, "USR002");
 
         // for non KYC users, check the quota
         if (!whiteList[msg.sender]) {
-            require(quotaUsed[msg.sender] + msg.value <= 50000 ether, "USR003");
+            _require(quotaUsed[msg.sender] + msg.value <= 50000 ether, "USR003");
             quotaUsed[msg.sender] += msg.value;
         }
         
@@ -930,7 +930,7 @@ contract RockXStaking is Initializable, PausableUpgradeable, AccessControlUpgrad
         }
 
         // mint xETH
-        require(toMint >= minToMint, "USR004");
+        _require(toMint >= minToMint, "USR004");
         IMintableContract(xETHAddress).mint(msg.sender, toMint);
         totalPending += msg.value;
 
@@ -950,13 +950,13 @@ contract RockXStaking is Initializable, PausableUpgradeable, AccessControlUpgrad
      * redeem keeps the ratio invariant
      */
     function redeemFromValidators(uint256 ethersToRedeem, uint256 maxToBurn, uint256 deadline) external nonReentrant onlyPhase(1) returns(uint256 burned) {
-        require(block.timestamp < deadline, "USR001");
-        require(ethersToRedeem % DEPOSIT_SIZE == 0, "USR005");
-        require(ethersToRedeem > 0, "USR005");
+        _require(block.timestamp < deadline, "USR001");
+        _require(ethersToRedeem % DEPOSIT_SIZE == 0, "USR005");
+        _require(ethersToRedeem > 0, "USR005");
 
         uint256 totalXETH = IERC20(xETHAddress).totalSupply();
         uint256 xETHToBurn = totalXETH * ethersToRedeem / currentReserve();
-        require(xETHToBurn <= maxToBurn, "USR004");
+        _require(xETHToBurn <= maxToBurn, "USR004");
 
         // NOTE: the following procdure must keep exchangeRatio invariant:
         // transfer xETH from sender & burn
@@ -1001,7 +1001,7 @@ contract RockXStaking is Initializable, PausableUpgradeable, AccessControlUpgrad
     }
 
     function _dequeueDebt() internal returns (Debt memory debt) {
-        require(lastDebt >= firstDebt, "SYS022");  // non-empty queue
+        _require(lastDebt >= firstDebt, "SYS022");  // non-empty queue
         debt = etherDebts[firstDebt];
         delete etherDebts[firstDebt];
         firstDebt += 1;
@@ -1011,7 +1011,7 @@ contract RockXStaking is Initializable, PausableUpgradeable, AccessControlUpgrad
      * @dev pay debts for a given amount
      */
     function _payDebts(uint256 total) internal returns(uint256 amountPaid) {
-        require(address(redeemContract) != address(0x0), "SYS023");
+        _require(address(redeemContract) != address(0x0), "SYS023");
 
         // ethers to pay
         for (uint i=firstDebt;i<=lastDebt;i++) {
@@ -1099,7 +1099,7 @@ contract RockXStaking is Initializable, PausableUpgradeable, AccessControlUpgrad
      *      UPDATE(20240115): add param withCred, instead of using contract variable
      */
     function _stake(bytes memory pubkey, bytes memory signature, bytes32 withCred) internal {
-        require(withCred != bytes32(0x0), "SYS024");
+        _require(withCred != bytes32(0x0), "SYS024");
         uint256 value = DEPOSIT_SIZE;
         uint256 depositAmount = DEPOSIT_SIZE / DEPOSIT_AMOUNT_UNIT;
         assert(depositAmount * DEPOSIT_AMOUNT_UNIT == value);    // properly rounded
@@ -1142,6 +1142,13 @@ contract RockXStaking is Initializable, PausableUpgradeable, AccessControlUpgrad
         ret[5] = bytesValue[2];
         ret[6] = bytesValue[1];
         ret[7] = bytesValue[0];
+    }
+
+    /**
+     * @dev function version of _require, which could make the code size smaller
+     */
+    function _require(bool condition, string memory text) private pure {
+        require(condition, text);
     }
 
     /**
