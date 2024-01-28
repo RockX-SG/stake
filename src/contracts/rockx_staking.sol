@@ -231,9 +231,12 @@ contract RockXStaking is Initializable, PausableUpgradeable, AccessControlUpgrad
     bool private autoCompoundEnabled;
 
     // UPDATE(20240115): eigenlayer's restaking withdrawal credential
-    bytes32 public restakingWithdrawalCredentials;  // restaking withdrawal credential, formatted in bytes32
-    address public restakingAddress;                // usually a restaking withdrawal credential adress(like eigenpod)
+    bytes32 private __DEPRECATED_restakingWithdrawalCredentials;  // restaking withdrawal credential, formatted in bytes32
+    address private __DEPRECATED_restakingAddress;                // usually a restaking withdrawal credential adress(like eigenpod)
                                                     // addr(0x0) suggests that we're not using restaking address
+
+    // UPDATE(20240128): restaking switch
+    bool public isRestakingDisabled;   // mark if restaking disabled
 
     /** 
      * ======================================================================================
@@ -421,6 +424,15 @@ contract RockXStaking is Initializable, PausableUpgradeable, AccessControlUpgrad
     }
 
     /**
+     * @dev toggle restaking switch
+     */
+    function toggleRestaking() external onlyRole(DEFAULT_ADMIN_ROLE) {
+        isRestakingDisabled = !isRestakingDisabled;
+
+        emit RestakingDisabled(isRestakingDisabled);
+    }
+
+    /**
      * @dev set manager's fee in 1/1000
      */
     function setManagerFeeShare(uint256 milli) external onlyRole(DEFAULT_ADMIN_ROLE)  {
@@ -465,20 +477,7 @@ contract RockXStaking is Initializable, PausableUpgradeable, AccessControlUpgrad
         emit WithdrawCredentialSet(withdrawalCredentials);
     } 
 
-    /**
-     * @dev (UPDATE20240115) set restaking withdraw credential, setting to 0 address to disable restaking
-     */
-    function setRestakingAddress(address addr) external onlyRole(DEFAULT_ADMIN_ROLE) {
-        // _require(addr != address(0x0), "SYS025");
-        restakingAddress = addr;
-
-        // set restaking withdrawal credentials
-        bytes memory cred = abi.encodePacked(bytes1(0x01), new bytes(11), addr);
-        restakingWithdrawalCredentials = BytesLib.toBytes32(cred, 0);
-
-        emit RestakingAddressSet(addr);
-    } 
-
+    
     /**
      * @dev stake into eth2 staking contract by calling this function
      */
@@ -544,8 +543,8 @@ contract RockXStaking is Initializable, PausableUpgradeable, AccessControlUpgrad
         // UPDATE(20240115): account in restaking partial withdrawal balance
         //  (eg: eigenpod address.)
         uint256 restakingBalance;
-        if (restakingAddress!= address(0x0)) {
-            restakingBalance = address(restakingAddress).balance;
+        if (!isRestakingDisabled) {
+            restakingBalance = IRockXRestaking(RESTAKING_CONTRACT).eigenPod().balance;
         }
 
         uint256 combinedBalance = address(this).balance
@@ -1097,6 +1096,10 @@ contract RockXStaking is Initializable, PausableUpgradeable, AccessControlUpgrad
         if (!cred.restaking) {
             _stake(cred.pubkey, cred.signature, withdrawalCredentials);
         } else {
+            address eigenPod = IRockXRestaking(RESTAKING_CONTRACT).eigenPod();
+            bytes memory eigenPodCred = abi.encodePacked(bytes1(0x01), new bytes(11), eigenPod);
+            bytes32 restakingWithdrawalCredentials = BytesLib.toBytes32(eigenPodCred, 0);
+
             _stake(cred.pubkey, cred.signature, restakingWithdrawalCredentials);
         }
         nextValidatorId++;        
@@ -1186,4 +1189,5 @@ contract RockXStaking is Initializable, PausableUpgradeable, AccessControlUpgrad
     event BalanceSynced(uint256 diff);
     event WhiteListToggle(address account, bool enabled);
     event AutoCompoundToggle(bool enabled);
+    event RestakingDisabled(bool disabled);
 }
