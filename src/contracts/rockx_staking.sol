@@ -235,9 +235,6 @@ contract RockXStaking is Initializable, PausableUpgradeable, AccessControlUpgrad
     address private __DEPRECATED_restakingAddress;                // usually a restaking withdrawal credential adress(like eigenpod)
                                                     // addr(0x0) suggests that we're not using restaking address
 
-    // UPDATE(20240128): restaking switch
-    bool public isRestakingDisabled;   // mark if restaking disabled
-
     /** 
      * ======================================================================================
      * 
@@ -424,15 +421,6 @@ contract RockXStaking is Initializable, PausableUpgradeable, AccessControlUpgrad
     }
 
     /**
-     * @dev toggle restaking switch
-     */
-    function toggleRestaking() external onlyRole(DEFAULT_ADMIN_ROLE) {
-        isRestakingDisabled = !isRestakingDisabled;
-
-        emit RestakingDisabled(isRestakingDisabled);
-    }
-
-    /**
      * @dev set manager's fee in 1/1000
      */
     function setManagerFeeShare(uint256 milli) external onlyRole(DEFAULT_ADMIN_ROLE)  {
@@ -542,10 +530,7 @@ contract RockXStaking is Initializable, PausableUpgradeable, AccessControlUpgrad
     function _syncBalance() internal {
         // UPDATE(20240115): account in restaking partial withdrawal balance
         //  (eg: eigenpod address.)
-        uint256 restakingBalance;
-        if (!isRestakingDisabled) {
-            restakingBalance = IRockXRestaking(RESTAKING_CONTRACT).eigenPod().balance;
-        }
+        uint256 restakingBalance = IRockXRestaking(RESTAKING_CONTRACT).eigenPod().balance;
 
         uint256 combinedBalance = address(this).balance
                                     + restakingBalance
@@ -1189,5 +1174,4 @@ contract RockXStaking is Initializable, PausableUpgradeable, AccessControlUpgrad
     event BalanceSynced(uint256 diff);
     event WhiteListToggle(address account, bool enabled);
     event AutoCompoundToggle(bool enabled);
-    event RestakingDisabled(bool disabled);
 }

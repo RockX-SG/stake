@@ -22,6 +22,5 @@ def main():
     # calldata = RockXStaking[0].toggleRestaking.encode_input()
     proxy_admin_contract.upgrade(staking_proxy, staking_contract, {'from': gnosis_safe})
     transparent_staking = Contract.from_abi("RockXStaking",staking_proxy, RockXStaking.abi)
-    print("restaking disabled:", transparent_staking.isRestakingDisabled())
     # simulate mint
     transparent_staking.mint(0, time.time() + 600, {'from':accounts[0], 'value': '64 ether'})
