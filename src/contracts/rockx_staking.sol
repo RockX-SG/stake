@@ -469,7 +469,7 @@ contract RockXStaking is Initializable, PausableUpgradeable, AccessControlUpgrad
     /**
      * @dev stake into eth2 staking contract by calling this function
      */
-    function stake() external onlyRole(REGISTRY_ROLE) { _stakeInternal(); }
+    function stake() external { _stakeInternal(); }
 
     /**
      * @dev internal entry of stake() external 
