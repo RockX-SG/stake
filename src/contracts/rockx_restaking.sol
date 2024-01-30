@@ -37,7 +37,6 @@ import "@openzeppelin/contracts-upgradeable/security/ReentrancyGuardUpgradeable.
  */
 contract RockXRestaking is Initializable, AccessControlUpgradeable, ReentrancyGuardUpgradeable {
     using Address for address payable;
-    address constant public stakingAddress = 0x4beFa2aA9c305238AA3E0b5D17eB20C045269E9d;
 
     bytes32 public constant OPERATOR_ROLE= keccak256("OPERATOR_ROLE");
     /// @dev the EigenLayer EigenPodManager contract
@@ -52,17 +51,19 @@ contract RockXRestaking is Initializable, AccessControlUpgradeable, ReentrancyGu
     address public delayedWithdrawalRouter;
     /// @dev record pending withdrawal amount from EigenPod to DelayedWithdrawalRouter 
     uint256 private pendingWithdrawal;
-
+    // @dev staking contract address
+    address public stakingAddress;
+    
     /**
      * @dev empty reserved space for future adding of variables
      */
-    uint256[31] private __gap;
+    uint256[30] private __gap;
 
     /**
      * @dev forward to staking contract
      */
     receive() external payable { }
-    constructor() initializer {}
+    constructor() { _disableInitializers(); }
 
     /**
      * @dev initialization 
@@ -95,6 +96,14 @@ contract RockXRestaking is Initializable, AccessControlUpgradeable, ReentrancyGu
 
         // Save off the EigenPod address
         eigenPod = address(IEigenPodManager(eigenPodManager).getPod(address(this)));
+    }
+
+    /**
+     * UPDATE(20240130): to set a variable after upgrades
+     * use upgradeAndCall to initializeV2
+     */ 
+    function initializeV2(address stakingAddress_) reinitializer(2) public {
+        stakingAddress = stakingAddress_;
     }
 
     /**

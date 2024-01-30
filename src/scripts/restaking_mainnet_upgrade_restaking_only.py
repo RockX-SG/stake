@@ -9,11 +9,14 @@ def main():
     TransparentUpgradeableProxy = deps.TransparentUpgradeableProxy
 
     restaking_proxy = TransparentUpgradeableProxy.at("0x3F4eaCeb930b0Edfa78a1DFCbaE5c5494E6e9850")
+    staking_proxy = "0x4beFa2aA9c305238AA3E0b5D17eB20C045269E9d"
     deployer = accounts.load('mainnet-deployer')
 
     # simulate restaking contract upgrade
     restaking_contract = RockXRestaking.deploy( {'from': deployer})
-    restaking_proxy.upgradeTo(restaking_contract,{'from': deployer})
+    calldata = RockXRestaking[0].initializeV2.encode_input("0x4beFa2aA9c305238AA3E0b5D17eB20C045269E9d")
+    restaking_proxy.upgradeToAndCall(restaking_contract, calldata, {'from': deployer})
     transparent_restaking = Contract.from_abi("RockXRestaking",restaking_proxy, RockXRestaking.abi)
     print(transparent_restaking.getPendingWithdrawalAmount())
     print("pod:", transparent_restaking.eigenPod())
+    print("staking address:", transparent_restaking.stakingAddress())
