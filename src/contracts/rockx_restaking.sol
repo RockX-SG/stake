@@ -134,13 +134,15 @@ contract RockXRestaking is Initializable, AccessControlUpgradeable, ReentrancyGu
 
     /// @notice Called by the pod owner to withdraw the balance of the pod when `hasRestaked` is set to false
     function withdrawBeforeRestaking() external {
-        if (eigenPod.balance >= WITHDRAW_MIN) {
-            uint256 balanceBefore = address(eigenPod).balance;
-            IEigenPod(eigenPod).withdrawBeforeRestaking();
-            uint256 diff = balanceBefore - address(eigenPod).balance;
-            pendingWithdrawal += diff;
-            emit Pending(diff);
+        if (eigenPod.balance < WITHDRAW_MIN) {
+            return;
         }
+
+        uint256 balanceBefore = address(eigenPod).balance;
+        IEigenPod(eigenPod).withdrawBeforeRestaking();
+        uint256 diff = balanceBefore - address(eigenPod).balance;
+        pendingWithdrawal += diff;
+        emit Pending(diff);
     }
 
     /** 
