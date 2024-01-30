@@ -19,8 +19,9 @@ def main():
 
     # simulate staking upgrade
     staking_contract = RockXStaking.deploy( {'from': deployer})
-    # calldata = RockXStaking[0].toggleRestaking.encode_input()
-    proxy_admin_contract.upgrade(staking_proxy, staking_contract, {'from': gnosis_safe})
+    calldata = RockXStaking[0].initializeV2.encode_input("0x3F4eaCeb930b0Edfa78a1DFCbaE5c5494E6e9850")
+    proxy_admin_contract.upgradeAndCall(staking_proxy, staking_contract, calldata, {'from': gnosis_safe})
     transparent_staking = Contract.from_abi("RockXStaking",staking_proxy, RockXStaking.abi)
     # simulate mint
     transparent_staking.mint(0, time.time() + 600, {'from':accounts[0], 'value': '64 ether'})
+    print(transparent_staking.restakingContract())

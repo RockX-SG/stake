@@ -158,7 +158,6 @@ contract RockXStaking is Initializable, PausableUpgradeable, AccessControlUpgrad
     uint256 private constant SIGNATURE_LENGTH = 96;
     uint256 private constant PUBKEY_LENGTH = 48;
 
-    address public constant RESTAKING_CONTRACT = 0x3F4eaCeb930b0Edfa78a1DFCbaE5c5494E6e9850;
     uint256 public constant RESTAKING_WITHDRAW_MIN = 0.2 ether;
     
     address public ethDepositContract;      // ETH 2.0 Deposit contract
@@ -231,9 +230,11 @@ contract RockXStaking is Initializable, PausableUpgradeable, AccessControlUpgrad
     bool private autoCompoundEnabled;
 
     // UPDATE(20240115): eigenlayer's restaking withdrawal credential
-    bytes32 private __DEPRECATED_restakingWithdrawalCredentials;  // restaking withdrawal credential, formatted in bytes32
-    address private __DEPRECATED_restakingAddress;                // usually a restaking withdrawal credential adress(like eigenpod)
-                                                    // addr(0x0) suggests that we're not using restaking address
+    bytes32 private __DEPRECATED_restakingWithdrawalCredentials;
+    address private __DEPRECATED_restakingAddress;
+
+    // UPDATE(20240130:): use variable instead of constant, require upgradeAndCall to set it's value
+    address public restakingContract;
 
     /** 
      * ======================================================================================
@@ -243,7 +244,7 @@ contract RockXStaking is Initializable, PausableUpgradeable, AccessControlUpgrad
      * ======================================================================================
      */
     receive() external payable { }
-    constructor() initializer {}
+    constructor() { _disableInitializers(); }
 
     /**
      * @dev only phase
@@ -292,6 +293,14 @@ contract RockXStaking is Initializable, PausableUpgradeable, AccessControlUpgrad
         // uint8('0x1') + 11 bytes(0) + this.address
         bytes memory cred = abi.encodePacked(bytes1(0x01), new bytes(11), address(this));
         withdrawalCredentials = BytesLib.toBytes32(cred, 0);
+    }
+   
+    /**
+     * UPDATE(20240130): to set a variable after upgrades
+     * use upgradeAndCall to initializeV2
+     */ 
+    function initializeV2(address restakingContract_) reinitializer(2) public {
+        restakingContract = restakingContract_;
     }
 
     /**
@@ -530,11 +539,11 @@ contract RockXStaking is Initializable, PausableUpgradeable, AccessControlUpgrad
     function _syncBalance() internal {
         // UPDATE(20240115): account in restaking partial withdrawal balance
         //  (eg: eigenpod address.)
-        uint256 restakingBalance = IRockXRestaking(RESTAKING_CONTRACT).eigenPod().balance;
+        uint256 restakingBalance = IRockXRestaking(restakingContract).eigenPod().balance;
 
         uint256 combinedBalance = address(this).balance
                                     + restakingBalance
-                                    + IRockXRestaking(RESTAKING_CONTRACT).getPendingWithdrawalAmount(); // pending withdrawal which eventually belongs to this
+                                    + IRockXRestaking(restakingContract).getPendingWithdrawalAmount(); // pending withdrawal which eventually belongs to this
     
         // assert combined balance larger than accountedBalance
         assert(int256(combinedBalance) >= accountedBalance);
@@ -626,13 +635,13 @@ contract RockXStaking is Initializable, PausableUpgradeable, AccessControlUpgrad
 
         // step 4. restaking withdrawal
         // try to initiate withdrawal from eigenpod
-        if (IRockXRestaking(RESTAKING_CONTRACT).eigenPod().balance >= RESTAKING_WITHDRAW_MIN) {
-            IRockXRestaking(RESTAKING_CONTRACT).withdrawBeforeRestaking();
+        if (IRockXRestaking(restakingContract).eigenPod().balance >= RESTAKING_WITHDRAW_MIN) {
+            IRockXRestaking(restakingContract).withdrawBeforeRestaking();
         }
 
         // try to initiate claim delayed withdrawal
-        if (IRockXRestaking(RESTAKING_CONTRACT).getPendingWithdrawalAmount() > 0) {
-            IRockXRestaking(RESTAKING_CONTRACT).claimDelayedWithdrawals(type(uint256).max);
+        if (IRockXRestaking(restakingContract).getPendingWithdrawalAmount() > 0) {
+            IRockXRestaking(restakingContract).claimDelayedWithdrawals(type(uint256).max);
         }
     }
 
@@ -1081,7 +1090,7 @@ contract RockXStaking is Initializable, PausableUpgradeable, AccessControlUpgrad
         if (!cred.restaking) {
             _stake(cred.pubkey, cred.signature, withdrawalCredentials);
         } else {
-            address eigenPod = IRockXRestaking(RESTAKING_CONTRACT).eigenPod();
+            address eigenPod = IRockXRestaking(restakingContract).eigenPod();
             bytes memory eigenPodCred = abi.encodePacked(bytes1(0x01), new bytes(11), eigenPod);
             bytes32 restakingWithdrawalCredentials = BytesLib.toBytes32(eigenPodCred, 0);
 

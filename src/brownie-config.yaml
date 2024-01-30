@@ -3,7 +3,7 @@
 # required external contracts
 dependencies:
   - OpenZeppelin/openzeppelin-contracts@4.4.2
-  - OpenZeppelin/openzeppelin-contracts-upgradeable@4.5.2
+  - OpenZeppelin/openzeppelin-contracts-upgradeable@4.6.0
   - GNSPS/solidity-bytes-utils@0.8.0
 
 pytest:
@@ -21,7 +21,7 @@ compiler:
         remappings:
           - "@eigenlayer/contracts=./lib/eigenlayer-contracts-mainnet-deployment/src/contracts"
           - "@openzeppelin/contracts=OpenZeppelin/openzeppelin-contracts@4.4.2/contracts"
-          - "@openzeppelin/contracts-upgradeable=OpenZeppelin/openzeppelin-contracts-upgradeable@4.5.2/contracts"
+          - "@openzeppelin/contracts-upgradeable=OpenZeppelin/openzeppelin-contracts-upgradeable@4.6.0/contracts"
           - "solidity-bytes-utils/contracts=GNSPS/solidity-bytes-utils@0.8.0/contracts"
 
 # automatically fetch contract sources from Etherscan
