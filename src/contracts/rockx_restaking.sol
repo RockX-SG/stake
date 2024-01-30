@@ -39,6 +39,8 @@ contract RockXRestaking is Initializable, AccessControlUpgradeable, ReentrancyGu
     using Address for address payable;
 
     bytes32 public constant OPERATOR_ROLE= keccak256("OPERATOR_ROLE");
+    uint256 public constant WITHDRAW_MIN = 0.2 ether;
+
     /// @dev the EigenLayer EigenPodManager contract
     address public eigenPodManager;
     /// @dev The EigenPod owned by this contract
@@ -132,13 +134,13 @@ contract RockXRestaking is Initializable, AccessControlUpgradeable, ReentrancyGu
 
     /// @notice Called by the pod owner to withdraw the balance of the pod when `hasRestaked` is set to false
     function withdrawBeforeRestaking() external {
-        uint256 balanceBefore = address(eigenPod).balance;
-        IEigenPod(eigenPod).withdrawBeforeRestaking();
-        uint256 diff = balanceBefore - address(eigenPod).balance;
-
-        pendingWithdrawal += diff;
-
-        emit Pending(diff);
+        if (eigenPod.balance >= WITHDRAW_MIN) {
+            uint256 balanceBefore = address(eigenPod).balance;
+            IEigenPod(eigenPod).withdrawBeforeRestaking();
+            uint256 diff = balanceBefore - address(eigenPod).balance;
+            pendingWithdrawal += diff;
+            emit Pending(diff);
+        }
     }
 
     /** 
