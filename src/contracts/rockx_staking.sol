@@ -158,8 +158,6 @@ contract RockXStaking is Initializable, PausableUpgradeable, AccessControlUpgrad
     uint256 private constant SIGNATURE_LENGTH = 96;
     uint256 private constant PUBKEY_LENGTH = 48;
 
-    uint256 public constant RESTAKING_WITHDRAW_MIN = 0.2 ether;
-    
     address public ethDepositContract;      // ETH 2.0 Deposit contract
     address public xETHAddress;             // xETH token address
     address public redeemContract;          // redeeming contract for user to pull ethers
@@ -632,17 +630,6 @@ contract RockXStaking is Initializable, PausableUpgradeable, AccessControlUpgrad
         recentReceived = 0;
         recentSlashed = 0;
         recentStopped = 0;
-
-        // step 4. restaking withdrawal
-        // try to initiate withdrawal from eigenpod
-        if (IRockXRestaking(restakingContract).eigenPod().balance >= RESTAKING_WITHDRAW_MIN) {
-            IRockXRestaking(restakingContract).withdrawBeforeRestaking();
-        }
-
-        // try to initiate claim delayed withdrawal
-        if (IRockXRestaking(restakingContract).getPendingWithdrawalAmount() > 0) {
-            IRockXRestaking(restakingContract).claimDelayedWithdrawals(type(uint256).max);
-        }
     }
 
     /**
