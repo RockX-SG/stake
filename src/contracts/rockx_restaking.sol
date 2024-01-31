@@ -108,31 +108,7 @@ contract RockXRestaking is Initializable, AccessControlUpgradeable, ReentrancyGu
         stakingAddress = stakingAddress_;
     }
 
-    /**
-     * @notice This function verifies that the withdrawal credentials of the podOwner are pointed to
-     * this contract. It also verifies the current (not effective) balance  of the validator.  It verifies the provided proof of the ETH validator against the beacon chain state
-     * root, marks the validator as 'active' in EigenLayer, and credits the restaked ETH in Eigenlayer.
-     * @param oracleBlockNumber is the Beacon Chain blockNumber whose state root the `proof` will be proven against.
-     * @param validatorIndex is the index of the validator being proven, refer to consensus specs 
-     * @param proofs is the bytes that prove the ETH validator's balance and withdrawal credentials against a beacon chain state root
-     * @param validatorFields are the fields of the "Validator Container", refer to consensus specs 
-     * for details: https://github.com/ethereum/consensus-specs/blob/dev/specs/phase0/beacon-chain.md#validator
-     */
-    function verifyWithdrawalCredentialsAndBalance(
-        uint64 oracleBlockNumber,
-        uint40 validatorIndex,
-        BeaconChainProofs.ValidatorFieldsAndBalanceProofs memory proofs,
-        bytes32[] calldata validatorFields
-    ) external onlyRole(OPERATOR_ROLE) {
-        IEigenPod(eigenPod).verifyWithdrawalCredentialsAndBalance(
-            oracleBlockNumber,
-            validatorIndex,
-            proofs,
-            validatorFields
-        );
-    }
-
-    /// @notice Called by the pod owner to withdraw the balance of the pod when `hasRestaked` is set to false
+       /// @notice Called by the pod owner to withdraw the balance of the pod when `hasRestaked` is set to false
     function withdrawBeforeRestaking() external {
         if (eigenPod.balance < WITHDRAW_MIN) {
             return;
@@ -143,15 +119,6 @@ contract RockXRestaking is Initializable, AccessControlUpgradeable, ReentrancyGu
         uint256 diff = balanceBefore - address(eigenPod).balance;
         pendingWithdrawal += diff;
         emit Pending(diff);
-    }
-
-    /** 
-     * @notice Creates an delayed withdrawal for `msg.value` to the `recipient`.
-     */
-    function createDelayedWithdrawal(
-        address podOwner
-    ) external payable onlyRole(OPERATOR_ROLE) {
-        IDelayedWithdrawalRouter(delayedWithdrawalRouter).createDelayedWithdrawal(podOwner, stakingAddress);
     }
 
     /**
@@ -165,10 +132,14 @@ contract RockXRestaking is Initializable, AccessControlUpgradeable, ReentrancyGu
         IDelayedWithdrawalRouter(delayedWithdrawalRouter).claimDelayedWithdrawals(maxNumberOfWithdrawalsToClaim);
         uint256 diff = address(this).balance - balanceBefore;
 
+        // nothing to be done here
+        if (diff == 0) {
+            return;
+        }
+
         pendingWithdrawal -= diff;
         // forward to staking address
         payable(stakingAddress).sendValue(diff); 
-
         emit Claimed(diff);
     }
 

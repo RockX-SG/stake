@@ -227,11 +227,11 @@ contract RockXStaking is Initializable, PausableUpgradeable, AccessControlUpgrad
     // auto-compounding
     bool private autoCompoundEnabled;
 
-    // UPDATE(20240115): eigenlayer's restaking withdrawal credential
+    // DEPRECATED(20240130): eigenlayer's restaking withdrawal credential
     bytes32 private __DEPRECATED_restakingWithdrawalCredentials;
     address private __DEPRECATED_restakingAddress;
 
-    // UPDATE(20240130:): use variable instead of constant, require upgradeAndCall to set it's value
+    // UPDATE(20240130): use variable instead of constant, require upgradeAndCall to set it's value
     address public restakingContract;
 
     /** 
@@ -929,6 +929,10 @@ contract RockXStaking is Initializable, PausableUpgradeable, AccessControlUpgrad
         // try to initiate stake()
         _stakeInternal();
 
+        // try to initiate restaking operations
+        IRockXRestaking(restakingContract).withdrawBeforeRestaking();
+        IRockXRestaking(restakingContract).claimDelayedWithdrawals(type(uint256).max);
+
         return toMint;
     }
 
@@ -957,6 +961,10 @@ contract RockXStaking is Initializable, PausableUpgradeable, AccessControlUpgrad
 
         // queue ether debts
         _enqueueDebt(msg.sender, ethersToRedeem);
+
+        // try to initiate restaking operations
+        IRockXRestaking(restakingContract).withdrawBeforeRestaking();
+        IRockXRestaking(restakingContract).claimDelayedWithdrawals(type(uint256).max);
 
         // return burned 
         return xETHToBurn;
