@@ -39,7 +39,7 @@ contract RockXRestaking is Initializable, AccessControlUpgradeable, ReentrancyGu
     using Address for address payable;
 
     bytes32 public constant OPERATOR_ROLE= keccak256("OPERATOR_ROLE");
-    uint256 public constant WITHDRAW_MIN = 0.2 ether;
+    uint256 public constant WITHDRAW_MIN = 0.01 ether;
 
     /// @dev the EigenLayer EigenPodManager contract
     address public eigenPodManager;
