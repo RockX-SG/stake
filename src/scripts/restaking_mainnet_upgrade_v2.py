@@ -15,7 +15,7 @@ def main():
 
     # simulate restaking contract upgrade
     restaking_contract = RockXRestaking.deploy( {'from': deployer})
-    calldata = RockXRestaking[0].initializeV2.encode_input("0x4beFa2aA9c305238AA3E0b5D17eB20C045269E9d")
+    calldata = RockXRestaking[-1].initializeV2.encode_input("0x4beFa2aA9c305238AA3E0b5D17eB20C045269E9d")
     restaking_proxy.upgradeToAndCall(restaking_contract, calldata, {'from': deployer})
     transparent_restaking = Contract.from_abi("RockXRestaking",restaking_proxy, RockXRestaking.abi)
     transparent_restaking.withdrawBeforeRestaking({'from':owner})
