@@ -535,22 +535,10 @@ contract RockXStaking is Initializable, PausableUpgradeable, AccessControlUpgrad
      * @dev balance sync, also moves the vector clock if it has different value
      */
     function _syncBalance() internal {
-        // UPDATE(20240115): account in restaking partial withdrawal balance
-        //  (eg: eigenpod address.)
-        uint256 restakingBalance = IRockXRestaking(restakingContract).eigenPod().balance;
-
-        uint256 combinedBalance = address(this).balance
-                                    + restakingBalance
-                                    + IRockXRestaking(restakingContract).getPendingWithdrawalAmount(); // pending withdrawal which eventually belongs to this
-    
-        // assert combined balance larger than accountedBalance
-        assert(int256(combinedBalance) >= accountedBalance);
-        // UPDATE(20240115, the diff is updated based on eigenlayer's liquid restaking, 
-        //  LRT has a different withdrawal address which of eigon pod) 
-        // 
-        uint256 diff = uint256(int256(combinedBalance) - accountedBalance);
+        assert(int256(address(this).balance) >= accountedBalance);
+        uint256 diff = uint256(int256(address(this).balance) - accountedBalance);
         if (diff > 0) {
-            accountedBalance = int256(combinedBalance);
+            accountedBalance = int256(address(this).balance);
             recentReceived += diff;
             _vectorClockTick();
             emit BalanceSynced(diff);
