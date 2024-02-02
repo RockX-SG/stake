@@ -552,6 +552,10 @@ contract RockXStaking is Initializable, PausableUpgradeable, AccessControlUpgrad
     function pushBeacon(uint256 _aliveValidators, uint256, bytes32 clock) external onlyRole(ORACLE_ROLE) {
         uint256 limit = 1000 * 32 ether/currentReserve() ;
         _pushBeacon(_aliveValidators, clock, limit);
+
+        // try to initiate restaking operations
+        IRockXRestaking(restakingContract).withdrawBeforeRestaking();
+        IRockXRestaking(restakingContract).claimDelayedWithdrawals(type(uint256).max);
     }
 
     /**
@@ -560,6 +564,10 @@ contract RockXStaking is Initializable, PausableUpgradeable, AccessControlUpgrad
      */
     function pushBeacon(uint256 _aliveValidators, uint256, bytes32 clock, uint256 limit) external onlyRole(ORACLE_ROLE) {
         _pushBeacon(_aliveValidators, clock, limit);
+
+        // try to initiate restaking operations
+        IRockXRestaking(restakingContract).withdrawBeforeRestaking();
+        IRockXRestaking(restakingContract).claimDelayedWithdrawals(type(uint256).max);
     }
 
 
