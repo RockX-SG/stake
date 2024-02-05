@@ -492,7 +492,9 @@ contract RockXStaking is Initializable, PausableUpgradeable, AccessControlUpgrad
             _spinup();
         }
 
-        emit ValidatorActivated(nextValidatorId);
+        if (maxValidators > 0) {
+            emit ValidatorActivated(nextValidatorId);
+        }
     }
 
     /**
