@@ -23,8 +23,8 @@ def main():
     transparent_staking = Contract.from_abi("RockXStaking",staking_proxy, RockXStaking.abi)
    
     # simulate syncBalance
-    transparent_staking.syncBalance({"from":oracle})
-    print("restaking contract constant:", transparent_staking.RESTAKING_CONTRACT())
+    #transparent_staking.syncBalance({"from":oracle})
+    #print("restaking contract constant:", transparent_staking.RESTAKING_CONTRACT())
 
     # simulate mint
-    transparent_staking.mint(0, time.time() + 600, {'from':accounts[0], 'value': '64 ether'})
+    #transparent_staking.mint(0, time.time() + 600, {'from':accounts[0], 'value': '64 ether'})

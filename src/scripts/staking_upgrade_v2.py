@@ -24,6 +24,6 @@ def main():
     proxy_admin_contract.upgradeAndCall(staking_proxy, staking_contract, calldata, {'from': gnosis_safe})
     transparent_staking = Contract.from_abi("RockXStaking",staking_proxy, RockXStaking.abi)
     # simulate mint
-    transparent_staking.mint(0, time.time() + 600, {'from':accounts[0], 'value': '64 ether'})
-    print(transparent_staking.restakingContract())
-    print(transparent_staking.ethDepositContract())
+    #transparent_staking.mint(0, time.time() + 600, {'from':accounts[0], 'value': '64 ether'})
+    #print(transparent_staking.restakingContract())
+    #print(transparent_staking.ethDepositContract())

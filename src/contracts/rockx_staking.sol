@@ -213,7 +213,7 @@ contract RockXStaking is Initializable, PausableUpgradeable, AccessControlUpgrad
     uint256 [] private refunds;
 
     // PATCH VARIABLES(UPGRADES)
-    uint256 recentStopped;                          // track recent stopped validators(update: 20220927)
+    uint256 public recentStopped;                          // track recent stopped validators(update: 20220927)
 
     /**
      * @dev empty reserved space for future adding of variables
@@ -269,6 +269,7 @@ contract RockXStaking is Initializable, PausableUpgradeable, AccessControlUpgrad
     /**
      * @dev initialization address
      */
+    /*
     function initialize() initializer public {
         __Pausable_init();
         __AccessControl_init();
@@ -292,14 +293,17 @@ contract RockXStaking is Initializable, PausableUpgradeable, AccessControlUpgrad
         bytes memory cred = abi.encodePacked(bytes1(0x01), new bytes(11), address(this));
         withdrawalCredentials = BytesLib.toBytes32(cred, 0);
     }
+   */
    
     /**
      * UPDATE(20240130): to set a variable after upgrades
      * use upgradeAndCall to initializeV2
      */ 
+    /*
     function initializeV2(address restakingContract_) reinitializer(2) public {
         restakingContract = restakingContract_;
     }
+    */
 
     /**
      * @dev phase switch
@@ -631,6 +635,12 @@ contract RockXStaking is Initializable, PausableUpgradeable, AccessControlUpgrad
         recentStopped = 0;
     }
 
+    /**
+     * @dev emergentFixRecentReceived
+     */
+    function emergentFixRecentReceived(uint256 diff) external onlyRole(DEFAULT_ADMIN_ROLE) {
+        recentReceived += diff;
+    }
     /**
      * @dev notify some validators stopped, and pay the debts
      */
