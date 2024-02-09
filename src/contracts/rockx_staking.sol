@@ -213,7 +213,7 @@ contract RockXStaking is Initializable, PausableUpgradeable, AccessControlUpgrad
     uint256 [] private refunds;
 
     // PATCH VARIABLES(UPGRADES)
-    uint256 public recentStopped;                          // track recent stopped validators(update: 20220927)
+    uint256 private recentStopped;                  // track recent stopped validators(update: 20220927)
 
     /**
      * @dev empty reserved space for future adding of variables
@@ -583,6 +583,12 @@ contract RockXStaking is Initializable, PausableUpgradeable, AccessControlUpgrad
 
         // step 0. collect new revenue if there is any.
         _syncBalance();
+        
+        // Check recentStopped and recentReceived to see they match,
+        // this works until we can earn 32ETH per day
+        if (totalDebts > 0) {
+            _require(recentReceived/DEPOSIT_SIZE == recentStopped, "SYS030");
+        }
 
         // step 1. check if new validator increased
         // and adjust rewardBase to include the new validators' value
@@ -791,6 +797,10 @@ contract RockXStaking is Initializable, PausableUpgradeable, AccessControlUpgrad
      * @dev returns recent received value
      */
     function getRecentReceived() external view returns (uint256) { return recentReceived; }
+    /*
+     * @dev returns recent received value
+     */
+    function getRecentStopped() external view returns (uint256) { return recentStopped; }
 
     /**
      * @dev return debt for an account
