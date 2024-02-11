@@ -26,6 +26,7 @@ contract RockXETH is Initializable, ERC20Upgradeable, ERC20BurnableUpgradeable, 
         _;
     }
 
+    constructor() { _disableInitializers(); }
     function initialize() initializer public {
         __ERC20_init("Universal ETH", "uniETH");
         __ERC20Burnable_init();

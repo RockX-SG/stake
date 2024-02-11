@@ -16,6 +16,7 @@ contract RockXRedeem is IRockXRedeem, Initializable, PausableUpgradeable, Reentr
     mapping(address=>uint256) private balances;
     uint256 private totalBalance;
 
+    constructor() { _disableInitializers(); }
     /**
      * @dev initialization
      */
