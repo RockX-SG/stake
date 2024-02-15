@@ -556,14 +556,28 @@ contract RockXStaking is Initializable, PausableUpgradeable, AccessControlUpgrad
      * with default appreciation limit
      */
     function pushBeacon(uint256 _aliveValidators, uint256, bytes32 clock) external onlyRole(ORACLE_ROLE) {
-        _pushBeacon(_aliveValidators, clock);
+        uint256 limit = 1000 * 32 ether/currentReserve() ;
+        _pushBeacon(_aliveValidators, clock, limit);
 
         // try to initiate restaking operations
         IRockXRestaking(restakingContract).withdrawBeforeRestaking();
         IRockXRestaking(restakingContract).claimDelayedWithdrawals(type(uint256).max);
     }
 
-    function _pushBeacon(uint256 _aliveValidators, bytes32 clock) internal {
+    /**
+     * @dev operator reports current alive validators count and overall balance
+     * with custom appreciation limit
+     */
+    function pushBeacon(uint256 _aliveValidators, uint256, bytes32 clock, uint256 limit) external onlyRole(ORACLE_ROLE) {
+        _pushBeacon(_aliveValidators, clock, limit);
+
+        // try to initiate restaking operations
+        IRockXRestaking(restakingContract).withdrawBeforeRestaking();
+        IRockXRestaking(restakingContract).claimDelayedWithdrawals(type(uint256).max);
+    }
+
+
+    function _pushBeacon(uint256 _aliveValidators, bytes32 clock, uint256 limit) internal {
         _require(vectorClock == clock, "SYS012");
         _require(_aliveValidators + stoppedValidators <= nextValidatorId, "SYS013");
 
@@ -571,12 +585,12 @@ contract RockXStaking is Initializable, PausableUpgradeable, AccessControlUpgrad
         _syncBalance();
         
         // Check recentStopped and recentReceived to see they match,
-        // this guarantees that we pay debts in priority.
+        // this works until we can earn 32ETH per day
         if (totalDebts > 0) {
             _require(recentReceived/DEPOSIT_SIZE == recentStopped, "SYS030");
         }
 
-        // check if new validators increased
+        // step 1. check if new validator increased
         // and adjust rewardBase to include the new validators' value
         uint256 rewardBase = reportedValidatorBalance;
         if (_aliveValidators + recentStopped > reportedValidators) {
@@ -585,7 +599,7 @@ contract RockXStaking is Initializable, PausableUpgradeable, AccessControlUpgrad
             rewardBase += newValidators * DEPOSIT_SIZE;
         }
 
-        // calc rewards, this also considers recentReceived ethers from 
+        // step 2. calc rewards, this also considers recentReceived ethers from 
         // either stopped validators or withdrawed ethers as rewards.
         //
         // During two consecutive pushBeacon operation, the ethers will ONLY: 
@@ -609,11 +623,16 @@ contract RockXStaking is Initializable, PausableUpgradeable, AccessControlUpgrad
         uint256 _aliveBalance = _aliveValidators * DEPOSIT_SIZE;  // computed balance
         _require(_aliveBalance + recentReceived + recentSlashed >= rewardBase, "SYS015");
         uint256 rewards = _aliveBalance + recentReceived + recentSlashed - rewardBase;
+        if (totalDebts > 0) {
+            // as we cannot differentiate the ethers from full withdrawal & partial withdrawal,
+            // to make sure we only take partial withdrawal(revenue) into reward calculation
+            _require(rewards * 1000 / currentReserve() < limit, "SYS016");
+        }
 
         _distributeRewards(rewards);
         _autocompound();
 
-        // update reportedValidators & reportedValidatorBalance
+        // step 3. update reportedValidators & reportedValidatorBalance
         // reset the recentReceived to 0
         reportedValidatorBalance = _aliveBalance; 
         reportedValidators = _aliveValidators;
