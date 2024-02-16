@@ -117,7 +117,7 @@ def main():
     print("generate 0.1 ethers as the revenue to contract")
     accounts[0].transfer(transparent_staking.address, '0.1 ethers')
     print("still pushBeacon 32 ethers to finalize the rewards")
-    transparent_staking.pushBeacon(1, '32 ethers', transparent_staking.getVectorClock(), {'from':owner})
+    transparent_staking.pushBeacon(1, transparent_staking.getVectorClock(), {'from':owner})
     print("manager fee before claiming:",transparent_staking.getAccountedManagerRevenue(), " exchange ratio:", transparent_staking.exchangeRatio())
     print("pending ethers before", transparent_staking.getPendingEthers()) 
     print("claim to another account:", accounts[2])
@@ -133,6 +133,6 @@ def main():
     transparent_staking.toggleAutoCompound({'from':owner})
     print("totalStaked:", transparent_staking.getTotalStaked())
     print("pushBeacon:")
-    transparent_staking.pushBeacon(1, '32 ethers', transparent_staking.getVectorClock(), {'from':owner})
+    transparent_staking.pushBeacon(1, transparent_staking.getVectorClock(), {'from':owner})
     print("totalStaked:", transparent_staking.getTotalStaked())
 

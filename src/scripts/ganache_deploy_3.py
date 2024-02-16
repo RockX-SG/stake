@@ -116,6 +116,6 @@ def main():
     print("transfer 40 ether:")
     accounts[5].transfer(transparent_staking.address, '40 ethers')
     transparent_staking.toggleAutoCompound({'from':owner})
-    transparent_staking.pushBeacon(1, '32 ethers', transparent_staking.getVectorClock(), {'from':owner})
+    transparent_staking.pushBeacon(1, transparent_staking.getVectorClock(), {'from':owner})
     print("pending:", transparent_staking.getPendingEthers())
 
