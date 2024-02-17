@@ -580,10 +580,12 @@ contract RockXStaking is Initializable, PausableUpgradeable, AccessControlUpgrad
         _require(vectorClock == clock, "SYS012");
         _require(_aliveValidators + stoppedValidators <= nextValidatorId, "SYS013");
 
-        // step 0. collect new revenue if there is any.
+        // Collect new revenue if there is any.
         _syncBalance();
         
         // Check recentStopped and recentReceived to see they match,
+        // recentStopped MUST be aligned to recentReceived, clear
+        // debts first if there are debts to pay.
         if (totalDebts > 0) {
             _require(recentReceived/DEPOSIT_SIZE == recentStopped, "SYS030");
         }
