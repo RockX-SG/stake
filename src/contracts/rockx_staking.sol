@@ -555,7 +555,8 @@ contract RockXStaking is Initializable, PausableUpgradeable, AccessControlUpgrad
      * @dev operator reports current alive validators count and overall balance
      * with default appreciation limit
      */
-    function pushBeacon(uint256 _aliveValidators, bytes32 clock) external onlyRole(ORACLE_ROLE) {
+    function pushBeacon(bytes32 clock) external {
+        uint256 _aliveValidators = nextValidatorId - stoppedValidators;
         _pushBeacon(_aliveValidators, clock, 5);
 
         // try to initiate restaking operations
@@ -567,7 +568,8 @@ contract RockXStaking is Initializable, PausableUpgradeable, AccessControlUpgrad
      * @dev operator reports current alive validators count and overall balance
      * with custom appreciation limit
      */
-    function pushBeacon(uint256 _aliveValidators, bytes32 clock, uint256 limit) external onlyRole(ORACLE_ROLE) {
+    function pushBeacon(bytes32 clock, uint256 limit) external onlyRole(ORACLE_ROLE) {
+        uint256 _aliveValidators = nextValidatorId - stoppedValidators;
         _pushBeacon(_aliveValidators, clock, limit);
 
         // try to initiate restaking operations
@@ -862,7 +864,7 @@ contract RockXStaking is Initializable, PausableUpgradeable, AccessControlUpgrad
     function getNextValidatorId() external view returns (uint256) { return nextValidatorId; }
 
     /**
-     * @dev return exchange ratio of , multiplied by 1e18
+     * @dev return exchange ratio for 1 uniETH to ETH, multiplied by 1e18
      */
     function exchangeRatio() external view returns (uint256) {
         uint256 xETHAmount = IERC20(xETHAddress).totalSupply();
