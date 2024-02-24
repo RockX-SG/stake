@@ -152,6 +152,7 @@ contract RockXStaking is Initializable, PausableUpgradeable, AccessControlUpgrad
     bytes32 public constant REGISTRY_ROLE = keccak256("REGISTRY_ROLE");
     bytes32 public constant PAUSER_ROLE = keccak256("PAUSER_ROLE");
     uint256 public constant DEPOSIT_SIZE = 32 ether;
+    uint256 public constant SAFE_PUSH_REWARDS = 30 ether;
 
     uint256 private constant MULTIPLIER = 1e18; 
     uint256 private constant DEPOSIT_AMOUNT_UNIT = 1000000000 wei;
@@ -541,6 +542,10 @@ contract RockXStaking is Initializable, PausableUpgradeable, AccessControlUpgrad
      * @dev balance sync, also moves the vector clock if it has different value
      */
     function _syncBalance() internal {
+        // account restaking values
+        IRockXRestaking(restakingContract).withdrawBeforeRestaking();
+        IRockXRestaking(restakingContract).claimDelayedWithdrawals(type(uint256).max);
+
         assert(int256(address(this).balance) >= accountedBalance);
         uint256 diff = uint256(int256(address(this).balance) - accountedBalance);
         if (diff > 0) {
@@ -552,35 +557,18 @@ contract RockXStaking is Initializable, PausableUpgradeable, AccessControlUpgrad
     }
     
     /**
-     * @dev operator reports current alive validators count and overall balance
-     * with default appreciation limit
+     * @dev public invokable settlement to update exchangeRatio with default revenue limit.
      */
-    function pushBeacon(bytes32 clock) external {
-        uint256 _aliveValidators = nextValidatorId - stoppedValidators;
-        _pushBeacon(_aliveValidators, clock, 5);
-
-        // try to initiate restaking operations
-        IRockXRestaking(restakingContract).withdrawBeforeRestaking();
-        IRockXRestaking(restakingContract).claimDelayedWithdrawals(type(uint256).max);
-    }
+    function pushBeacon() external { _pushBeacon(vectorClock, SAFE_PUSH_REWARDS); }
 
     /**
-     * @dev operator reports current alive validators count and overall balance
-     * with custom appreciation limit
+     * @dev operators to settle revenue with custom revenue limit under abnormal conditions.
      */
-    function pushBeacon(bytes32 clock, uint256 limit) external onlyRole(ORACLE_ROLE) {
-        uint256 _aliveValidators = nextValidatorId - stoppedValidators;
-        _pushBeacon(_aliveValidators, clock, limit);
-
-        // try to initiate restaking operations
-        IRockXRestaking(restakingContract).withdrawBeforeRestaking();
-        IRockXRestaking(restakingContract).claimDelayedWithdrawals(type(uint256).max);
-    }
+    function pushBeacon(bytes32 clock, uint256 maxRewards) external onlyRole(ORACLE_ROLE) { _pushBeacon(clock, maxRewards); }
 
 
-    function _pushBeacon(uint256 _aliveValidators, bytes32 clock, uint256 limit) internal {
+    function _pushBeacon(bytes32 clock, uint256 maxRewards) internal {
         _require(vectorClock == clock, "SYS012");
-        _require(_aliveValidators + stoppedValidators <= nextValidatorId, "SYS013");
 
         // Collect new revenue if there is any.
         _syncBalance();
@@ -595,6 +583,7 @@ contract RockXStaking is Initializable, PausableUpgradeable, AccessControlUpgrad
         // Check if new validators increased
         // and adjust rewardBase to include the new validators' value
         uint256 rewardBase = reportedValidatorBalance;
+        uint256 _aliveValidators = nextValidatorId - stoppedValidators;
         if (_aliveValidators + recentStopped > reportedValidators) {
             // newly launched validators
             uint256 newValidators = _aliveValidators + recentStopped - reportedValidators;
@@ -625,7 +614,7 @@ contract RockXStaking is Initializable, PausableUpgradeable, AccessControlUpgrad
         uint256 _aliveBalance = _aliveValidators * DEPOSIT_SIZE;  // computed balance
         _require(_aliveBalance + recentReceived + recentSlashed >= rewardBase, "SYS015");
         uint256 rewards = _aliveBalance + recentReceived + recentSlashed - rewardBase;
-        _require(rewards * 1000 / currentReserve() < limit, "SYS016");
+        _require(rewards <= maxRewards, "SYS016");
 
         _distributeRewards(rewards);
         _autocompound();
