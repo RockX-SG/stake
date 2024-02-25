@@ -856,7 +856,9 @@ contract RockXStaking is Initializable, PausableUpgradeable, AccessControlUpgrad
     /**
      * @dev return exchange ratio for 1 uniETH to ETH, multiplied by 1e18
      */
-    function exchangeRatio() public view returns (uint256) {
+    function exchangeRatio() external view returns (uint256) { return _exchangeRatioInternal(); }
+
+    function _exchangeRatioInternal() internal view returns (uint256) {
         uint256 xETHAmount = IERC20(xETHAddress).totalSupply();
         if (xETHAmount == 0) {
             return 1 * MULTIPLIER;
@@ -959,7 +961,7 @@ contract RockXStaking is Initializable, PausableUpgradeable, AccessControlUpgrad
         uint256 maxTokensToBurn = totalSupply * maxEthersToSwap / currentReserve();
 
         // record exchangRatio
-        uint256 ratio = exchangeRatio();
+        uint256 ratio = _exchangeRatioInternal();
 
         // transfer token from user and burn, substract ethers from pending ethers
         IERC20(xETHAddress).safeTransferFrom(msg.sender, address(this), maxTokensToBurn);
@@ -967,7 +969,7 @@ contract RockXStaking is Initializable, PausableUpgradeable, AccessControlUpgrad
         totalPending -= maxEthersToSwap;
 
         // a guard for calculation
-        assert(ratio == exchangeRatio());
+        assert(ratio == _exchangeRatioInternal());
 
         // transfer ethers to users
         payable(msg.sender).sendValue(maxEthersToSwap);
