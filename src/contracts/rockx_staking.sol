@@ -948,8 +948,7 @@ contract RockXStaking is Initializable, PausableUpgradeable, AccessControlUpgrad
     /** 
      * @dev instant payment as much as possbile from pending ethers at CURRENT exchangeRatio
      */
-    function instantSwapEther(uint256 tokenAmount, uint256 deadline) external nonReentrant whenNotPaused {
-        _require(block.timestamp < deadline, "USR001");
+    function instantSwapEther(uint256 tokenAmount) external nonReentrant whenNotPaused {
         _require(tokenAmount> 0, "USR006");
 
         // find max instant swappable ethers
