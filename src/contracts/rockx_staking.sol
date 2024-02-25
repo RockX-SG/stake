@@ -855,7 +855,7 @@ contract RockXStaking is Initializable, PausableUpgradeable, AccessControlUpgrad
     /**
      * @dev return exchange ratio for 1 uniETH to ETH, multiplied by 1e18
      */
-    function exchangeRatio() external view returns (uint256) {
+    function exchangeRatio() public view returns (uint256) {
         uint256 xETHAmount = IERC20(xETHAddress).totalSupply();
         if (xETHAmount == 0) {
             return 1 * MULTIPLIER;
@@ -940,6 +940,39 @@ contract RockXStaking is Initializable, PausableUpgradeable, AccessControlUpgrad
         IRockXRestaking(restakingContract).claimDelayedWithdrawals(type(uint256).max);
 
         return toMint;
+    }
+
+    /** 
+     * @dev instant payment as much as possbile from pending ethers at CURRENT exchangeRatio
+     */
+    function instantSwapEther(uint256 tokenAmount, uint256 deadline) external nonReentrant whenNotPaused {
+        _require(block.timestamp < deadline, "USR001");
+        _require(tokenAmount> 0, "USR006");
+
+        // find max instant swappable ethers
+        uint256 totalSupply = IERC20(xETHAddress).totalSupply();
+        uint256 expectedEthersToSwap =  tokenAmount * currentReserve() / totalSupply;
+        uint256 maxEthersToSwap = expectedEthersToSwap > totalPending? totalPending:expectedEthersToSwap;
+
+        // reverse calculation for how much token to burn.
+        uint256 maxTokensToBurn = totalSupply * maxEthersToSwap / currentReserve();
+
+        // record exchangRatio
+        uint256 ratio = exchangeRatio();
+
+        // transfer token from user and burn, substract ethers from pending ethers
+        IERC20(xETHAddress).safeTransferFrom(msg.sender, address(this), maxTokensToBurn);
+        IMintableContract(xETHAddress).burn(maxTokensToBurn);
+        totalPending -= maxEthersToSwap;
+
+        // a guard for calculation
+        assert(ratio == exchangeRatio());
+
+        // transfer ethers to users
+        payable(msg.sender).sendValue(maxEthersToSwap);
+
+        // track balance change
+        _balanceDecrease(maxEthersToSwap);
     }
 
     /**
