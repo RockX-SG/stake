@@ -22,6 +22,7 @@ import "@openzeppelin/contracts-upgradeable/proxy/utils/Initializable.sol";
 import "@openzeppelin/contracts-upgradeable/access/AccessControlUpgradeable.sol";
 import "@openzeppelin/contracts-upgradeable/security/PausableUpgradeable.sol";
 import "@openzeppelin/contracts-upgradeable/security/ReentrancyGuardUpgradeable.sol";
+import "@openzeppelin/contracts/utils/math/SafeCast.sol";
 
 
 /**
@@ -546,10 +547,10 @@ contract RockXStaking is Initializable, PausableUpgradeable, AccessControlUpgrad
         IRockXRestaking(restakingContract).withdrawBeforeRestaking();
         IRockXRestaking(restakingContract).claimDelayedWithdrawals(type(uint256).max);
 
-        assert(int256(address(this).balance) >= accountedBalance);
-        uint256 diff = uint256(int256(address(this).balance) - accountedBalance);
+        assert(SafeCast.toInt256(address(this).balance) >= accountedBalance);
+        uint256 diff = SafeCast.toUint256(SafeCast.toInt256(address(this).balance) - accountedBalance);
         if (diff > 0) {
-            accountedBalance = int256(address(this).balance);
+            accountedBalance = SafeCast.toInt256(address(this).balance);
             recentReceived += diff;
             _vectorClockTick();
             emit BalanceSynced(diff);
@@ -1017,8 +1018,8 @@ contract RockXStaking is Initializable, PausableUpgradeable, AccessControlUpgrad
      * ======================================================================================
      */
 
-    function _balanceIncrease(uint256 amount) internal { accountedBalance += int256(amount); }
-    function _balanceDecrease(uint256 amount) internal { accountedBalance -= int256(amount); }
+    function _balanceIncrease(uint256 amount) internal { accountedBalance += SafeCast.toInt256(amount); }
+    function _balanceDecrease(uint256 amount) internal { accountedBalance -= SafeCast.toInt256(amount); }
 
     function _vectorClockTick() internal {
         vectorClockTicks++;
