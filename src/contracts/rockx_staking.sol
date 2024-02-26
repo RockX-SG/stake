@@ -506,32 +506,31 @@ contract RockXStaking is Initializable, PausableUpgradeable, AccessControlUpgrad
     /**
      * @dev manager withdraw fees as uniETH
      */
-    function withdrawManagerFee(uint256 amount, address to) external nonReentrant onlyRole(MANAGER_ROLE)  {
-        _syncBalance();
-        
-        _require(amount <= accountedManagerRevenue, "SYS010");
-        // debts + userRevenue + managersRevenue + pending ethers
-        _require(address(this).balance >= amount + totalPending + totalDebts, "SYS011");
+    function withdrawManagerFee(address to) external nonReentrant onlyRole(MANAGER_ROLE) {
+        _compoundManagerRevenue();
+        IERC20(xETHAddress).safeTransfer(to, IERC20(xETHAddress).balanceOf(address(this)));
+    }
 
-        // mint uniETH while keeping the exchange ratio invariant
-        uint256 totalXETH = IERC20(xETHAddress).totalSupply();
+    /**
+     * @dev compound manager's revenue
+     */
+    function _compoundManagerRevenue() internal {
+        uint256 amountEthers = accountedManagerRevenue;
+        uint256 totalSupply = IERC20(xETHAddress).totalSupply();
         uint256 totalEthers = currentReserve();
-        uint256 toMint = 1 * amount;  // default exchange ratio 1:1
+        uint256 tokensToMint = totalSupply * amountEthers / totalEthers;
+        uint256 ratio = _exchangeRatioInternal();
 
-        if (totalEthers > 0) { // avert division overflow
-            toMint = totalXETH * amount / totalEthers;
-        }
+        // swapping
+        IMintableContract(xETHAddress).mint(address(this), tokensToMint);
+        totalPending += amountEthers;
+        accountedManagerRevenue -= amountEthers;
+        assert(accountedManagerRevenue == 0);
 
-        // NOTE: the following procdure must keep exchangeRatio invariant:
-        // mint equivalent `uniETH` to `amount`
-        IMintableContract(xETHAddress).mint(to, toMint);
+        // guarantee exchangeRatio invariant:
+        assert(ratio == _exchangeRatioInternal());
 
-        // track balance change:
-        // shift manager's revenue from accountedManagerRevenue to totalPending
-        totalPending += amount;
-        accountedManagerRevenue -= amount;
-
-        emit ManagerFeeWithdrawed(amount, to);
+        emit ManagerRevenueCompounded(amountEthers);
     }
 
     /**
@@ -619,6 +618,7 @@ contract RockXStaking is Initializable, PausableUpgradeable, AccessControlUpgrad
 
         _distributeRewards(rewards);
         _autocompound();
+        _compoundManagerRevenue();
 
         // Update reportedValidators & reportedValidatorBalance
         // reset the recentReceived to 0
@@ -629,12 +629,6 @@ contract RockXStaking is Initializable, PausableUpgradeable, AccessControlUpgrad
         recentStopped = 0;
     }
 
-    /**
-     * @dev emergentFixRecentReceived
-     */
-    function emergentFixRecentReceived(uint256 diff) external onlyRole(DEFAULT_ADMIN_ROLE) {
-        recentReceived += diff;
-    }
     /**
      * @dev notify some validators stopped, and pay the debts
      */
@@ -1219,4 +1213,5 @@ contract RockXStaking is Initializable, PausableUpgradeable, AccessControlUpgrad
     event BalanceSynced(uint256 diff);
     event WhiteListToggle(address account, bool enabled);
     event AutoCompoundToggle(bool enabled);
+    event ManagerRevenueCompounded(uint256 amount);
 }
