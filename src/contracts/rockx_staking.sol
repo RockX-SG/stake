@@ -200,7 +200,7 @@ contract RockXStaking is Initializable, PausableUpgradeable, AccessControlUpgrad
     int256 private accountedBalance;                // tracked balance change in functions,
                                                     // NOTE(x): balance might be negative for not accounting validators's redeeming
 
-    uint256 private recentSlashed;                  // track recently slashed value
+    uint256 private __DEPRECATED_recentSlashed;     // track recently slashed value
     uint256 private recentReceived;                 // track recently received (un-accounted) value into this contract
     bytes32 private vectorClock;                    // a vector clock for detecting receive() & pushBeacon() causality violations
     uint256 private vectorClockTicks;               // record current vector clock step;
@@ -596,24 +596,15 @@ contract RockXStaking is Initializable, PausableUpgradeable, AccessControlUpgrad
         // During two consecutive pushBeacon operation, the ethers will ONLY: 
         //  1. staked to new validators
         //  2. move from active validators to this contract
-        //  3. slashed and stopped then the remaining ethers returned to this contract
         // 
         // so, at any time, revenue generated if:
         //
         //  current active validator balance 
         //      + recent received from validators(since last pushBeacon) 
-        //      + recent slashed(since last pushBeacon)
         //  >（GREATER THAN) reward base(last active validator balance + new nodes balance)
-        //
-        // NOTE(x): recentSlashed is accounted here, then we can adjust the basepoint to current alive validator balance.
-        //   eg:
-        //          _aliveBalance = 0 （slashed)
-        //          recentReceived = 16 ETH (the ethers left)
-        //          recentSlashed = 16 ETH (assumed slashed ethers)
-        // 
         uint256 _aliveBalance = _aliveValidators * DEPOSIT_SIZE;  // computed balance
-        _require(_aliveBalance + recentReceived + recentSlashed >= rewardBase, "SYS015");
-        uint256 rewards = _aliveBalance + recentReceived + recentSlashed - rewardBase;
+        _require(_aliveBalance + recentReceived >= rewardBase, "SYS015");
+        uint256 rewards = _aliveBalance + recentReceived - rewardBase;
         _require(rewards <= maxRewards, "SYS016");
 
         _distributeRewards(rewards);
@@ -625,7 +616,6 @@ contract RockXStaking is Initializable, PausableUpgradeable, AccessControlUpgrad
         reportedValidatorBalance = _aliveBalance; 
         reportedValidators = _aliveValidators;
         recentReceived = 0;
-        recentSlashed = 0;
         recentStopped = 0;
     }
 
@@ -667,41 +657,6 @@ contract RockXStaking is Initializable, PausableUpgradeable, AccessControlUpgrad
         // log
         emit ValidatorStopped(_stoppedPubKeys.length);
 
-        // vector clock moves
-        _vectorClockTick();
-    }
-
-    /**
-     * @dev notify some validators has been slashed, turn off those stopped validator
-     */
-    function validatorSlashedStop(bytes [] calldata _stoppedPubKeys, bytes32 clock) external nonReentrant onlyRole(ORACLE_ROLE) {
-        _require(vectorClock == clock, "SYS012");
-        uint256 amountUnstaked = _stoppedPubKeys.length * DEPOSIT_SIZE;
-        _require(_stoppedPubKeys.length > 0, "SYS017");
-        _require(address(this).balance >= _stoppedPubKeys.length * 16 ether + totalPending + accountedManagerRevenue, "SYS019");
-
-        // record slashed validators.
-        for (uint i=0;i<_stoppedPubKeys.length;i++) {
-            bytes32 pubkeyHash = keccak256(_stoppedPubKeys[i]);
-            _require(pubkeyIndices[pubkeyHash] > 0, "SYS006");
-            uint256 index = pubkeyIndices[pubkeyHash] - 1;
-            _require(!validatorRegistry[index].stopped, "SYS020");
-            validatorRegistry[index].stopped = true;
-        }
-        stoppedValidators += _stoppedPubKeys.length;
-        recentStopped += _stoppedPubKeys.length;
-
-        // currentReserve changed to:
-        // (totalPending + 16 ETH) + (totalStaked - amountUnstaked) + accountedUserRevenue - rewardDebt - totalDebts
-        //  the remaining part(revenue) will be taken as the accruing rewards of existing holders.
-        totalStaked -= amountUnstaked;
-        totalPending += _stoppedPubKeys.length * 16 ether;
-        // track recent slashed
-        recentSlashed += _stoppedPubKeys.length * 16 ether;
-
-        // log
-        emit ValidatorSlashedStopped(_stoppedPubKeys.length);
-        
         // vector clock moves
         _vectorClockTick();
     }
@@ -771,10 +726,6 @@ contract RockXStaking is Initializable, PausableUpgradeable, AccessControlUpgrad
      */
     function getReportedValidatorBalance() external view returns (uint256) { return reportedValidatorBalance; }
 
-    /*
-     * @dev returns recent slashed value
-     */
-    function getRecentSlashed() external view returns (uint256) { return recentSlashed; }
     /*
      * @dev returns recent received value
      */

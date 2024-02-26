@@ -16,7 +16,6 @@ interface IStaking {
   function getPendingEthers (  ) external view returns ( uint256 );
   function getQuota ( address account ) external view returns ( uint256 );
   function getRecentReceived (  ) external view returns ( uint256 );
-  function getRecentSlashed (  ) external view returns ( uint256 );
   function getRecentStopped (  ) external view returns ( uint256 );
   function getRegisteredValidators ( uint256 idx_from, uint256 idx_to ) external view returns ( bytes[] memory pubkeys, bytes[] memory signatures, bool[] memory stopped );
   function getRegisteredValidatorsCount (  ) external view returns ( uint256 );
