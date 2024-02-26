@@ -942,16 +942,20 @@ contract RockXStaking is Initializable, PausableUpgradeable, AccessControlUpgrad
     /** 
      * @dev instant payment as much as possbile from pending ethers at CURRENT exchangeRatio
      */
-    function instantSwapEther(uint256 tokenAmount) external nonReentrant whenNotPaused {
+    function previewInstantSwap(uint256 tokenAmount) external view returns(
+        uint256 maxEthersToSwap,
+        uint256 maxTokensToBurn
+    ) {
+        return _instantSwapRate(tokenAmount);
+    }
+
+
+    /** 
+     * @dev instant payment as much as possbile from pending ethers at CURRENT exchangeRatio
+     */
+    function instantSwap(uint256 tokenAmount) external nonReentrant whenNotPaused {
         _require(tokenAmount > 0, "USR006");
-
-        // find max instant swappable ethers
-        uint256 totalSupply = IERC20(xETHAddress).totalSupply();
-        uint256 expectedEthersToSwap =  tokenAmount * currentReserve() / totalSupply;
-        uint256 maxEthersToSwap = expectedEthersToSwap > totalPending? totalPending:expectedEthersToSwap;
-
-        // reverse calculation for how much token to burn.
-        uint256 maxTokensToBurn = totalSupply * maxEthersToSwap / currentReserve();
+        (uint256 maxTokensToBurn, uint256 maxEthersToSwap) = _instantSwapRate(tokenAmount);
         _require(maxTokensToBurn > 0 && maxEthersToSwap > 0, "USR007");
 
         // record exchangRatio
@@ -970,6 +974,21 @@ contract RockXStaking is Initializable, PausableUpgradeable, AccessControlUpgrad
 
         // track balance change
         _balanceDecrease(maxEthersToSwap);
+    }
+
+    /**
+     * @dev internal function for the calculation of max allowed instant swap rate
+     */
+    function _instantSwapRate(uint256 tokenAmount) internal view returns (
+        uint256 maxEthersToSwap,
+        uint256 maxTokensToBurn
+    ) {
+        // find max instant swappable ethers
+        uint256 totalSupply = IERC20(xETHAddress).totalSupply();
+        uint256 expectedEthersToSwap =  tokenAmount * currentReserve() / totalSupply;
+        maxEthersToSwap = expectedEthersToSwap > totalPending ? totalPending:expectedEthersToSwap;
+        // reverse calculation for how much token to burn.
+        maxTokensToBurn = totalSupply * maxEthersToSwap / currentReserve();
     }
 
     /**
