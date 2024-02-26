@@ -28,10 +28,11 @@ interface IStaking {
   function getStoppedValidatorsCount (  ) external view returns ( uint256 );
   function getTotalStaked (  ) external view returns ( uint256 );
   function getVectorClock (  ) external view returns ( bytes32 );
-  function instantSwapEther ( uint256 tokenAmount ) external;
+  function instantSwap ( uint256 tokenAmount ) external;
   function managerFeeShare (  ) external view returns ( uint256 );
   function mint ( uint256 minToMint, uint256 deadline ) external returns ( uint256 minted );
   function pushBeacon (  ) external;
+  function previewInstantSwap ( uint256 tokenAmount ) external view returns ( uint256 maxEthersToSwap, uint256 maxTokensToBurn );
   function redeemContract (  ) external view returns ( address );
   function redeemFromValidators ( uint256 ethersToRedeem, uint256 maxToBurn, uint256 deadline ) external returns ( uint256 burned );
   function restakingContract (  ) external view returns ( address );
