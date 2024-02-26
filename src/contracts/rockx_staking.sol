@@ -506,7 +506,7 @@ contract RockXStaking is Initializable, PausableUpgradeable, AccessControlUpgrad
     /**
      * @dev manager withdraw fees as uniETH
      */
-    function withdrawManagerFee(address to) external nonReentrant onlyRole(MANAGER_ROLE) {
+    function withdrawManagerFee(address to) external onlyRole(MANAGER_ROLE) {
         _compoundManagerRevenue();
         IERC20(xETHAddress).safeTransfer(to, IERC20(xETHAddress).balanceOf(address(this)));
     }
