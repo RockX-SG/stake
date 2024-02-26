@@ -943,7 +943,7 @@ contract RockXStaking is Initializable, PausableUpgradeable, AccessControlUpgrad
      * @dev instant payment as much as possbile from pending ethers at CURRENT exchangeRatio
      */
     function instantSwapEther(uint256 tokenAmount) external nonReentrant whenNotPaused {
-        _require(tokenAmount> 0, "USR006");
+        _require(tokenAmount > 0, "USR006");
 
         // find max instant swappable ethers
         uint256 totalSupply = IERC20(xETHAddress).totalSupply();
@@ -952,6 +952,7 @@ contract RockXStaking is Initializable, PausableUpgradeable, AccessControlUpgrad
 
         // reverse calculation for how much token to burn.
         uint256 maxTokensToBurn = totalSupply * maxEthersToSwap / currentReserve();
+        _require(maxTokensToBurn > 0 && maxEthersToSwap > 0, "USR007");
 
         // record exchangRatio
         uint256 ratio = _exchangeRatioInternal();
