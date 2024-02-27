@@ -121,7 +121,7 @@ def main():
     transparent_staking.stake({'from':owner})
     print("currentReserve:", transparent_staking.currentReserve())
     print("pushBeacon 32.1 ethers")
-    transparent_staking.pushBeacon(1, transparent_staking.getVectorClock(), {'from':owner})
+    transparent_staking.pushBeacon({'from':owner})
     print("redeem 32 ether")
     transparent_staking.redeemFromValidators('32 ethers', '33 ethers', time.time() + 600, {'from':owner})
     accounts[0].transfer(transparent_staking.address, '32.1 ethers')
@@ -130,7 +130,7 @@ def main():
     print("validator stopped exchangeRatio before:", transparent_staking.exchangeRatio())
     transparent_staking.validatorStopped([0x97d717d346868b9df4851684d5219f4deb4c7388ee1454c9b46837d29b40150ceeb5825d791f993b03745427b6cbe6db], vectorClock, {'from':accounts[0]})
     print("pushBeacon 0 ethers")
-    transparent_staking.pushBeacon(0, transparent_staking.getVectorClock() , {'from':owner})
+    transparent_staking.pushBeacon({'from':owner})
     print("validator stopped exchangeRatio after:", transparent_staking.exchangeRatio())
 
     print("===== whitelist test ========")
