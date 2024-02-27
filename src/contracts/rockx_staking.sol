@@ -641,19 +641,22 @@ contract RockXStaking is Initializable, PausableUpgradeable, AccessControlUpgrad
         recentStopped += _stoppedPubKeys.length;
 
         // NOTE(x) The following procedure MUST keep currentReserve unchanged:
-        // ASSUMING: paid == amountUnstaked
-        // 
-        // totalPending + (totalStaked - amountUnstaked) + accountedUserRevenue - rewardDebt - (totalDebts - paid)
-        //  ==
-        //  totalPending + totalStaked + accountedUserRevenue - totalDebts - rewardDebt
-        //
-
+        uint256 ratio = _exchangeRatioInternal();
         // pay debts
         uint256 paid = _payDebts(amountUnstaked);
-        _require(paid == amountUnstaked, "SYS021");
+        assert(paid % DEPOSIT_SIZE == 0);   // debts are in N * 32ETH
+
         // track total staked ethers
         totalStaked -= amountUnstaked;
-        
+
+        // CAUTION: for unexpected exiting of validators, 
+        // we put back the extra ethers back to pending queue.
+        uint256 remain = amountUnstaked - paid;
+        totalPending += remain;
+
+        // a guard for calculation
+        assert(ratio == _exchangeRatioInternal());
+
         // log
         emit ValidatorStopped(_stoppedPubKeys.length);
 
