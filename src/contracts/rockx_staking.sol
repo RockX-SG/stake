@@ -519,16 +519,14 @@ contract RockXStaking is Initializable, PausableUpgradeable, AccessControlUpgrad
         uint256 totalSupply = IERC20(xETHAddress).totalSupply();
         uint256 totalEthers = currentReserve();
         uint256 tokensToMint = totalSupply * amountEthers / totalEthers;
-        uint256 ratio = _exchangeRatioInternal();
 
         // swapping
+        uint256 ratio = _exchangeRatioInternal();           // RATIO GUARD BEGIN
         IMintableContract(xETHAddress).mint(address(this), tokensToMint);
         totalPending += amountEthers;
         accountedManagerRevenue -= amountEthers;
         assert(accountedManagerRevenue == 0);
-
-        // guarantee exchangeRatio invariant:
-        assert(ratio == _exchangeRatioInternal());
+        assert(ratio == _exchangeRatioInternal());          // RATIO GUARD BEGIN
 
         emit ManagerRevenueCompounded(amountEthers);
     }
@@ -641,7 +639,7 @@ contract RockXStaking is Initializable, PausableUpgradeable, AccessControlUpgrad
         recentStopped += _stoppedPubKeys.length;
 
         // NOTE(x) The following procedure MUST keep currentReserve unchanged:
-        uint256 ratio = _exchangeRatioInternal();
+        uint256 ratio = _exchangeRatioInternal();           // RATIO GUARD BEGIN
         // pay debts
         uint256 paid = _payDebts(amountUnstaked);
         assert(paid % DEPOSIT_SIZE == 0);   // debts are in N * 32ETH
@@ -653,9 +651,7 @@ contract RockXStaking is Initializable, PausableUpgradeable, AccessControlUpgrad
         // we put back the extra ethers back to pending queue.
         uint256 remain = amountUnstaked - paid;
         totalPending += remain;
-
-        // a guard for calculation
-        assert(ratio == _exchangeRatioInternal());
+        assert(ratio == _exchangeRatioInternal());          // RATIO GUARD END
 
         // log
         emit ValidatorStopped(_stoppedPubKeys.length);
@@ -912,16 +908,12 @@ contract RockXStaking is Initializable, PausableUpgradeable, AccessControlUpgrad
         (uint256 maxEthersToSwap, uint256 maxTokensToBurn) = _instantSwapRate(tokenAmount);
         _require(maxTokensToBurn > 0 && maxEthersToSwap > 0, "USR007");
 
-        // record exchangRatio
-        uint256 ratio = _exchangeRatioInternal();
-
+        uint256 ratio = _exchangeRatioInternal();               // RATIO GUARD BEGIN
         // transfer token from user and burn, substract ethers from pending ethers
         IERC20(xETHAddress).safeTransferFrom(msg.sender, address(this), maxTokensToBurn);
         IMintableContract(xETHAddress).burn(maxTokensToBurn);
         totalPending -= maxEthersToSwap;
-
-        // a guard for calculation
-        assert(ratio == _exchangeRatioInternal());
+        assert(ratio == _exchangeRatioInternal());              // RATIO GUARD END
 
         // transfer ethers to users
         payable(msg.sender).sendValue(maxEthersToSwap);
@@ -965,11 +957,11 @@ contract RockXStaking is Initializable, PausableUpgradeable, AccessControlUpgrad
 
         // NOTE: the following procdure must keep exchangeRatio invariant:
         // transfer xETH from sender & burn
+        uint256 ratio = _exchangeRatioInternal();           // RATIO GUARD BEGIN
         IERC20(xETHAddress).safeTransferFrom(msg.sender, address(this), xETHToBurn);
         IMintableContract(xETHAddress).burn(xETHToBurn);
-
-        // queue ether debts
-        _enqueueDebt(msg.sender, ethersToRedeem);
+        _enqueueDebt(msg.sender, ethersToRedeem);           // queue ether debts
+        assert(ratio == _exchangeRatioInternal());          // RATIO GUARD END
 
         // try to initiate restaking operations
         IRockXRestaking(restakingContract).withdrawBeforeRestaking();
