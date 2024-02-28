@@ -10,7 +10,8 @@ def main():
     print(f'contract owner account: {deployer.address}\n')
 
     gmpArbitrumGoerliGateway = "0xe432150cce91c13a887f7D836923d5597adD8E31"
-    ratio_receiver_contract = ExchangeRatioReceiver.deploy( gmpArbitrumGoerliGateway,
+    gmpSender = "0x00"
+    ratio_receiver_contract = ExchangeRatioReceiver.deploy( gmpArbitrumGoerliGateway,gmpSender,
             {'from': deployer}, 
             )
 

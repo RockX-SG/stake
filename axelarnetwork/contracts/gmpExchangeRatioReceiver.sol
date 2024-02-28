@@ -18,9 +18,12 @@ import { AxelarExecutable } from '@axelar-network/axelar-gmp-sdk-solidity/contra
 
 contract ExchangeRatioReceiver is AxelarExecutable {
     uint256 private exchangeRatio; 
+    string public gmpSender;
     event Received(uint256 exchangeRatio);
 
-    constructor(address gateway_) AxelarExecutable(gateway_) {
+    constructor(address gateway_, string memory gmpSender_) AxelarExecutable(gateway_) {
+        require(bytes(gmpSender_).length == 42,"invalid address string");
+        gmpSender = gmpSender_;
     }
 
     function _execute(
@@ -28,6 +31,7 @@ contract ExchangeRatioReceiver is AxelarExecutable {
         string calldata sourceAddress,
         bytes calldata payload_
     ) internal override {
+        require(keccak256(bytes(sourceAddress)) == keccak256(bytes(gmpSender)), "bad sender");
         exchangeRatio = abi.decode(payload_, (uint256));
         emit Received(exchangeRatio);
     }
