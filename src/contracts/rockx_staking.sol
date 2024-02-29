@@ -154,6 +154,7 @@ contract RockXStaking is Initializable, PausableUpgradeable, AccessControlUpgrad
     bytes32 public constant PAUSER_ROLE = keccak256("PAUSER_ROLE");
     uint256 public constant DEPOSIT_SIZE = 32 ether;
     uint256 public constant SAFE_PUSH_REWARDS = 30 ether;
+    uint256 public constant MIN_MANAGER_COMPOUND = 1 ether;
 
     uint256 private constant MULTIPLIER = 1e18; 
     uint256 private constant DEPOSIT_AMOUNT_UNIT = 1000000000 wei;
@@ -515,20 +516,24 @@ contract RockXStaking is Initializable, PausableUpgradeable, AccessControlUpgrad
      * @dev compound manager's revenue
      */
     function _compoundManagerRevenue() internal {
-        uint256 amountEthers = accountedManagerRevenue;
-        uint256 totalSupply = IERC20(xETHAddress).totalSupply();
-        uint256 totalEthers = currentReserve();
-        uint256 tokensToMint = totalSupply * amountEthers / totalEthers;
+        if (accountedManagerRevenue >= MIN_MANAGER_COMPOUND) { 
+            // only compound if we have more than minimum required
+            // otherwise, the gas cost may exceed revenue.
+            uint256 amountEthers = accountedManagerRevenue;
+            uint256 totalSupply = IERC20(xETHAddress).totalSupply();
+            uint256 totalEthers = currentReserve();
+            uint256 tokensToMint = totalSupply * amountEthers / totalEthers;
 
-        // swapping
-        uint256 ratio = _exchangeRatioInternal();           // RATIO GUARD BEGIN
-        IMintableContract(xETHAddress).mint(address(this), tokensToMint);
-        totalPending += amountEthers;
-        accountedManagerRevenue -= amountEthers;
-        assert(accountedManagerRevenue == 0);
-        assert(ratio == _exchangeRatioInternal());          // RATIO GUARD BEGIN
+            // swapping
+            uint256 ratio = _exchangeRatioInternal();           // RATIO GUARD BEGIN
+            IMintableContract(xETHAddress).mint(address(this), tokensToMint);
+            totalPending += amountEthers;
+            accountedManagerRevenue -= amountEthers;
+            assert(accountedManagerRevenue == 0);
+            assert(ratio == _exchangeRatioInternal());          // RATIO GUARD BEGIN
 
-        emit ManagerRevenueCompounded(amountEthers);
+            emit ManagerRevenueCompounded(amountEthers);
+        }
     }
 
     /**
