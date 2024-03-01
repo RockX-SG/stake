@@ -902,10 +902,11 @@ contract RockXStaking is Initializable, PausableUpgradeable, AccessControlUpgrad
     ) {
         // find max instant swappable ethers
         uint256 totalSupply = IERC20(xETHAddress).totalSupply();
-        uint256 expectedEthersToSwap =  tokenAmount * currentReserve() / totalSupply;
+        uint256 currentReserve = currentReserve();
+        uint256 expectedEthersToSwap =  tokenAmount * currentReserve / totalSupply;
         maxEthersToSwap = expectedEthersToSwap > totalPending ? totalPending:expectedEthersToSwap;
         // reverse calculation for how much token to burn.
-        maxTokensToBurn = totalSupply * maxEthersToSwap / currentReserve();
+        maxTokensToBurn = totalSupply * maxEthersToSwap / currentReserve;
     }
 
     /**
