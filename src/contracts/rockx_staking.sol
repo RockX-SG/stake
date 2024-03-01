@@ -677,7 +677,7 @@ contract RockXStaking is Initializable, PausableUpgradeable, AccessControlUpgrad
     function getPendingEthers() external view returns (uint256) { return totalPending; }
 
     /**
-     * @dev return reward debts
+     * @dev return reward debts(total compounded ethers)
      */
     function getRewardDebts() external view returns (uint256) { return rewardDebts; }
 
@@ -837,12 +837,6 @@ contract RockXStaking is Initializable, PausableUpgradeable, AccessControlUpgrad
         _require(block.timestamp < deadline, "USR001");
         _require(msg.value > 0, "USR002");
 
-        // for non KYC users, check the quota
-        if (!whiteList[msg.sender]) {
-            _require(quotaUsed[msg.sender] + msg.value <= 50000 ether, "USR003");
-            quotaUsed[msg.sender] += msg.value;
-        }
-        
         // track balance
         _balanceIncrease(msg.value);
 
@@ -862,10 +856,6 @@ contract RockXStaking is Initializable, PausableUpgradeable, AccessControlUpgrad
 
         // try to initiate stake()
         _stakeInternal();
-
-        // try to initiate restaking operations
-        IRockXRestaking(restakingContract).withdrawBeforeRestaking();
-        IRockXRestaking(restakingContract).claimDelayedWithdrawals(type(uint256).max);
 
         return toMint;
     }
@@ -943,10 +933,6 @@ contract RockXStaking is Initializable, PausableUpgradeable, AccessControlUpgrad
         IMintableContract(xETHAddress).burn(xETHToBurn);
         _enqueueDebt(msg.sender, ethersToRedeem);           // queue ether debts
         assert(ratio == _exchangeRatioInternal());          // RATIO GUARD END
-
-        // try to initiate restaking operations
-        IRockXRestaking(restakingContract).withdrawBeforeRestaking();
-        IRockXRestaking(restakingContract).claimDelayedWithdrawals(type(uint256).max);
 
         // return burned 
         return xETHToBurn;
