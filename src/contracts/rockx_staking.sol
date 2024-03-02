@@ -1125,7 +1125,7 @@ contract RockXStaking is Initializable, PausableUpgradeable, AccessControlUpgrad
     /**
      * ======================================================================================
      * 
-     * ROCKX SYSTEM EVENTS
+     * CONTRCT EVENTS
      *
      * ======================================================================================
      */
