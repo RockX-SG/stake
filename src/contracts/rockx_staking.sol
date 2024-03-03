@@ -858,9 +858,8 @@ contract RockXStaking is Initializable, PausableUpgradeable, AccessControlUpgrad
      * @dev instant payment as much as possbile from pending ethers at CURRENT exchangeRatio
      */
     function instantSwap(uint256 tokenAmount) external nonReentrant whenNotPaused {
-        _require(tokenAmount > 0, "USR006");
         (uint256 maxEthersToSwap, uint256 maxTokensToBurn) = _instantSwapRate(tokenAmount);
-        _require(maxTokensToBurn > 0 && maxEthersToSwap > 0, "USR007");
+        // _require(maxTokensToBurn > 0 && maxEthersToSwap > 0, "USR007");
 
         uint256 ratio = _exchangeRatioInternal();               // RATIO GUARD BEGIN
         // transfer token from user and burn, substract ethers from pending ethers
