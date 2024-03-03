@@ -489,7 +489,7 @@ contract RockXStaking is Initializable, PausableUpgradeable, AccessControlUpgrad
             totalPending += amountEthers;
             accountedManagerRevenue -= amountEthers;
             assert(accountedManagerRevenue == 0);
-            assert(ratio == _exchangeRatioInternal());          // RATIO GUARD BEGIN
+            assert(ratio == _exchangeRatioInternal());          // RATIO GUARD END
 
             emit ManagerRevenueCompounded(amountEthers);
         }
@@ -816,7 +816,7 @@ contract RockXStaking is Initializable, PausableUpgradeable, AccessControlUpgrad
     /**
      * @dev mint xETH with ETH
      */
-    function mint(uint256 minToMint, uint256 deadline) external payable nonReentrant whenNotPaused returns(uint256 minted){
+    function mint(uint256 minToMint, uint256 deadline) external payable nonReentrant whenNotPaused returns(uint256 minted) {
         _require(block.timestamp < deadline, "USR001");
         _require(msg.value > 0, "USR002");
 
@@ -832,10 +832,13 @@ contract RockXStaking is Initializable, PausableUpgradeable, AccessControlUpgrad
             toMint = totalXETH * msg.value / totalEthers;
         }
 
-        // mint xETH
         _require(toMint >= minToMint, "USR004");
+
+        // mint token while keeping exchange ratio invariant
+        uint256 ratio = _exchangeRatioInternal();           // RATIO GUARD BEGIN
         IMintableContract(xETHAddress).mint(msg.sender, toMint);
         totalPending += msg.value;
+        assert(ratio == _exchangeRatioInternal());          // RATIO GUARD END
 
         // try to initiate stake()
         _stakeInternal();
