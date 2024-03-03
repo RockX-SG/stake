@@ -421,15 +421,6 @@ contract RockXStaking is Initializable, PausableUpgradeable, AccessControlUpgrad
     }
 
     /**
-     * @dev set xETH token contract address
-     */
-    function setXETHContractAddress(address _xETHContract) external onlyRole(DEFAULT_ADMIN_ROLE) {
-        xETHAddress = _xETHContract;
-
-        emit XETHContractSet(_xETHContract);
-    }
-
-    /**
      * @dev set eth deposit contract address
      */
     function setETHDepositContract(address _ethDepositContract) external onlyRole(DEFAULT_ADMIN_ROLE) {
@@ -438,14 +429,6 @@ contract RockXStaking is Initializable, PausableUpgradeable, AccessControlUpgrad
         emit DepositContractSet(_ethDepositContract);
     }
 
-    /**
-     * @dev set redeem contract
-     */
-    function setRedeemContract(address _redeemContract) external onlyRole(DEFAULT_ADMIN_ROLE) {
-        redeemContract = _redeemContract;
-
-        emit RedeemContractSet(_redeemContract);
-    }
 
     /**
      * @dev set withdraw credential to receive revenue, usually this should be the contract itself.
@@ -978,8 +961,6 @@ contract RockXStaking is Initializable, PausableUpgradeable, AccessControlUpgrad
      * @dev pay debts for a given amount
      */
     function _payDebts(uint256 total) internal returns(uint256 amountPaid) {
-        _require(address(redeemContract) != address(0x0), "SYS023");
-
         // ethers to pay
         for (uint i=firstDebt;i<=lastDebt;i++) {
             if (total == 0) {
@@ -1139,9 +1120,7 @@ contract RockXStaking is Initializable, PausableUpgradeable, AccessControlUpgrad
     event WithdrawCredentialSet(bytes32 withdrawCredential);
     event RestakingAddressSet(address addr);
     event DebtQueued(address creditor, uint256 amountEther);
-    event XETHContractSet(address addr);
     event DepositContractSet(address addr);
-    event RedeemContractSet(address addr);
     event BalanceSynced(uint256 diff);
     event WhiteListToggle(address account, bool enabled);
     event AutoCompoundToggle(bool enabled);
