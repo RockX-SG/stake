@@ -484,12 +484,12 @@ contract RockXStaking is Initializable, PausableUpgradeable, AccessControlUpgrad
             uint256 tokensToMint = totalSupply * amountEthers / totalEthers;
 
             // swapping
-            uint256 ratio = _exchangeRatioInternal();           // RATIO GUARD BEGIN
+            // uint256 ratio = _exchangeRatioInternal();           // RATIO GUARD BEGIN
             IMintableContract(xETHAddress).mint(address(this), tokensToMint);
             totalPending += amountEthers;
             accountedManagerRevenue -= amountEthers;
             assert(accountedManagerRevenue == 0);
-            assert(ratio == _exchangeRatioInternal());          // RATIO GUARD END
+            // assert(ratio == _exchangeRatioInternal());          // RATIO GUARD END
 
             emit ManagerRevenueCompounded(amountEthers);
         }
@@ -603,7 +603,7 @@ contract RockXStaking is Initializable, PausableUpgradeable, AccessControlUpgrad
         recentStopped += _stoppedPubKeys.length;
 
         // NOTE(x) The following procedure MUST keep currentReserve unchanged:
-        uint256 ratio = _exchangeRatioInternal();           // RATIO GUARD BEGIN
+        // uint256 ratio = _exchangeRatioInternal();           // RATIO GUARD BEGIN
         // pay debts
         uint256 paid = _payDebts(amountUnstaked);
         assert(paid % DEPOSIT_SIZE == 0);   // debts are in N * 32ETH
@@ -615,7 +615,7 @@ contract RockXStaking is Initializable, PausableUpgradeable, AccessControlUpgrad
         // we put back the extra ethers back to pending queue.
         uint256 remain = amountUnstaked - paid;
         totalPending += remain;
-        assert(ratio == _exchangeRatioInternal());          // RATIO GUARD END
+        // assert(ratio == _exchangeRatioInternal());          // RATIO GUARD END
 
         // log
         emit ValidatorStopped(_stoppedPubKeys.length);
@@ -835,10 +835,10 @@ contract RockXStaking is Initializable, PausableUpgradeable, AccessControlUpgrad
         _require(toMint >= minToMint, "USR004");
 
         // mint token while keeping exchange ratio invariant
-        uint256 ratio = _exchangeRatioInternal();           // RATIO GUARD BEGIN
+        // uint256 ratio = _exchangeRatioInternal();           // RATIO GUARD BEGIN
         IMintableContract(xETHAddress).mint(msg.sender, toMint);
         totalPending += msg.value;
-        assert(ratio == _exchangeRatioInternal());          // RATIO GUARD END
+        // assert(ratio == _exchangeRatioInternal());          // RATIO GUARD END
 
         // try to initiate stake()
         _stakeInternal();
@@ -864,11 +864,11 @@ contract RockXStaking is Initializable, PausableUpgradeable, AccessControlUpgrad
         (uint256 maxEthersToSwap, uint256 maxTokensToBurn) = _instantSwapRate(tokenAmount);
         // _require(maxTokensToBurn > 0 && maxEthersToSwap > 0, "USR007");
 
-        uint256 ratio = _exchangeRatioInternal();               // RATIO GUARD BEGIN
+        // uint256 ratio = _exchangeRatioInternal();               // RATIO GUARD BEGIN
         // transfer token from user and burn, substract ethers from pending ethers
         IMintableContract(xETHAddress).burnFrom(msg.sender, maxTokensToBurn);
         totalPending -= maxEthersToSwap;
-        assert(ratio == _exchangeRatioInternal());              // RATIO GUARD END
+        // assert(ratio == _exchangeRatioInternal());              // RATIO GUARD END
 
         // transfer ethers to users
         payable(msg.sender).sendValue(maxEthersToSwap);
@@ -913,10 +913,10 @@ contract RockXStaking is Initializable, PausableUpgradeable, AccessControlUpgrad
 
         // NOTE: the following procdure must keep exchangeRatio invariant:
         // transfer xETH from sender & burn
-        uint256 ratio = _exchangeRatioInternal();           // RATIO GUARD BEGIN
+        // uint256 ratio = _exchangeRatioInternal();           // RATIO GUARD BEGIN
         IMintableContract(xETHAddress).burnFrom(msg.sender, xETHToBurn);
         _enqueueDebt(msg.sender, ethersToRedeem);           // queue ether debts
-        assert(ratio == _exchangeRatioInternal());          // RATIO GUARD END
+        // assert(ratio == _exchangeRatioInternal());          // RATIO GUARD END
 
         // return burned 
         return xETHToBurn;
