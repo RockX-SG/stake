@@ -14,7 +14,7 @@ import "@openzeppelin/contracts-upgradeable/security/PausableUpgradeable.sol";
 import "@openzeppelin/contracts-upgradeable/security/ReentrancyGuardUpgradeable.sol";
 
 /**
- * @title RockX EigenLayer Restaking Contract
+ * @title Bedrock EigenLayer Restaking Contract
  *
  * Description:
  *  This contract manages restaking on eigenlayer, including:
