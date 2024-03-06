@@ -10,7 +10,6 @@ import "@openzeppelin/contracts-upgradeable/security/ReentrancyGuardUpgradeable.
 
 
 contract RockXRedeem is IRockXRedeem, Initializable, PausableUpgradeable, ReentrancyGuardUpgradeable, OwnableUpgradeable {
-    using SafeERC20 for IERC20;
     using Address for address payable;
 
     mapping(address=>uint256) private balances;

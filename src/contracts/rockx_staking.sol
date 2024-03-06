@@ -498,7 +498,7 @@ contract RockXStaking is Initializable, PausableUpgradeable, AccessControlUpgrad
     /**
      * @dev balance sync, also moves the vector clock if it has different value
      */
-    function syncBalance() external onlyRole(ORACLE_ROLE) { _syncBalance(); }
+    function syncBalance() external { _syncBalance(); }
     
     /**
      * @dev balance sync, also moves the vector clock if it has different value
