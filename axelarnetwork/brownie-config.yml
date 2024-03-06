@@ -17,6 +17,7 @@ compiler:
           enabled: true
           runs: 200
         remappings:
+          - "@openzeppelin/contracts=OpenZeppelin/openzeppelin-contracts@4.4.2/contracts"
           - "@axelar-network/axelar-gmp-sdk-solidity/contracts=axelarnetwork/axelar-gmp-sdk-solidity@5.6.4/contracts"  
 
 # automatically fetch contract sources from Etherscan
