@@ -3,6 +3,7 @@
 # required external contracts
 dependencies:
   - axelarnetwork/axelar-gmp-sdk-solidity@5.6.4
+  - axelarnetwork/interchain-token-service@1.2.1
 
 pytest:
     # these settings replace the defaults when running pytest
@@ -19,6 +20,7 @@ compiler:
         remappings:
           - "@openzeppelin/contracts=OpenZeppelin/openzeppelin-contracts@4.4.2/contracts"
           - "@axelar-network/axelar-gmp-sdk-solidity/contracts=axelarnetwork/axelar-gmp-sdk-solidity@5.6.4/contracts"  
+          - "@axelar-network/interchain-token-service/contracts=axelarnetwork/interchain-token-service@1.2.1/contracts"  
 
 # automatically fetch contract sources from Etherscan
 autofetch_sources: true

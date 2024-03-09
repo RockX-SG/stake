@@ -603,7 +603,7 @@ contract RockXStaking is Initializable, PausableUpgradeable, AccessControlUpgrad
         recentStopped += _stoppedPubKeys.length;
 
         // NOTE(x) The following procedure MUST keep currentReserve unchanged:
-        // uint256 ratio = _exchangeRatioInternal();           // RATIO GUARD BEGIN
+        uint256 ratio = _exchangeRatioInternal();           // RATIO GUARD BEGIN
         // pay debts
         uint256 paid = _payDebts(amountUnstaked);
         assert(paid % DEPOSIT_SIZE == 0);   // debts are in N * 32ETH
@@ -615,7 +615,7 @@ contract RockXStaking is Initializable, PausableUpgradeable, AccessControlUpgrad
         // we put back the extra ethers back to pending queue.
         uint256 remain = amountUnstaked - paid;
         totalPending += remain;
-        // assert(ratio == _exchangeRatioInternal());          // RATIO GUARD END
+        assert(ratio == _exchangeRatioInternal());          // RATIO GUARD END
 
         // log
         emit ValidatorStopped(_stoppedPubKeys.length);
