@@ -870,11 +870,11 @@ contract RockXStaking is Initializable, PausableUpgradeable, AccessControlUpgrad
         totalPending -= maxEthersToSwap;
         // assert(ratio == _exchangeRatioInternal());              // RATIO GUARD END
 
-        // transfer ethers to users
-        payable(msg.sender).sendValue(maxEthersToSwap);
-
         // track balance change
         _balanceDecrease(maxEthersToSwap);
+
+        // transfer ethers to users
+        payable(msg.sender).sendValue(maxEthersToSwap);
     }
 
     /**
