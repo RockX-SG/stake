@@ -1,0 +1,24 @@
+# Brownie configuration file
+# https://eth-brownie.readthedocs.io/en/stable/config.html
+# required external contracts
+dependencies:
+  - celer-network/sgn-v2-contracts@0.2.0
+
+pytest:
+    # these settings replace the defaults when running pytest
+    default_contract_owner: true
+    reverting_tx_gas_limit: 6721975
+    revert_traceback: true
+
+compiler:
+    solc:
+        version: 0.8.9
+        optimizer:
+          enabled: true
+          runs: 200
+        remappings:
+          - "@openzeppelin/contracts=OpenZeppelin/openzeppelin-contracts@4.4.2/contracts"
+          - "@celer-network/contracts=celer-network/sgn-v2-contracts@0.2.0/contracts"
+
+# automatically fetch contract sources from Etherscan
+autofetch_sources: true
