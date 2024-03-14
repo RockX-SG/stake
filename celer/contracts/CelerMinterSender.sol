@@ -28,12 +28,6 @@ contract CelerMinterSender is MessageApp, Pausable {
     address public immutable receiver;
 
     /**
-     * @dev set to uniETH token contract address on destination chain
-     *  on mainnet: 0xF1376bceF0f78459C0Ed0ba5ddce976F1ddF51F4
-     */
-    address public immutable tokenContract;
-
-    /**
      * @dev set destination chain id
      *  on mainnet: 1
      */
@@ -53,14 +47,12 @@ contract CelerMinterSender is MessageApp, Pausable {
     constructor(address _messageBus, 
                 address _WETH, 
                 address _receiver, 
-                address _tokenContract, 
                 uint64 _dstChainId,
                 bool _isNativeWrap
                ) MessageApp(_messageBus) {
 
         WETH = _WETH;
         receiver = _receiver;
-        tokenContract = _tokenContract;
         dstChainId = _dstChainId;
         isNativeWrap = _isNativeWrap;
     }
