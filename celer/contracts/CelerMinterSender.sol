@@ -13,6 +13,8 @@ contract CelerMinterSender is MessageApp, Pausable, AccessControl {
     using SafeERC20 for IERC20;
     using Address for address payable;
 
+    bytes32 public constant PAUSER_ROLE = keccak256("PAUSER_ROLE");
+
     /**
      * @dev require the minimal amount to make a cross chain mint
      */
@@ -44,13 +46,14 @@ contract CelerMinterSender is MessageApp, Pausable, AccessControl {
      */
     uint64 public nonce;
 
-
     constructor(address _messageBus, 
                 address _WETH, 
                 address _receiver, 
                 uint64 _dstChainId,
                 bool _isNativeWrap
                ) MessageApp(_messageBus) {
+
+        _setupRole(PAUSER_ROLE, msg.sender);
 
         WETH = _WETH;
         receiver = _receiver;
@@ -64,6 +67,20 @@ contract CelerMinterSender is MessageApp, Pausable, AccessControl {
     function setMinimalDeposit(uint256 _minimal) external onlyRole(DEFAULT_ADMIN_ROLE) {
         MINIMAL_DEPOSIT = _minimal;
         emit MinimalDepositSet(MINIMAL_DEPOSIT);
+    }
+
+    /**
+     * @dev pause the contract
+     */
+    function pause() public onlyRole(PAUSER_ROLE) {
+        _pause();
+    }
+
+    /**
+     * @dev unpause the contract
+     */
+    function unpause() public onlyRole(PAUSER_ROLE) {
+        _unpause();
     }
 
     /**

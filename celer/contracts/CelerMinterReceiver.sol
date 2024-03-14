@@ -14,6 +14,8 @@ contract CelerMinterReceiver is MessageApp, AccessControl, ReentrancyGuard, Paus
     using Address for address payable;
 
     bytes32 public constant MANAGER_ROLE = keccak256("MANAGER_ROLE");
+    bytes32 public constant PAUSER_ROLE = keccak256("PAUSER_ROLE");
+
     uint32 public constant MAX_SLIPPAGE = 5000;
 
     address public immutable WETH;
@@ -32,13 +34,30 @@ contract CelerMinterReceiver is MessageApp, AccessControl, ReentrancyGuard, Paus
                 address _stakingContract,
                 address _tokenContract
                ) MessageApp(_messageBus) {
+
         _setupRole(MANAGER_ROLE, msg.sender);
+        _setupRole(PAUSER_ROLE, msg.sender);
 
         stakingContract = _stakingContract;
         tokenContract = _tokenContract;
         bridgeContract = _bridgeContract;
         WETH = _weth;
     }
+
+    /**
+     * @dev pause the contract
+     */
+    function pause() public onlyRole(PAUSER_ROLE) {
+        _pause();
+    }
+
+    /**
+     * @dev unpause the contract
+     */
+    function unpause() public onlyRole(PAUSER_ROLE) {
+        _unpause();
+    }
+    
 
     /**
      * @dev set fixed gas fee for a single cross chain message
