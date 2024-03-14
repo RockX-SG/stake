@@ -22,10 +22,9 @@ contract CelerMinterSender is MessageApp {
     address public immutable WETH;
 
     /**
-     * @dev set to Bedrock Staking Contract address on destination chain
-     *  on mainnet: 0x4beFa2aA9c305238AA3E0b5D17eB20C045269E9d
+     * @dev set to receiver address
      */
-    address public immutable stakingContract;
+    address public immutable receiver;
 
     /**
      * @dev set to uniETH token contract address on destination chain
@@ -52,14 +51,14 @@ contract CelerMinterSender is MessageApp {
 
     constructor(address _messageBus, 
                 address _WETH, 
-                address _stakingContract, 
+                address _receiver, 
                 address _tokenContract, 
                 uint64 _dstChainId,
                 bool _isNativeWrap
                ) MessageApp(_messageBus) {
 
         WETH = _WETH;
-        stakingContract = _stakingContract;
+        receiver = _receiver;
         tokenContract = _tokenContract;
         dstChainId = _dstChainId;
         isNativeWrap = _isNativeWrap;
@@ -72,12 +71,12 @@ contract CelerMinterSender is MessageApp {
         uint256 _amount,
         uint32 _maxSlippage
     ) external payable {
-        require(msg.value >= MINIMAL_AMOUNT, "TOO_LITTLE");
+        require(_amount >= MINIMAL_AMOUNT, "TOO_LITTLE");
 
         IERC20(WETH).safeTransferFrom(msg.sender, address(this), _amount);
         bytes memory message = abi.encode(msg.sender);
         sendMessageWithTransfer(
-            stakingContract,
+            receiver,
             WETH,
             _amount,
             dstChainId,
