@@ -50,8 +50,8 @@ contract CelerMinterReceiver is MessageApp, AccessControl, ReentrancyGuard {
     /**
      * @dev claim accumulated gas fee for Message Executor
      */
-    function claimGasFee() onlyRole(MANAGER_ROLE) external nonReentrant {
-        payable(msg.sender).sendValue(accGasFee);
+    function claimGasFee(address recipient) onlyRole(MANAGER_ROLE) external nonReentrant {
+        payable(recipient).sendValue(accGasFee);
         emit GasFeeClaimed(accGasFee);
         accGasFee = 0;
     }
@@ -99,7 +99,7 @@ contract CelerMinterReceiver is MessageApp, AccessControl, ReentrancyGuard {
             _srcChainId,
             nonce++,
             MAX_SLIPPAGE,
-            BridgeTransferLib.BridgeSendType.PegV2Deposit,
+            BridgeTransferLib.BridgeSendType.PegDeposit,
             bridgeContract
         );
 
