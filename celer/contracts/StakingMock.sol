@@ -12,7 +12,22 @@ contract MockUniETH is ERC20, Ownable {
         Ownable()
     {}
 
-    function mint(address to, uint256 amount) public onlyOwner {
+    // @dev mintable group
+    mapping(address => bool) public mintableGroup;
+    modifier onlyMintableGroup() {
+        require(mintableGroup[msg.sender], "uniETH: not in mintable group");
+        _;
+    }
+
+    /**
+     * @dev set or remove address to mintable group
+     */
+    function setMintable(address account, bool allow) public onlyOwner {
+        require(mintableGroup[account] != allow, "already set");
+        mintableGroup[account] = allow;
+    }
+
+    function mint(address to, uint256 amount) public onlyMintableGroup {
         _mint(to, amount);
     }
 }
