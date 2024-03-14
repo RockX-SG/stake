@@ -53,6 +53,7 @@ contract CelerMinterSender is MessageApp, Pausable, AccessControl {
                 bool _isNativeWrap
                ) MessageApp(_messageBus) {
 
+        _setupRole(DEFAULT_ADMIN_ROLE, msg.sender);
         _setupRole(PAUSER_ROLE, msg.sender);
 
         WETH = _WETH;

@@ -35,6 +35,7 @@ contract CelerMinterReceiver is MessageApp, AccessControl, ReentrancyGuard, Paus
                 address _tokenContract
                ) MessageApp(_messageBus) {
 
+        _setupRole(DEFAULT_ADMIN_ROLE, msg.sender);
         _setupRole(MANAGER_ROLE, msg.sender);
         _setupRole(PAUSER_ROLE, msg.sender);
 
