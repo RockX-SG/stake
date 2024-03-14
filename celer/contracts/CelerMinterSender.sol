@@ -15,7 +15,7 @@ contract CelerMinterSender is MessageApp, Pausable {
     /**
      * @dev require the minimal amount to make a cross chain mint
      */
-    uint256 public constant MINIMAL_AMOUNT = 0.1 ether;
+    uint256 public constant MINIMAL_AMOUNT = 0.02 ether;
 
     /**
      * @dev set to wrapped ETH contract address on source chain
