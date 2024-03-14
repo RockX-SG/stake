@@ -1,6 +1,7 @@
 // SPDX-License-Identifier: MIT
 pragma solidity ^0.8.9;
 
+import "@openzeppelin/contracts/access/AccessControl.sol";
 import "@openzeppelin/contracts/token/ERC20/utils/SafeERC20.sol";
 import "@openzeppelin/contracts/security/Pausable.sol";
 import "@openzeppelin/contracts/security/ReentrancyGuard.sol";
@@ -8,14 +9,14 @@ import "@celer-network/contracts/message/framework/MessageApp.sol";
 import "@celer-network/contracts/message/libraries/MsgDataTypes.sol";
 import "../interfaces/iface.sol";
 
-contract CelerMinterSender is MessageApp, Pausable {
+contract CelerMinterSender is MessageApp, Pausable, AccessControl {
     using SafeERC20 for IERC20;
     using Address for address payable;
 
     /**
      * @dev require the minimal amount to make a cross chain mint
      */
-    uint256 public constant MINIMAL_AMOUNT = 0.02 ether;
+    uint256 public MINIMAL_DEPOSIT = 0.02 ether;
 
     /**
      * @dev set to wrapped ETH contract address on source chain
@@ -58,13 +59,21 @@ contract CelerMinterSender is MessageApp, Pausable {
     }
 
     /**
+     * @dev set minimal WETH to deposit
+     */
+    function setMinimalDeposit(uint256 _minimal) external onlyRole(DEFAULT_ADMIN_ROLE) {
+        MINIMAL_DEPOSIT = _minimal;
+        emit MinimalDepositSet(MINIMAL_DEPOSIT);
+    }
+
+    /**
      * @dev mint uniETH with WETH on source chain
      */
     function mint(
         uint256 _amount,
         uint32 _maxSlippage
     ) external payable whenNotPaused {
-        require(_amount >= MINIMAL_AMOUNT, "TOO_LITTLE");
+        require(_amount >= MINIMAL_DEPOSIT, "TOO_LITTLE");
 
         IERC20(WETH).safeTransferFrom(msg.sender, address(this), _amount);
         bytes memory message = abi.encode(msg.sender);
@@ -120,4 +129,6 @@ contract CelerMinterSender is MessageApp, Pausable {
         address token,
         uint256 amount
     );
+
+    event MinimalDepositSet(uint256 amount);
 }
