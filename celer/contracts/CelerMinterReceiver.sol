@@ -24,6 +24,7 @@ contract CelerMinterReceiver is MessageApp, AccessControl, ReentrancyGuard {
     uint256 public fixedGasFee;
     uint256 public accGasFee; 
 
+    receive() external payable { }
     constructor(address _messageBus,
                 address _bridgeContract,
                 address _weth,
