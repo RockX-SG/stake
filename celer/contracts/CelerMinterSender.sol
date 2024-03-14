@@ -2,12 +2,13 @@
 pragma solidity ^0.8.9;
 
 import "@openzeppelin/contracts/token/ERC20/utils/SafeERC20.sol";
+import "@openzeppelin/contracts/security/Pausable.sol";
 import "@openzeppelin/contracts/security/ReentrancyGuard.sol";
 import "@celer-network/contracts/message/framework/MessageApp.sol";
 import "@celer-network/contracts/message/libraries/MsgDataTypes.sol";
 import "../interfaces/iface.sol";
 
-contract CelerMinterSender is MessageApp {
+contract CelerMinterSender is MessageApp, Pausable {
     using SafeERC20 for IERC20;
     using Address for address payable;
 
@@ -70,7 +71,7 @@ contract CelerMinterSender is MessageApp {
     function mint(
         uint256 _amount,
         uint32 _maxSlippage
-    ) external payable {
+    ) external payable whenNotPaused {
         require(_amount >= MINIMAL_AMOUNT, "TOO_LITTLE");
 
         IERC20(WETH).safeTransferFrom(msg.sender, address(this), _amount);

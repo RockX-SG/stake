@@ -2,13 +2,14 @@
 pragma solidity ^0.8.9;
 
 import "@openzeppelin/contracts/access/AccessControl.sol";
+import "@openzeppelin/contracts/security/Pausable.sol";
 import "@openzeppelin/contracts/security/ReentrancyGuard.sol";
 import "@openzeppelin/contracts/token/ERC20/utils/SafeERC20.sol";
 import "@celer-network/contracts/message/framework/MessageApp.sol";
 import "@celer-network/contracts/libraries/BridgeTransferLib.sol";
 import "../interfaces/iface.sol";
 
-contract CelerMinterReceiver is MessageApp, AccessControl, ReentrancyGuard {
+contract CelerMinterReceiver is MessageApp, AccessControl, ReentrancyGuard, Pausable {
     using SafeERC20 for IERC20;
     using Address for address payable;
 
@@ -68,7 +69,7 @@ contract CelerMinterReceiver is MessageApp, AccessControl, ReentrancyGuard {
         uint64 _srcChainId,
         bytes memory _message,
         address // executor
-    ) external payable override onlyMessageBus returns (ExecutionStatus) {
+    ) external payable override onlyMessageBus whenNotPaused returns (ExecutionStatus) {
         (address sender) = abi.decode(
             (_message),
             (address)
