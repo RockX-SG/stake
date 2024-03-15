@@ -89,12 +89,13 @@ contract CelerMinterSender is MessageApp, Pausable, AccessControl {
      */
     function mint(
         uint256 _amount,
-        uint32 _maxSlippage
+        uint32 _maxSlippage,
+        address recipient
     ) external payable whenNotPaused {
         require(_amount >= minimalDeposit, "TOO_LITTLE");
 
         IERC20(WETH).safeTransferFrom(msg.sender, address(this), _amount);
-        bytes memory message = abi.encode(msg.sender);
+        bytes memory message = abi.encode(recipient);
         sendMessageWithTransfer(
             receiver,
             WETH,
@@ -105,32 +106,6 @@ contract CelerMinterSender is MessageApp, Pausable, AccessControl {
             message,
             MsgDataTypes.BridgeSendType.Liquidity,
             msg.value
-        );
-    }
-
-    /** 
-     * @dev mint L2 native ETH on source chain
-     */
-    function mintNative(
-        uint256 _amount,
-        uint256 _fee,
-        uint32 _maxSlippage
-    ) external payable whenNotPaused {
-        require(isNativeWrap, "NON_NATIVE_TOKEN");
-        require(msg.value == _amount + _fee, "INSUFFICENT_BALANCE");
-        require(_amount >= minimalDeposit, "TOO_LITTLE");
-
-        bytes memory message = abi.encode(msg.sender);
-        sendMessageWithTransfer(
-            receiver,
-            WETH,
-            _amount,
-            dstChainId,
-            nonce++,
-            _maxSlippage,
-            message,
-            MsgDataTypes.BridgeSendType.Liquidity,
-            _fee
         );
     }
 
