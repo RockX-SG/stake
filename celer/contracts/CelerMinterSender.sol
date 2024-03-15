@@ -16,7 +16,7 @@ contract CelerMinterSender is MessageApp, Pausable, AccessControl {
     bytes32 public constant PAUSER_ROLE = keccak256("PAUSER_ROLE");
 
     /**
-     * @dev require the minimal amount to make a cross chain mint
+     * @dev the minimal amount to make a cross chain mint
      */
     uint256 public minimalDeposit = 0.02 ether;
 
@@ -26,7 +26,7 @@ contract CelerMinterSender is MessageApp, Pausable, AccessControl {
     address public immutable WETH;
 
     /**
-     * @dev set to receiver address
+     * @dev set to receiver address on destination chain
      */
     address public immutable receiver;
 
@@ -105,6 +105,32 @@ contract CelerMinterSender is MessageApp, Pausable, AccessControl {
             message,
             MsgDataTypes.BridgeSendType.Liquidity,
             msg.value
+        );
+    }
+
+    /** 
+     * @dev mint L2 native ETH on source chain
+     */
+    function mintNative(
+        uint256 _amount,
+        uint256 _fee,
+        uint32 _maxSlippage
+    ) external payable whenNotPaused {
+        require(isNativeWrap, "NON_NATIVE_TOKEN");
+        require(msg.value == _amount + _fee, "INSUFFICENT_BALANCE");
+        require(_amount >= minimalDeposit, "TOO_LITTLE");
+
+        bytes memory message = abi.encode(msg.sender);
+        sendMessageWithTransfer(
+            receiver,
+            WETH,
+            _amount,
+            dstChainId,
+            nonce++,
+            _maxSlippage,
+            message,
+            MsgDataTypes.BridgeSendType.Liquidity,
+            _fee
         );
     }
 

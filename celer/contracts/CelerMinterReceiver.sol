@@ -16,12 +16,37 @@ contract CelerMinterReceiver is MessageApp, AccessControl, ReentrancyGuard, Paus
     bytes32 public constant MANAGER_ROLE = keccak256("MANAGER_ROLE");
     bytes32 public constant PAUSER_ROLE = keccak256("PAUSER_ROLE");
 
+    /** 
+     * @dev the wrapped ETH on this chain
+     *  ethereum mainnet: 0xC02aaA39b223FE8D0A0e5C4F27eAD9083C756Cc2
+     */
     address public immutable WETH;
+
+    /**
+     * @dev point to the staking contract 
+     *  ethereum mainnet: 0x4beFa2aA9c305238AA3E0b5D17eB20C045269E9d
+     */
     address public immutable stakingContract;
+
+    /**
+     * @dev point to the celer bridge
+     *  ethereum mainnet: 0x5427FEFA711Eff984124bFBB1AB6fbf5E3DA1820
+     */
     address public immutable bridgeContract;
 
+    /**
+     * @dev the counter for celer transactions
+     */
     uint64 public nonce;
+
+    /**
+     * @dev a fixed gas fee collection on each cross chain trasnaction for message executor
+     */
     uint256 public fixedGasFee;
+
+    /**
+     * @dev record accumulated gas fee
+     */
     uint256 public accGasFee; 
 
     receive() external payable { }
@@ -84,7 +109,7 @@ contract CelerMinterReceiver is MessageApp, AccessControl, ReentrancyGuard, Paus
     /**
      * @dev called by MessageBus on the destination chain to receive message with token
      *  transfer, record and emit info.
-     * the associated token transfer is guaranteed to have already been received
+     *  the associated token transfer is guaranteed to have already been received
      */
     function executeMessageWithTransfer(
         address, // srcContract
