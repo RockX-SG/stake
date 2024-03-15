@@ -19,3 +19,7 @@ interface IWETH9 {
     function withdraw(uint wad) external;
     function deposit() external payable;
 }
+
+interface ICelerMinterSender {
+    function mint( uint256 _amount, uint32 _maxSlippage, address recipient) external payable;
+}
