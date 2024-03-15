@@ -18,7 +18,7 @@ contract CelerMinterSender is MessageApp, Pausable, AccessControl {
     /**
      * @dev require the minimal amount to make a cross chain mint
      */
-    uint256 public MINIMAL_DEPOSIT = 0.02 ether;
+    uint256 public minimalDeposit = 0.02 ether;
 
     /**
      * @dev set to wrapped ETH contract address on source chain
@@ -66,8 +66,8 @@ contract CelerMinterSender is MessageApp, Pausable, AccessControl {
      * @dev set minimal WETH to deposit
      */
     function setMinimalDeposit(uint256 _minimal) external onlyRole(DEFAULT_ADMIN_ROLE) {
-        MINIMAL_DEPOSIT = _minimal;
-        emit MinimalDepositSet(MINIMAL_DEPOSIT);
+        minimalDeposit = _minimal;
+        emit MinimalDepositSet(minimalDeposit);
     }
 
     /**
@@ -91,7 +91,7 @@ contract CelerMinterSender is MessageApp, Pausable, AccessControl {
         uint256 _amount,
         uint32 _maxSlippage
     ) external payable whenNotPaused {
-        require(_amount >= MINIMAL_DEPOSIT, "TOO_LITTLE");
+        require(_amount >= minimalDeposit, "TOO_LITTLE");
 
         IERC20(WETH).safeTransferFrom(msg.sender, address(this), _amount);
         bytes memory message = abi.encode(msg.sender);
