@@ -44,4 +44,8 @@ contract MockStaking {
         IMintableContract(token).mint(msg.sender, msg.value);
         return msg.value;
     }
+
+    function xETHAddress (  ) external view returns ( address ) {
+        return token;
+    }
 }

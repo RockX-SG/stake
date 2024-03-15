@@ -135,18 +135,12 @@ contract CelerMinterSender is MessageApp, Pausable, AccessControl {
     }
 
     /**
-    * ======================================================================================
-    * 
-    * CONTRCT EVENTS
-    *
-    * ======================================================================================
-    */
- 
+     * CONTRCT EVENTS
+     */
     event Refunded(
         address sender,
         address token,
         uint256 amount
     );
-
     event MinimalDepositSet(uint256 amount);
 }

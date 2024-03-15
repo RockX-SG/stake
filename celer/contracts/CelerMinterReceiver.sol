@@ -16,11 +16,8 @@ contract CelerMinterReceiver is MessageApp, AccessControl, ReentrancyGuard, Paus
     bytes32 public constant MANAGER_ROLE = keccak256("MANAGER_ROLE");
     bytes32 public constant PAUSER_ROLE = keccak256("PAUSER_ROLE");
 
-    uint32 public constant MAX_SLIPPAGE = 5000;
-
     address public immutable WETH;
     address public immutable stakingContract;
-    address public immutable tokenContract;
     address public immutable bridgeContract;
 
     uint64 public nonce;
@@ -31,8 +28,7 @@ contract CelerMinterReceiver is MessageApp, AccessControl, ReentrancyGuard, Paus
     constructor(address _messageBus,
                 address _bridgeContract,
                 address _weth,
-                address _stakingContract,
-                address _tokenContract
+                address _stakingContract
                ) MessageApp(_messageBus) {
 
         _setupRole(DEFAULT_ADMIN_ROLE, msg.sender);
@@ -40,7 +36,6 @@ contract CelerMinterReceiver is MessageApp, AccessControl, ReentrancyGuard, Paus
         _setupRole(PAUSER_ROLE, msg.sender);
 
         stakingContract = _stakingContract;
-        tokenContract = _tokenContract;
         bridgeContract = _bridgeContract;
         WETH = _weth;
     }
@@ -71,10 +66,19 @@ contract CelerMinterReceiver is MessageApp, AccessControl, ReentrancyGuard, Paus
     /**
      * @dev claim accumulated gas fee for Message Executor
      */
-    function claimGasFee(address recipient) onlyRole(MANAGER_ROLE) external nonReentrant {
+    function claimGasFee(address recipient) onlyRole(MANAGER_ROLE) nonReentrant external {
         payable(recipient).sendValue(accGasFee);
         emit GasFeeClaimed(accGasFee);
         accGasFee = 0;
+    }
+
+    /**
+     * @dev claim extra ethers in this contract, usually we don't need this,
+     *  just in case some failed transaction locked ethers in this contract
+     */
+    function claimExtraEthers(address recipient, uint256 amount) onlyRole(DEFAULT_ADMIN_ROLE) nonReentrant external {
+        payable(recipient).sendValue(amount);
+        emit ExtraEthersClaimed(amount);
     }
 
     /**
@@ -115,41 +119,22 @@ contract CelerMinterReceiver is MessageApp, AccessControl, ReentrancyGuard, Paus
         // send uniETH back to sourcechain sender
         BridgeTransferLib.sendTransfer(
             sender,
-            tokenContract,
+            IBedrockStaking(stakingContract).xETHAddress(),
             minted,
             _srcChainId,
             nonce++,
-            MAX_SLIPPAGE,
+            0,  // zero slippage
             BridgeTransferLib.BridgeSendType.PegDeposit,
             bridgeContract
-        );
-
-        emit Minted(
-            sender,
-            _token,
-            _amount,
-            minted,
-            _srcChainId
         );
 
         return ExecutionStatus.Success;
     }
 
-     /**
-     * ======================================================================================
-     * 
+    /**
      * CONTRCT EVENTS
-     *
-     * ======================================================================================
      */
-     event FixedGasFeeSet(uint256 amount);
-     event GasFeeClaimed(uint256 amount);
-     event Minted(
-         address sender,
-         address token,
-         uint256 amount,
-         uint256 amountMinted,
-         uint64 srcChainId
-     );
- 
+    event FixedGasFeeSet(uint256 amount);
+    event GasFeeClaimed(uint256 amount);
+    event ExtraEthersClaimed(uint256 amount);
 }
