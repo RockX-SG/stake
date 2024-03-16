@@ -46,6 +46,7 @@ contract CelerMinterSender is MessageApp, Pausable, AccessControl {
      */
     uint64 public nonce;
 
+    receive() external payable { }
     constructor(address _messageBus, 
                 address _WETH, 
                 address _receiver, 
