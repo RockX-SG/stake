@@ -74,18 +74,7 @@ contract CelerMinterSender is MessageApp, Pausable, ReentrancyGuard, AccessContr
         require(_amount >= minimalDeposit, "TOO_LITTLE");
 
         IERC20(WETH).safeTransferFrom(msg.sender, address(this), _amount);
-        bytes memory message = abi.encode(_recipient);
-        sendMessageWithTransfer(
-            receiver,
-            WETH,
-            _amount,
-            dstChainId,
-            nonce++,
-            _maxSlippage,
-            message,
-            MsgDataTypes.BridgeSendType.Liquidity,
-            msg.value
-        );
+        _mintInternal(_amount, _maxSlippage, _recipient, msg.value);
     }
 
     /**
@@ -102,7 +91,11 @@ contract CelerMinterSender is MessageApp, Pausable, ReentrancyGuard, AccessContr
         
         // wrap to WETH or revert here
         IWETH9(WETH).deposit{value:_amount}(); 
+        _mintInternal(_amount, _maxSlippage, _recipient, _fees);
+    }
 
+    // internal minting, it only handles Wrapped ETH(WETH) received.
+    function _mintInternal(uint256 _amount, uint32 _maxSlippage, address _recipient, uint256 _fees) internal {
         bytes memory message = abi.encode(_recipient);
         sendMessageWithTransfer(
             receiver,
@@ -177,7 +170,7 @@ contract CelerMinterSender is MessageApp, Pausable, ReentrancyGuard, AccessContr
      */
     function claimLockedEthers(address recipient, uint256 amount) onlyRole(DEFAULT_ADMIN_ROLE) nonReentrant external {
         payable(recipient).sendValue(amount);
-        emit LockedEthersClaimed(amount);
+        emit LockedEthersClaimed(recipient, amount);
     }
 
     /**
@@ -186,7 +179,7 @@ contract CelerMinterSender is MessageApp, Pausable, ReentrancyGuard, AccessContr
      */
     function claimLockedTokens(address token, address recipient, uint256 amount) onlyRole(DEFAULT_ADMIN_ROLE) nonReentrant external {
         IERC20(token).safeTransfer(recipient, amount);
-        emit LockedTokensClaimed(token, amount);
+        emit LockedTokensClaimed(recipient, token, amount);
     }
 
     /**
@@ -200,6 +193,6 @@ contract CelerMinterSender is MessageApp, Pausable, ReentrancyGuard, AccessContr
         uint256 amount
     );
     event MinimalDepositSet(uint256 amount);
-    event LockedEthersClaimed(uint256 amount);
-    event LockedTokensClaimed(address token, uint256 amount);
+    event LockedEthersClaimed(address recipient, uint256 amount);
+    event LockedTokensClaimed(address recipient, address token, uint256 amount);
 }

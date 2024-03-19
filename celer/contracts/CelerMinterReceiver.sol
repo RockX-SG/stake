@@ -6,7 +6,6 @@ import "@openzeppelin/contracts/security/Pausable.sol";
 import "@openzeppelin/contracts/security/ReentrancyGuard.sol";
 import "@openzeppelin/contracts/token/ERC20/utils/SafeERC20.sol";
 import "@celer-network/contracts/message/framework/MessageApp.sol";
-import "@celer-network/contracts/libraries/BridgeTransferLib.sol";
 import "../interfaces/iface.sol";
 
 contract CelerMinterReceiver is MessageApp, AccessControl, ReentrancyGuard, Pausable {
@@ -77,19 +76,21 @@ contract CelerMinterReceiver is MessageApp, AccessControl, ReentrancyGuard, Paus
         uint64 _srcChainId,
         bytes memory _message,
         address // executor
-    ) external payable override onlyMessageBus whenNotPaused returns (ExecutionStatus) {
+    ) external payable override onlyMessageBus whenNotMsgPaused returns (ExecutionStatus) {
         (address sender) = abi.decode(
             (_message),
             (address)
         );
 
-        // insufficient gas fee, reject
-        if (_amount < fixedGasFee) {
+        // only accept WETH
+        if (_token != WETH) {
+            emit TokensLocked(sender, _token, _amount);
             return ExecutionStatus.Fail;
         }
 
-        // only accept WETH
-        if (_token != WETH) {
+        // insufficient gas fee, reject
+        if (_amount < fixedGasFee) {
+            emit EthersLocked(sender, _amount);
             return ExecutionStatus.Fail;
         }
 
@@ -101,16 +102,12 @@ contract CelerMinterReceiver is MessageApp, AccessControl, ReentrancyGuard, Paus
         uint256 minted = IBedrockStaking(stakingContract).mint{value:ethersToMint}(0, type(uint256).max);
 
         // send uniETH back to sourcechain sender
-        BridgeTransferLib.sendTransfer(
-            sender,
+        IOriginalTokenVault(bridgeContract).deposit(
             IBedrockStaking(stakingContract).xETHAddress(),
             minted,
             _srcChainId,
-            nonce++,
-            0,  // zero slippage
-            BridgeTransferLib.BridgeSendType.PegDeposit,
-            bridgeContract
-        );
+            sender,
+            nonce++);
 
         return ExecutionStatus.Success;
     }
@@ -121,7 +118,12 @@ contract CelerMinterReceiver is MessageApp, AccessControl, ReentrancyGuard, Paus
      * ADMIN
      * ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
      */
- 
+
+    modifier whenNotMsgPaused() {
+        require(!paused(), MsgDataTypes.abortReason("Pausable: paused"));
+        _;
+    }
+
     /**
      * @dev pause the contract
      */
@@ -160,7 +162,7 @@ contract CelerMinterReceiver is MessageApp, AccessControl, ReentrancyGuard, Paus
      */
     function claimLockedEthers(address recipient, uint256 amount) onlyRole(DEFAULT_ADMIN_ROLE) nonReentrant external {
         payable(recipient).sendValue(amount);
-        emit LockedEthersClaimed(amount);
+        emit LockedEthersClaimed(recipient, amount);
     }
 
     /**
@@ -169,7 +171,7 @@ contract CelerMinterReceiver is MessageApp, AccessControl, ReentrancyGuard, Paus
      */
     function claimLockedTokens(address token, address recipient, uint256 amount) onlyRole(DEFAULT_ADMIN_ROLE) nonReentrant external {
         IERC20(token).safeTransfer(recipient, amount);
-        emit LockedTokensClaimed(token, amount);
+        emit LockedTokensClaimed(recipient, token, amount);
     }
 
 
@@ -180,6 +182,8 @@ contract CelerMinterReceiver is MessageApp, AccessControl, ReentrancyGuard, Paus
      */
     event FixedGasFeeSet(uint256 amount);
     event GasFeeClaimed(uint256 amount);
-    event LockedEthersClaimed(uint256 amount);
-    event LockedTokensClaimed(address token, uint256 amount);
+    event LockedEthersClaimed(address recipient, uint256 amount);
+    event LockedTokensClaimed(address recipient, address token, uint256 amount);
+    event EthersLocked(address recipient, uint256 amount);
+    event TokensLocked(address recipient, address token, uint256 amount);
 }
