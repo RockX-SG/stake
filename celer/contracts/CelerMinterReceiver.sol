@@ -165,7 +165,7 @@ contract CelerMinterReceiver is MessageApp, AccessControl, ReentrancyGuard, Paus
 
     /**
      * @dev claim locked tokens in this contract, usually we don't need this,
-     *  just in case some failed transaction locked ethers in this contract
+     *  just in case some failed transaction locked tokens in this contract
      */
     function claimLockedTokens(address token, address recipient, uint256 amount) onlyRole(DEFAULT_ADMIN_ROLE) nonReentrant external {
         IERC20(token).safeTransfer(recipient, amount);
