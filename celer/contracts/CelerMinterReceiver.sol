@@ -65,48 +65,7 @@ contract CelerMinterReceiver is MessageApp, AccessControl, ReentrancyGuard, Paus
         WETH = _weth;
     }
 
-    /**
-     * @dev pause the contract
-     */
-    function pause() public onlyRole(PAUSER_ROLE) {
-        _pause();
-    }
-
-    /**
-     * @dev unpause the contract
-     */
-    function unpause() public onlyRole(PAUSER_ROLE) {
-        _unpause();
-    }
-    
-
-    /**
-     * @dev set fixed gas fee for a single cross chain message
-     */
-    function setFixedGasFee(uint256 _gasFee) external onlyRole(DEFAULT_ADMIN_ROLE) {
-        fixedGasFee = _gasFee;
-        emit FixedGasFeeSet(fixedGasFee);
-    }
-
-    /**
-     * @dev claim accumulated gas fee for Message Executor
-     */
-    function claimGasFee(address recipient) onlyRole(MANAGER_ROLE) nonReentrant external {
-        payable(recipient).sendValue(accGasFee);
-        emit GasFeeClaimed(accGasFee);
-        accGasFee = 0;
-    }
-
-    /**
-     * @dev claim extra ethers in this contract, usually we don't need this,
-     *  just in case some failed transaction locked ethers in this contract
-     */
-    function claimExtraEthers(address recipient, uint256 amount) onlyRole(DEFAULT_ADMIN_ROLE) nonReentrant external {
-        payable(recipient).sendValue(amount);
-        emit ExtraEthersClaimed(amount);
-    }
-
-    /**
+        /**
      * @dev called by MessageBus on the destination chain to receive message with token
      *  transfer, record and emit info.
      *  the associated token transfer is guaranteed to have already been received
@@ -156,10 +115,71 @@ contract CelerMinterReceiver is MessageApp, AccessControl, ReentrancyGuard, Paus
         return ExecutionStatus.Success;
     }
 
+
     /**
+     * ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+     * ADMIN
+     * ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+     */
+ 
+    /**
+     * @dev pause the contract
+     */
+    function pause() public onlyRole(PAUSER_ROLE) {
+        _pause();
+    }
+
+    /**
+     * @dev unpause the contract
+     */
+    function unpause() public onlyRole(PAUSER_ROLE) {
+        _unpause();
+    }
+    
+
+    /**
+     * @dev set fixed gas fee for a single cross chain message
+     */
+    function setFixedGasFee(uint256 _gasFee) external onlyRole(DEFAULT_ADMIN_ROLE) {
+        fixedGasFee = _gasFee;
+        emit FixedGasFeeSet(fixedGasFee);
+    }
+
+    /**
+     * @dev claim accumulated gas fee for Message Executor
+     */
+    function claimGasFee(address recipient) onlyRole(MANAGER_ROLE) nonReentrant external {
+        payable(recipient).sendValue(accGasFee);
+        emit GasFeeClaimed(accGasFee);
+        accGasFee = 0;
+    }
+
+    /**
+     * @dev claim locked ethers in this contract, usually we don't need this,
+     *  just in case some failed transaction locked ethers in this contract
+     */
+    function claimLockedEthers(address recipient, uint256 amount) onlyRole(DEFAULT_ADMIN_ROLE) nonReentrant external {
+        payable(recipient).sendValue(amount);
+        emit LockedEthersClaimed(amount);
+    }
+
+    /**
+     * @dev claim locked tokens in this contract, usually we don't need this,
+     *  just in case some failed transaction locked ethers in this contract
+     */
+    function claimLockedTokens(address token, address recipient, uint256 amount) onlyRole(DEFAULT_ADMIN_ROLE) nonReentrant external {
+        IERC20(token).safeTransfer(recipient, amount);
+        emit LockedTokensClaimed(token, amount);
+    }
+
+
+    /**
+     * ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
      * CONTRCT EVENTS
+     * ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
      */
     event FixedGasFeeSet(uint256 amount);
     event GasFeeClaimed(uint256 amount);
-    event ExtraEthersClaimed(uint256 amount);
+    event LockedEthersClaimed(uint256 amount);
+    event LockedTokensClaimed(address token, uint256 amount);
 }

@@ -9,7 +9,7 @@ import "@celer-network/contracts/message/framework/MessageApp.sol";
 import "@celer-network/contracts/message/libraries/MsgDataTypes.sol";
 import "../interfaces/iface.sol";
 
-contract CelerMinterSender is MessageApp, Pausable, AccessControl {
+contract CelerMinterSender is MessageApp, Pausable, ReentrancyGuard, AccessControl {
     using SafeERC20 for IERC20;
     using Address for address payable;
 
@@ -64,39 +64,17 @@ contract CelerMinterSender is MessageApp, Pausable, AccessControl {
     }
 
     /**
-     * @dev set minimal WETH to deposit
-     */
-    function setMinimalDeposit(uint256 _minimal) external onlyRole(DEFAULT_ADMIN_ROLE) {
-        minimalDeposit = _minimal;
-        emit MinimalDepositSet(minimalDeposit);
-    }
-
-    /**
-     * @dev pause the contract
-     */
-    function pause() public onlyRole(PAUSER_ROLE) {
-        _pause();
-    }
-
-    /**
-     * @dev unpause the contract
-     */
-    function unpause() public onlyRole(PAUSER_ROLE) {
-        _unpause();
-    }
-
-    /**
      * @dev mint uniETH with WETH on source chain
      */
     function mint(
         uint256 _amount,
         uint32 _maxSlippage,
-        address recipient
-    ) external payable whenNotPaused {
+        address _recipient
+    ) public payable whenNotPaused {
         require(_amount >= minimalDeposit, "TOO_LITTLE");
 
         IERC20(WETH).safeTransferFrom(msg.sender, address(this), _amount);
-        bytes memory message = abi.encode(recipient);
+        bytes memory message = abi.encode(_recipient);
         sendMessageWithTransfer(
             receiver,
             WETH,
@@ -107,6 +85,35 @@ contract CelerMinterSender is MessageApp, Pausable, AccessControl {
             message,
             MsgDataTypes.BridgeSendType.Liquidity,
             msg.value
+        );
+    }
+
+    /**
+     * @dev mint native ETH on source chain
+     */
+    function mintEthers(
+        uint256 _amount,
+        uint32 _maxSlippage,
+        address _recipient
+    ) external payable {
+        require(_amount < msg.value, "INSUFFICIENT_ETHERS");
+        require(_amount >= minimalDeposit, "TOO_LITTLE");
+        uint256 _fees = msg.value - _amount;
+        
+        // wrap to WETH or revert here
+        IWETH9(WETH).deposit{value:_amount}(); 
+
+        bytes memory message = abi.encode(_recipient);
+        sendMessageWithTransfer(
+            receiver,
+            WETH,
+            _amount,
+            dstChainId,
+            nonce++,
+            _maxSlippage,
+            message,
+            MsgDataTypes.BridgeSendType.Liquidity,
+            _fees
         );
     }
 
@@ -137,7 +144,55 @@ contract CelerMinterSender is MessageApp, Pausable, AccessControl {
     }
 
     /**
+     * ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+     * ADMIN
+     * ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+     */
+ 
+    /**
+     * @dev set minimal WETH to deposit
+     */
+    function setMinimalDeposit(uint256 _minimal) external onlyRole(DEFAULT_ADMIN_ROLE) {
+        minimalDeposit = _minimal;
+        emit MinimalDepositSet(minimalDeposit);
+    }
+
+    /**
+     * @dev pause the contract
+     */
+    function pause() public onlyRole(PAUSER_ROLE) {
+        _pause();
+    }
+
+    /**
+     * @dev unpause the contract
+     */
+    function unpause() public onlyRole(PAUSER_ROLE) {
+        _unpause();
+    }
+
+    /**
+     * @dev claim locked ethers in this contract, usually we don't need this,
+     *  just in case some failed transaction locked ethers in this contract
+     */
+    function claimLockedEthers(address recipient, uint256 amount) onlyRole(DEFAULT_ADMIN_ROLE) nonReentrant external {
+        payable(recipient).sendValue(amount);
+        emit LockedEthersClaimed(amount);
+    }
+
+    /**
+     * @dev claim locked tokens in this contract, usually we don't need this,
+     *  just in case some failed transaction locked ethers in this contract
+     */
+    function claimLockedTokens(address token, address recipient, uint256 amount) onlyRole(DEFAULT_ADMIN_ROLE) nonReentrant external {
+        IERC20(token).safeTransfer(recipient, amount);
+        emit LockedTokensClaimed(token, amount);
+    }
+
+    /**
+     * ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
      * CONTRCT EVENTS
+     * ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
      */
     event Refunded(
         address sender,
@@ -145,4 +200,6 @@ contract CelerMinterSender is MessageApp, Pausable, AccessControl {
         uint256 amount
     );
     event MinimalDepositSet(uint256 amount);
+    event LockedEthersClaimed(uint256 amount);
+    event LockedTokensClaimed(address token, uint256 amount);
 }
