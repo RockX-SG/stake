@@ -18,7 +18,7 @@ MessageBus: 0xAd204986D6cB67A5Bc76a3CB8974823F43Cb9AAA
 def main():
     deployer = accounts.load('mainnet-deployer')
     messageBus = "0x7d43AABC515C356145049227CeE54B608342c0ad"
-    receiver = "0x733a6c29eDA4a58931AE81b8d91e29f2EAf01df3"
+    receiver = "0x3F924B976fc109dc019d8C538dA3398A48e5791B"
     wethContract = "0x39d22B78A7651A76Ffbde2aaAB5FD92666Aca520"
     dstChainId = 97 # bsc testnet
 

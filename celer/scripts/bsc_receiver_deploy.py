@@ -21,4 +21,4 @@ def main():
             bridgeContract,
             wethContract,
             stakingContract,
-            {'from': deployer},publish_source=True)
+            {'from': deployer})

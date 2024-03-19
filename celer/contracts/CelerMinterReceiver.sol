@@ -102,6 +102,8 @@ contract CelerMinterReceiver is MessageApp, AccessControl, ReentrancyGuard {
         uint256 minted = IBedrockStaking(stakingContract).mint{value:ethersToMint}(0, type(uint256).max);
 
         // send uniETH back to sourcechain sender
+        address uniETH = IBedrockStaking(stakingContract).xETHAddress();
+        IERC20(uniETH).safeIncreaseAllowance(bridgeContract, minted);
         IOriginalTokenVault(bridgeContract).deposit(
             IBedrockStaking(stakingContract).xETHAddress(),
             minted,
