@@ -84,7 +84,7 @@ contract CelerMinterSender is MessageApp, Pausable, ReentrancyGuard, AccessContr
         uint256 _amount,
         uint32 _maxSlippage,
         address _recipient
-    ) external payable {
+    ) external payable whenNotPaused {
         require(_amount < msg.value, "INSUFFICIENT_ETHERS");
         require(_amount >= minimalDeposit, "TOO_LITTLE");
         uint256 _fees = msg.value - _amount;

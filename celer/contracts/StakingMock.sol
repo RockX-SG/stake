@@ -48,4 +48,8 @@ contract MockStaking {
     function xETHAddress (  ) external view returns ( address ) {
         return token;
     }
+
+    function paused() external view returns ( bool ) {
+        return false;
+    }
 }

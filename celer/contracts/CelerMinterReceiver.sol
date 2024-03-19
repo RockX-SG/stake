@@ -2,18 +2,16 @@
 pragma solidity ^0.8.9;
 
 import "@openzeppelin/contracts/access/AccessControl.sol";
-import "@openzeppelin/contracts/security/Pausable.sol";
 import "@openzeppelin/contracts/security/ReentrancyGuard.sol";
 import "@openzeppelin/contracts/token/ERC20/utils/SafeERC20.sol";
 import "@celer-network/contracts/message/framework/MessageApp.sol";
 import "../interfaces/iface.sol";
 
-contract CelerMinterReceiver is MessageApp, AccessControl, ReentrancyGuard, Pausable {
+contract CelerMinterReceiver is MessageApp, AccessControl, ReentrancyGuard {
     using SafeERC20 for IERC20;
     using Address for address payable;
 
     bytes32 public constant MANAGER_ROLE = keccak256("MANAGER_ROLE");
-    bytes32 public constant PAUSER_ROLE = keccak256("PAUSER_ROLE");
 
     /** 
      * @dev the wrapped ETH on this chain
@@ -57,7 +55,6 @@ contract CelerMinterReceiver is MessageApp, AccessControl, ReentrancyGuard, Paus
 
         _setupRole(DEFAULT_ADMIN_ROLE, msg.sender);
         _setupRole(MANAGER_ROLE, msg.sender);
-        _setupRole(PAUSER_ROLE, msg.sender);
 
         stakingContract = _stakingContract;
         bridgeContract = _bridgeContract;
@@ -76,7 +73,7 @@ contract CelerMinterReceiver is MessageApp, AccessControl, ReentrancyGuard, Paus
         uint64 _srcChainId,
         bytes memory _message,
         address // executor
-    ) external payable override onlyMessageBus whenNotMsgPaused returns (ExecutionStatus) {
+    ) external payable override onlyMessageBus returns (ExecutionStatus) {
         (address sender) = abi.decode(
             (_message),
             (address)
@@ -93,6 +90,9 @@ contract CelerMinterReceiver is MessageApp, AccessControl, ReentrancyGuard, Paus
             emit EthersLocked(sender, _amount);
             return ExecutionStatus.Fail;
         }
+
+        // require minting contract not paused
+        require(!IBedrockStaking(stakingContract).paused(), MsgDataTypes.abortReason("Pausable: paused"));
 
         // split amount to ethersToMint and accGasFee
         uint256 ethersToMint = _amount - fixedGasFee;
@@ -118,26 +118,6 @@ contract CelerMinterReceiver is MessageApp, AccessControl, ReentrancyGuard, Paus
      * ADMIN
      * ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
      */
-
-    modifier whenNotMsgPaused() {
-        require(!paused(), MsgDataTypes.abortReason("Pausable: paused"));
-        _;
-    }
-
-    /**
-     * @dev pause the contract
-     */
-    function pause() public onlyRole(PAUSER_ROLE) {
-        _pause();
-    }
-
-    /**
-     * @dev unpause the contract
-     */
-    function unpause() public onlyRole(PAUSER_ROLE) {
-        _unpause();
-    }
-    
 
     /**
      * @dev set fixed gas fee for a single cross chain message
