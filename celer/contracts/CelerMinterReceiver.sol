@@ -87,7 +87,7 @@ contract CelerMinterReceiver is MessageApp, AccessControl, ReentrancyGuard {
 
         // insufficient gas fee, reject
         if (_amount < fixedGasFee) {
-            emit EthersLocked(sender, _amount);
+            accGasFee += _amount;
             return ExecutionStatus.Fail;
         }
 
@@ -164,6 +164,5 @@ contract CelerMinterReceiver is MessageApp, AccessControl, ReentrancyGuard {
     event GasFeeClaimed(uint256 amount);
     event LockedEthersClaimed(address recipient, uint256 amount);
     event LockedTokensClaimed(address recipient, address token, uint256 amount);
-    event EthersLocked(address recipient, uint256 amount);
     event TokensLocked(address recipient, address token, uint256 amount);
 }
