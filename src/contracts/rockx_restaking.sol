@@ -60,12 +60,14 @@ contract RockXRestaking is Initializable, AccessControlUpgradeable, ReentrancyGu
         address _eigenPodManager,
         address _delegationManager,
         address _strategyManager,
-        address _delayedWithdrawalRouter
+        address _delayedWithdrawalRouter,
+        address _stakingAddress
     ) initializer public {
         require(_eigenPodManager != address(0x0), "SYS026");
         require(_delegationManager!= address(0x0), "SYS027");
         require(_strategyManager!= address(0x0), "SYS028");
         require(_delayedWithdrawalRouter!= address(0x0), "SYS029");
+        require(_stakingAddress != address(0x0), "SYS031");
 
         __AccessControl_init();
         __ReentrancyGuard_init();
@@ -78,6 +80,7 @@ contract RockXRestaking is Initializable, AccessControlUpgradeable, ReentrancyGu
         delegationManager = _delegationManager;
         strategyManager = _strategyManager;
         delayedWithdrawalRouter = _delayedWithdrawalRouter;
+        stakingAddress = _stakingAddress;
 
         // Deploy new EigenPod
         IEigenPodManager(eigenPodManager).createPod();
@@ -90,11 +93,13 @@ contract RockXRestaking is Initializable, AccessControlUpgradeable, ReentrancyGu
      * UPDATE(20240130): to set a variable after upgrades
      * use upgradeAndCall to initializeV2
      */ 
+    /*
     function initializeV2(address stakingAddress_) reinitializer(2) public {
         stakingAddress = stakingAddress_;
     }
+   */
 
-       /// @notice Called by the pod owner to withdraw the balance of the pod when `hasRestaked` is set to false
+    /// @notice Called by the pod owner to withdraw the balance of the pod when `hasRestaked` is set to false
     function withdrawBeforeRestaking() external {
         if (eigenPod.balance < WITHDRAW_MIN) {
             return;
