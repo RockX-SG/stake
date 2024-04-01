@@ -54,3 +54,7 @@ interface IRockXRestaking {
     function claimDelayedWithdrawals(uint256 maxNumberOfWithdrawalsToClaim) external;
     function eigenPod() external view returns (address);
 }
+
+interface IPodOwner {
+    function execute(address target, bytes memory data) external returns(bytes memory);
+}
