@@ -401,9 +401,12 @@ contract Staking is Initializable, PausableUpgradeable, AccessControlUpgradeable
         _require(pubkeys.length == signatures.length, "SYS007");
         _require(pubkeys.length == podIds.length, "SYS007");
         uint256 n = pubkeys.length;
+        uint256 totalPods = IRestaking(restakingContract).getTotalPods();
+
         for(uint256 i=0;i<n;i++) {
             _require(pubkeys[i].length == PUBKEY_LENGTH, "SYS004");
             _require(signatures[i].length == SIGNATURE_LENGTH, "SYS003");
+            require(podIds[i] < totalPods, "SYS031");
 
             bytes32 pubkeyHash = keccak256(pubkeys[i]);
             _require(pubkeyIndices[pubkeyHash] == 0, "SYS005");
