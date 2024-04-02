@@ -201,8 +201,8 @@ contract Staking is Initializable, PausableUpgradeable, AccessControlUpgradeable
     uint256[31] private __gap;
 
     // KYC control
-    mapping(address=>uint256) quotaUsed;
-    mapping(address=>bool) whiteList;
+    mapping(address=>uint256) __DEPRECATED_quotaUsed;
+    mapping(address=>bool) __DEPRECATED_whiteList;
 
     // auto-compounding
     bool private autoCompoundEnabled;
@@ -294,41 +294,9 @@ contract Staking is Initializable, PausableUpgradeable, AccessControlUpgradeable
     }
 
     /**
-     * @dev register a validator
-     */
-    function registerValidator(bytes calldata pubkey, bytes calldata signature) external onlyRole(REGISTRY_ROLE) {
-        _require(signature.length == SIGNATURE_LENGTH, "SYS003");
-        _require(pubkey.length == PUBKEY_LENGTH, "SYS004");
-
-        bytes32 pubkeyHash = keccak256(pubkey);
-        _require(pubkeyIndices[pubkeyHash] == 0, "SYS005");
-        validatorRegistry.push(ValidatorCredential({pubkey:pubkey, signature:signature, stopped:false, restaking: false, eigenpod: 0}));
-        pubkeyIndices[pubkeyHash] = validatorRegistry.length;
-    }
-
-    /**
-     * @dev replace a validator in case of msitakes
-     */
-    function replaceValidator(bytes calldata oldpubkey, bytes calldata pubkey, bytes calldata signature) external onlyRole(REGISTRY_ROLE) {
-        _require(pubkey.length == PUBKEY_LENGTH, "SYS004");
-        _require(signature.length == SIGNATURE_LENGTH, "SYS003");
-
-        // mark old pub key to false
-        bytes32 oldPubKeyHash = keccak256(oldpubkey);
-        _require(pubkeyIndices[oldPubKeyHash] > 0, "SYS006");
-        uint256 index = pubkeyIndices[oldPubKeyHash] - 1;
-        delete pubkeyIndices[oldPubKeyHash];
-
-        // set new pubkey
-        bytes32 pubkeyHash = keccak256(pubkey);
-        validatorRegistry[index] = ValidatorCredential({pubkey:pubkey, signature:signature, stopped:false, restaking: false, eigenpod: 0});
-        pubkeyIndices[pubkeyHash] = index+1;
-    }
-
-    /**
      * @dev replace validators in batch
      */
-    function replaceValidators(bytes [] calldata oldpubkeys, bytes [] calldata pubkeys, bytes [] calldata signatures, bool restaking) external onlyRole(REGISTRY_ROLE) {
+    function replaceValidators(bytes [] calldata oldpubkeys, bytes [] calldata pubkeys, bytes [] calldata signatures, bool restaking, uint8 eigenpod) external onlyRole(REGISTRY_ROLE) {
         _require(pubkeys.length == signatures.length, "SYS007");
         _require(oldpubkeys.length == pubkeys.length, "SYS007");
         uint256 n = pubkeys.length;
@@ -354,45 +322,12 @@ contract Staking is Initializable, PausableUpgradeable, AccessControlUpgradeable
             validator.pubkey = pubkey;
             validator.signature = signature;
             validator.restaking = restaking;
+            validator.eigenpod = eigenpod;
             pubkeyIndices[pubkeyHash] = index+1;
         }
     }
 
-    /**
-     * @dev register a batch of validators
-     */
-    function registerValidators(bytes [] calldata pubkeys, bytes [] calldata signatures) external onlyRole(REGISTRY_ROLE) {
-        _require(pubkeys.length == signatures.length, "SYS007");
-        uint256 n = pubkeys.length;
-        for(uint256 i=0;i<n;i++) {
-            _require(pubkeys[i].length == PUBKEY_LENGTH, "SYS004");
-            _require(signatures[i].length == SIGNATURE_LENGTH, "SYS003");
-
-            bytes32 pubkeyHash = keccak256(pubkeys[i]);
-            _require(pubkeyIndices[pubkeyHash] == 0, "SYS005");
-            validatorRegistry.push(ValidatorCredential({pubkey:pubkeys[i], signature:signatures[i], stopped:false, restaking: false, eigenpod: 0}));
-            pubkeyIndices[pubkeyHash] = validatorRegistry.length;
-        }
-    }
-
-    /**
-     * @dev register a batch of LRT validators
-     * UPDATE(20240115): register a batch of validators for Liquid Restaking (EigenLayer)
-     */
-    function registerRestakingValidators(bytes [] calldata pubkeys, bytes [] calldata signatures) external onlyRole(REGISTRY_ROLE) {
-        _require(pubkeys.length == signatures.length, "SYS007");
-        uint256 n = pubkeys.length;
-        for(uint256 i=0;i<n;i++) {
-            _require(pubkeys[i].length == PUBKEY_LENGTH, "SYS004");
-            _require(signatures[i].length == SIGNATURE_LENGTH, "SYS003");
-
-            bytes32 pubkeyHash = keccak256(pubkeys[i]);
-            _require(pubkeyIndices[pubkeyHash] == 0, "SYS005");
-            validatorRegistry.push(ValidatorCredential({pubkey:pubkeys[i], signature:signatures[i], stopped:false, restaking: true, eigenpod: 0}));
-            pubkeyIndices[pubkeyHash] = validatorRegistry.length;
-        }
-    }
-
+    /*
     /**
      * @dev register a batch of LRT validators
      * UPDATE(20240402): register a batch of validators for Liquid Restaking (EigenLayer) with given eigenpod id
@@ -413,16 +348,6 @@ contract Staking is Initializable, PausableUpgradeable, AccessControlUpgradeable
             validatorRegistry.push(ValidatorCredential({pubkey:pubkeys[i], signature:signatures[i], stopped:false, restaking: true, eigenpod: podIds[i]}));
             pubkeyIndices[pubkeyHash] = validatorRegistry.length;
         }
-    }
-
-
-    /**
-     * @dev toggleWhiteList
-     */
-    function toggleWhiteList(address account) external onlyRole(DEFAULT_ADMIN_ROLE) {
-        whiteList[account] = !whiteList[account];
-
-        emit WhiteListToggle(account, whiteList[account]);
     }
 
     /**
@@ -818,17 +743,6 @@ contract Staking is Initializable, PausableUpgradeable, AccessControlUpgradeable
      * @dev get stopped validators count
      */
     function getStoppedValidatorsCount() external view returns (uint256) { return stoppedValidators; }
-
-    /**
-     * @dev get used quota
-     */
-    function getQuota(address account) external view returns (uint256) { return quotaUsed[account]; }
-
-    /**
-     * @dev check whitelist enabled
-     */
-    function isWhiteListed(address account) external view returns (bool) { return whiteList[account]; }
-
 
     /**
      * ======================================================================================
