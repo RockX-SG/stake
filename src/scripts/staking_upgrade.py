@@ -19,9 +19,9 @@ def main():
     deployer = accounts.load('mainnet-deployer')
 
     # simulate staking upgrade
-    staking_contract = RockXStaking.deploy( {'from': deployer})
+    staking_contract = Staking.deploy( {'from': deployer})
     proxy_admin_contract.upgrade(staking_proxy, staking_contract, {'from': gnosis_safe})
-    transparent_staking = Contract.from_abi("RockXStaking",staking_proxy, RockXStaking.abi)
+    transparent_staking = Contract.from_abi("RockXStaking",staking_proxy, Staking.abi)
    
     # simulate syncBalance
     #transparent_staking.syncBalance({"from":oracle})

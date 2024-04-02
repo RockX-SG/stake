@@ -93,6 +93,7 @@ contract Staking is Initializable, PausableUpgradeable, AccessControlUpgradeable
         bytes signature;
         bool stopped;
         bool restaking; // UPDATE(20240115) : flag the validator is using liquid staking address
+        uint8 eigenpod; // UPDATE(20240402) : eigenpod id
     }
 
     // track ether debts to return to async caller
@@ -301,7 +302,7 @@ contract Staking is Initializable, PausableUpgradeable, AccessControlUpgradeable
 
         bytes32 pubkeyHash = keccak256(pubkey);
         _require(pubkeyIndices[pubkeyHash] == 0, "SYS005");
-        validatorRegistry.push(ValidatorCredential({pubkey:pubkey, signature:signature, stopped:false, restaking: false}));
+        validatorRegistry.push(ValidatorCredential({pubkey:pubkey, signature:signature, stopped:false, restaking: false, eigenpod: 0}));
         pubkeyIndices[pubkeyHash] = validatorRegistry.length;
     }
 
@@ -320,7 +321,7 @@ contract Staking is Initializable, PausableUpgradeable, AccessControlUpgradeable
 
         // set new pubkey
         bytes32 pubkeyHash = keccak256(pubkey);
-        validatorRegistry[index] = ValidatorCredential({pubkey:pubkey, signature:signature, stopped:false, restaking: false});
+        validatorRegistry[index] = ValidatorCredential({pubkey:pubkey, signature:signature, stopped:false, restaking: false, eigenpod: 0});
         pubkeyIndices[pubkeyHash] = index+1;
     }
 
@@ -369,7 +370,7 @@ contract Staking is Initializable, PausableUpgradeable, AccessControlUpgradeable
 
             bytes32 pubkeyHash = keccak256(pubkeys[i]);
             _require(pubkeyIndices[pubkeyHash] == 0, "SYS005");
-            validatorRegistry.push(ValidatorCredential({pubkey:pubkeys[i], signature:signatures[i], stopped:false, restaking: false}));
+            validatorRegistry.push(ValidatorCredential({pubkey:pubkeys[i], signature:signatures[i], stopped:false, restaking: false, eigenpod: 0}));
             pubkeyIndices[pubkeyHash] = validatorRegistry.length;
         }
     }
@@ -387,10 +388,30 @@ contract Staking is Initializable, PausableUpgradeable, AccessControlUpgradeable
 
             bytes32 pubkeyHash = keccak256(pubkeys[i]);
             _require(pubkeyIndices[pubkeyHash] == 0, "SYS005");
-            validatorRegistry.push(ValidatorCredential({pubkey:pubkeys[i], signature:signatures[i], stopped:false, restaking: true}));
+            validatorRegistry.push(ValidatorCredential({pubkey:pubkeys[i], signature:signatures[i], stopped:false, restaking: true, eigenpod: 0}));
             pubkeyIndices[pubkeyHash] = validatorRegistry.length;
         }
     }
+
+    /**
+     * @dev register a batch of LRT validators
+     * UPDATE(20240402): register a batch of validators for Liquid Restaking (EigenLayer) with given eigenpod id
+     */
+    function registerRestakingValidators(bytes [] calldata pubkeys, bytes [] calldata signatures, uint8 [] calldata podIds) external onlyRole(REGISTRY_ROLE) {
+        _require(pubkeys.length == signatures.length, "SYS007");
+        _require(pubkeys.length == podIds.length, "SYS007");
+        uint256 n = pubkeys.length;
+        for(uint256 i=0;i<n;i++) {
+            _require(pubkeys[i].length == PUBKEY_LENGTH, "SYS004");
+            _require(signatures[i].length == SIGNATURE_LENGTH, "SYS003");
+
+            bytes32 pubkeyHash = keccak256(pubkeys[i]);
+            _require(pubkeyIndices[pubkeyHash] == 0, "SYS005");
+            validatorRegistry.push(ValidatorCredential({pubkey:pubkeys[i], signature:signatures[i], stopped:false, restaking: true, eigenpod: podIds[i]}));
+            pubkeyIndices[pubkeyHash] = validatorRegistry.length;
+        }
+    }
+
 
     /**
      * @dev toggleWhiteList
@@ -1035,7 +1056,7 @@ contract Staking is Initializable, PausableUpgradeable, AccessControlUpgradeable
         if (!cred.restaking) {
             _stake(cred.pubkey, cred.signature, withdrawalCredentials);
         } else {
-            address eigenPod = IRestaking(restakingContract).eigenPod();
+            address eigenPod = IRestaking(restakingContract).getPod(cred.eigenpod);
             bytes memory eigenPodCred = abi.encodePacked(bytes1(0x01), new bytes(11), eigenPod);
             bytes32 restakingWithdrawalCredentials = BytesLib.toBytes32(eigenPodCred, 0);
 
