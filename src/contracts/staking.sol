@@ -296,33 +296,31 @@ contract Staking is Initializable, PausableUpgradeable, AccessControlUpgradeable
     /**
      * @dev replace validators in batch
      */
-    function replaceValidators(bytes [] calldata oldpubkeys, bytes [] calldata pubkeys, bytes [] calldata signatures, bool restaking, uint8 eigenpod) external onlyRole(REGISTRY_ROLE) {
+    function replaceValidators(bytes [] calldata oldpubkeys, bytes [] calldata pubkeys, bytes [] calldata signatures, bool restaking, uint8 [] calldata podIds) external onlyRole(REGISTRY_ROLE) {
         _require(pubkeys.length == signatures.length, "SYS007");
         _require(oldpubkeys.length == pubkeys.length, "SYS007");
+        _require(pubkeys.length == podIds.length, "SYS007");
+
         uint256 n = pubkeys.length;
 
         for(uint256 i=0;i<n;i++) {
-            bytes calldata oldpubkey = oldpubkeys[i];
-            bytes calldata pubkey = pubkeys[i];
-            bytes calldata signature = signatures[i];
-
-            _require(oldpubkey.length == PUBKEY_LENGTH, "SYS004");
-            _require(pubkey.length == PUBKEY_LENGTH, "SYS004");
-            _require(signature.length == SIGNATURE_LENGTH, "SYS003");
+            _require(oldpubkeys[i].length == PUBKEY_LENGTH, "SYS004");
+            _require(pubkeys[i].length == PUBKEY_LENGTH, "SYS004");
+            _require(signatures[i].length == SIGNATURE_LENGTH, "SYS003");
 
             // mark old pub key to false
-            bytes32 oldPubKeyHash = keccak256(oldpubkey);
+            bytes32 oldPubKeyHash = keccak256(oldpubkeys[i]);
             _require(pubkeyIndices[oldPubKeyHash] > 0, "SYS006");
             uint256 index = pubkeyIndices[oldPubKeyHash] - 1;
             delete pubkeyIndices[oldPubKeyHash];
 
             // set new pubkey
-            bytes32 pubkeyHash = keccak256(pubkey);
+            bytes32 pubkeyHash = keccak256(pubkeys[i]);
             ValidatorCredential storage validator = validatorRegistry[index];
-            validator.pubkey = pubkey;
-            validator.signature = signature;
+            validator.pubkey = pubkeys[i];
+            validator.signature = signatures[i];
             validator.restaking = restaking;
-            validator.eigenpod = eigenpod;
+            validator.eigenpod = podIds[i];
             pubkeyIndices[pubkeyHash] = index+1;
         }
     }
