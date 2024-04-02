@@ -5,8 +5,8 @@ import time
 import pytest
 
 '''
-see the following link for more details:
-https://docs.celer.network/celer-protocol/celer-protocol-overview/celer-protocol-overview-celer-minter-sender-receiver-contracts
+add linea mainnet with brownie:
+brownie networks add Linea linea-mainnet host=https://rpc.linea.build explorer=https://lineascan.build name='Linea Official' chainid=1337
 
 '''
 def main():
