@@ -146,7 +146,7 @@ contract Staking is Initializable, PausableUpgradeable, AccessControlUpgradeable
     bytes32 public withdrawalCredentials;   // WithdrawCredential for all validator
 
     // credentials, pushed by owner
-    ValidatorCredential [] private validatorRegistry;
+    ValidatorCredential [] public validatorRegistry;
     mapping(bytes32 => uint256) private pubkeyIndices; // indices of validatorRegistry by pubkey hash, starts from 1
 
     // next validator id
@@ -325,7 +325,41 @@ contract Staking is Initializable, PausableUpgradeable, AccessControlUpgradeable
         }
     }
 
-    /*
+    /**
+     * @dev register a batch of validators
+     */
+    function registerValidators(bytes [] calldata pubkeys, bytes [] calldata signatures) external onlyRole(REGISTRY_ROLE) {
+        _require(pubkeys.length == signatures.length, "SYS007");
+        uint256 n = pubkeys.length;
+        for(uint256 i=0;i<n;i++) {
+            _require(pubkeys[i].length == PUBKEY_LENGTH, "SYS004");
+            _require(signatures[i].length == SIGNATURE_LENGTH, "SYS003");
+
+            bytes32 pubkeyHash = keccak256(pubkeys[i]);
+            _require(pubkeyIndices[pubkeyHash] == 0, "SYS005");
+            validatorRegistry.push(ValidatorCredential({pubkey:pubkeys[i], signature:signatures[i], stopped:false, restaking: false, eigenpod: 0}));
+            pubkeyIndices[pubkeyHash] = validatorRegistry.length;
+        }
+    }
+
+    /**
+     * @dev register a batch of LRT validators
+     * UPDATE(20240115): register a batch of validators for Liquid Restaking (EigenLayer)
+     */
+    function registerRestakingValidators(bytes [] calldata pubkeys, bytes [] calldata signatures) external onlyRole(REGISTRY_ROLE) {
+        _require(pubkeys.length == signatures.length, "SYS007");
+        uint256 n = pubkeys.length;
+        for(uint256 i=0;i<n;i++) {
+            _require(pubkeys[i].length == PUBKEY_LENGTH, "SYS004");
+            _require(signatures[i].length == SIGNATURE_LENGTH, "SYS003");
+
+            bytes32 pubkeyHash = keccak256(pubkeys[i]);
+            _require(pubkeyIndices[pubkeyHash] == 0, "SYS005");
+            validatorRegistry.push(ValidatorCredential({pubkey:pubkeys[i], signature:signatures[i], stopped:false, restaking: true, eigenpod: 0}));
+            pubkeyIndices[pubkeyHash] = validatorRegistry.length;
+        }
+    }
+
     /**
      * @dev register a batch of LRT validators
      * UPDATE(20240402): register a batch of validators for Liquid Restaking (EigenLayer) with given eigenpod id
