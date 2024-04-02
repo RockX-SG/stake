@@ -296,7 +296,12 @@ contract Staking is Initializable, PausableUpgradeable, AccessControlUpgradeable
     /**
      * @dev replace validators in batch
      */
-    function replaceValidators(bytes [] calldata oldpubkeys, bytes [] calldata pubkeys, bytes [] calldata signatures, bool restaking, uint8 [] calldata podIds) external onlyRole(REGISTRY_ROLE) {
+    function replaceValidators(
+        bytes [] calldata oldpubkeys, 
+        bytes [] calldata pubkeys, 
+        bytes [] calldata signatures, 
+        bool restaking, 
+        uint8 [] calldata podIds) external onlyRole(REGISTRY_ROLE) {
         _require(pubkeys.length == signatures.length, "SYS007");
         _require(oldpubkeys.length == pubkeys.length, "SYS007");
         _require(pubkeys.length == podIds.length, "SYS007");
@@ -364,7 +369,10 @@ contract Staking is Initializable, PausableUpgradeable, AccessControlUpgradeable
      * @dev register a batch of LRT validators
      * UPDATE(20240402): register a batch of validators for Liquid Restaking (EigenLayer) with given eigenpod id
      */
-    function registerRestakingValidators(bytes [] calldata pubkeys, bytes [] calldata signatures, uint8 [] calldata podIds) external onlyRole(REGISTRY_ROLE) {
+    function registerRestakingValidators(
+        bytes [] calldata pubkeys, 
+        bytes [] calldata signatures, 
+        uint8 [] calldata podIds) external onlyRole(REGISTRY_ROLE) {
         _require(pubkeys.length == signatures.length, "SYS007");
         _require(pubkeys.length == podIds.length, "SYS007");
         uint256 n = pubkeys.length;
