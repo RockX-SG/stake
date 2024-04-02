@@ -48,11 +48,12 @@ interface IRockXRedeem {
     function pay(address account) external payable;
 }
 
-interface IRockXRestaking {
+interface IRestaking {
     function getPendingWithdrawalAmount() external view returns (uint256);
     function withdrawBeforeRestaking() external;
     function claimDelayedWithdrawals(uint256 maxNumberOfWithdrawalsToClaim) external;
     function eigenPod() external view returns (address);
+    function getPod(uint256 i) external view returns (address);
 }
 
 interface IPodOwner {

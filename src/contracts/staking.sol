@@ -82,7 +82,7 @@ import "@openzeppelin/contracts/utils/math/SafeCast.sol";
  *          ReportedValidators = aliveValidator
  *          ReportedValidatorBalance = aliveBalance
  */
-contract RockXStaking is Initializable, PausableUpgradeable, AccessControlUpgradeable, ReentrancyGuardUpgradeable {
+contract Staking is Initializable, PausableUpgradeable, AccessControlUpgradeable, ReentrancyGuardUpgradeable {
     using SafeERC20 for IERC20;
     using Address for address payable;
     using Address for address;
@@ -505,8 +505,8 @@ contract RockXStaking is Initializable, PausableUpgradeable, AccessControlUpgrad
      */
     function _syncBalance() internal {
         // account restaking values
-        IRockXRestaking(restakingContract).withdrawBeforeRestaking();
-        IRockXRestaking(restakingContract).claimDelayedWithdrawals(type(uint256).max);
+        IRestaking(restakingContract).withdrawBeforeRestaking();
+        IRestaking(restakingContract).claimDelayedWithdrawals(type(uint256).max);
 
         assert(SafeCast.toInt256(address(this).balance) >= accountedBalance);
         uint256 diff = SafeCast.toUint256(SafeCast.toInt256(address(this).balance) - accountedBalance);
@@ -1035,7 +1035,7 @@ contract RockXStaking is Initializable, PausableUpgradeable, AccessControlUpgrad
         if (!cred.restaking) {
             _stake(cred.pubkey, cred.signature, withdrawalCredentials);
         } else {
-            address eigenPod = IRockXRestaking(restakingContract).eigenPod();
+            address eigenPod = IRestaking(restakingContract).eigenPod();
             bytes memory eigenPodCred = abi.encodePacked(bytes1(0x01), new bytes(11), eigenPod);
             bytes32 restakingWithdrawalCredentials = BytesLib.toBytes32(eigenPodCred, 0);
 
