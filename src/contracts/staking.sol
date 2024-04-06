@@ -467,8 +467,6 @@ contract Staking is Initializable, PausableUpgradeable, AccessControlUpgradeable
      *      debts may be used to pay as the manager's revenue(that may take serveral months to come back).
      */
     function _compoundManagerRevenue() internal {
-        // only compound if we have more than minimum required
-        // otherwise, the gas cost may exceed revenue.
         uint256 freeEthers = address(this).balance - totalPending;
         uint256 amountEthers = freeEthers < accountedManagerRevenue ? freeEthers:accountedManagerRevenue;
 
