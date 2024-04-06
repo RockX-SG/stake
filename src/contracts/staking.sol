@@ -131,7 +131,6 @@ contract Staking is Initializable, PausableUpgradeable, AccessControlUpgradeable
     bytes32 public constant PAUSER_ROLE = keccak256("PAUSER_ROLE");
     uint256 public constant DEPOSIT_SIZE = 32 ether;
     uint256 public constant SAFE_PUSH_REWARDS = 30 ether;
-    uint256 public constant MIN_MANAGER_COMPOUND = 1 ether;
 
     uint256 private constant MULTIPLIER = 1e18; 
     uint256 private constant DEPOSIT_AMOUNT_UNIT = 1000000000 wei;
@@ -213,6 +212,9 @@ contract Staking is Initializable, PausableUpgradeable, AccessControlUpgradeable
 
     // UPDATE(20240130): use variable instead of constant, require upgradeAndCall to set it's value
     address public restakingContract;
+
+    // UPDATE(20240405): record latest unrealized profits
+    uint256 private reportedUnrealizedProfits;
 
     /** 
      * ======================================================================================
@@ -456,18 +458,21 @@ contract Staking is Initializable, PausableUpgradeable, AccessControlUpgradeable
      * @dev manager withdraw fees as uniETH
      */
     function withdrawManagerFee(address to) external onlyRole(MANAGER_ROLE) {
-        _compoundManagerRevenue();
         IERC20(xETHAddress).safeTransfer(to, IERC20(xETHAddress).balanceOf(address(this)));
     }
 
     /**
      * @dev compound manager's revenue
+     *  NOTE(20240406): this MUST be called in pushBeacon, to make sure debts are paied in priority, otherwise
+     *      debts may be used to pay as the manager's revenue(that may take serveral months to come back).
      */
     function _compoundManagerRevenue() internal {
-        if (accountedManagerRevenue >= MIN_MANAGER_COMPOUND) { 
-            // only compound if we have more than minimum required
-            // otherwise, the gas cost may exceed revenue.
-            uint256 amountEthers = accountedManagerRevenue;
+        // only compound if we have more than minimum required
+        // otherwise, the gas cost may exceed revenue.
+        uint256 freeEthers = address(this).balance - totalPending;
+        uint256 amountEthers = freeEthers < accountedManagerRevenue ? freeEthers:accountedManagerRevenue;
+
+        if (amountEthers > 0) {
             uint256 totalSupply = IERC20(xETHAddress).totalSupply();
             uint256 totalEthers = currentReserve();
             uint256 tokensToMint = totalSupply * amountEthers / totalEthers;
@@ -477,7 +482,6 @@ contract Staking is Initializable, PausableUpgradeable, AccessControlUpgradeable
             IMintableContract(xETHAddress).mint(address(this), tokensToMint);
             totalPending += amountEthers;
             accountedManagerRevenue -= amountEthers;
-            assert(accountedManagerRevenue == 0);
             // assert(ratio == _exchangeRatioInternal());          // RATIO GUARD END
 
             emit ManagerRevenueCompounded(amountEthers);
@@ -533,7 +537,7 @@ contract Staking is Initializable, PausableUpgradeable, AccessControlUpgradeable
 
         // Check if new validators increased
         // and adjust rewardBase to include the new validators' value
-        uint256 rewardBase = reportedValidatorBalance;
+        uint256 rewardBase = reportedValidatorBalance + reportedUnrealizedProfits;
         uint256 _aliveValidators = nextValidatorId - stoppedValidators;
         if (_aliveValidators + recentStopped > reportedValidators) {
             // newly launched validators
@@ -554,18 +558,21 @@ contract Staking is Initializable, PausableUpgradeable, AccessControlUpgradeable
         //      + recent received from validators(since last pushBeacon) 
         //  >（GREATER THAN) reward base(last active validator balance + new nodes balance)
         uint256 _aliveBalance = _aliveValidators * DEPOSIT_SIZE;  // computed balance
-        _require(_aliveBalance + recentReceived >= rewardBase, "SYS015");
-        uint256 rewards = _aliveBalance + recentReceived - rewardBase;
+        uint256 _unrealizedProfits = IRestaking(restakingContract).getPendingWithdrawalAmount();   // get unrealized profits
+
+        _require(_aliveBalance + _unrealizedProfits + recentReceived >= rewardBase, "SYS015");
+        uint256 rewards = _aliveBalance + _unrealizedProfits + recentReceived - rewardBase;
         _require(rewards <= maxRewards, "SYS016");
 
         _distributeRewards(rewards);
-        _autocompound();
         _compoundManagerRevenue();
+        _autocompound();
 
         // Update reportedValidators & reportedValidatorBalance
         // reset the recentReceived to 0
         reportedValidatorBalance = _aliveBalance; 
         reportedValidators = _aliveValidators;
+        reportedUnrealizedProfits = _unrealizedProfits;
         recentReceived = 0;
         recentStopped = 0;
     }
@@ -578,7 +585,7 @@ contract Staking is Initializable, PausableUpgradeable, AccessControlUpgradeable
         uint256 amountUnstaked = _stoppedPubKeys.length * DEPOSIT_SIZE;
         _require(_stoppedPubKeys.length > 0, "SYS017");
         _require(_stoppedPubKeys.length + stoppedValidators <= nextValidatorId, "SYS018");
-        _require(address(this).balance >= amountUnstaked + totalPending + accountedManagerRevenue, "SYS019");
+        _require(address(this).balance >= amountUnstaked + totalPending, "SYS019");
 
         // track stopped validators
         for (uint i=0;i<_stoppedPubKeys.length;i++) {
@@ -985,19 +992,16 @@ contract Staking is Initializable, PausableUpgradeable, AccessControlUpgradeable
 
     /**
      * @dev auto compounding, after shanghai merge, called in pushBeacon
+     *  NOTE(20240406): this MUST be called in pushBeacon, to make sure debts are paied in priority, otherwise
+     *      debts may be used to pay as the users' revenue(that may take serveral months to come back).
      */
     function _autocompound() internal {
         if (autoCompoundEnabled) {
-            // contract balance consists of maximum:
-            // validator assets to clear debts, rewards after shanghai merge(compound), user's pending ethers to mint and manager's revenue.
-            // autocompound & payDebts will race to use the incoming ethers, but eventually both will succeed.
-            if (address(this).balance > accountedManagerRevenue + totalPending) {
-                uint256 maxCompound = accountedUserRevenue - rewardDebts;
-                uint256 maxUsable = address(this).balance - accountedManagerRevenue - totalPending;
-                uint256 effectiveEthers = maxCompound < maxUsable? maxCompound:maxUsable;
-                totalPending += effectiveEthers;
-                rewardDebts += effectiveEthers;
-            }
+            uint256 maxCompound = accountedUserRevenue - rewardDebts;
+            uint256 maxUsable = address(this).balance - totalPending;
+            uint256 effectiveEthers = maxCompound < maxUsable? maxCompound:maxUsable;
+            totalPending += effectiveEthers;
+            rewardDebts += effectiveEthers;
         }
     }
 

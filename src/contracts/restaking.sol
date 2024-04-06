@@ -151,11 +151,17 @@ contract Restaking is Initializable, AccessControlUpgradeable, ReentrancyGuardUp
     }
 
     /**
-     * @dev get amount withdrawed from eigenpod to IDelayedRouter
+     * @dev get unrealized profits that either stays on eigenpods, or locked in router.
      */
-    function getPendingWithdrawalAmount(
-    ) external view returns (uint256) {
-        return pendingWithdrawal;
+    function getPendingWithdrawalAmount() external view returns (uint256) {
+        uint256 sumBalance;
+        for (uint256 i=0;i< podOwners.length;i++) {
+            IPodOwner podOwner = podOwners[i];
+            address pod = address(IEigenPodManager(eigenPodManager).getPod(address(podOwner)));
+            sumBalance += pod.balance;
+        }
+
+        return pendingWithdrawal + sumBalance;
     }
 
     /**
