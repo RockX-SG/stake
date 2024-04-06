@@ -496,8 +496,7 @@ contract Staking is Initializable, PausableUpgradeable, AccessControlUpgradeable
      */
     function _syncBalance() internal {
         // account restaking values
-        IRestaking(restakingContract).withdrawBeforeRestaking();
-        IRestaking(restakingContract).claimDelayedWithdrawals(type(uint256).max);
+        IRestaking(restakingContract).update();
 
         assert(SafeCast.toInt256(address(this).balance) >= accountedBalance);
         uint256 diff = SafeCast.toUint256(SafeCast.toInt256(address(this).balance) - accountedBalance);

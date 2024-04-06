@@ -200,10 +200,17 @@ contract Restaking is Initializable, AccessControlUpgradeable, ReentrancyGuardUp
      * ======================================================================================
      */
 
+    /**
+     * @dev keeper job
+     */
+    function update() external {
+        _withdrawBeforeRestaking();
+        _claimDelayedWithdrawals(type(uint256).max);
+    }
+
     /// @notice Called by the pod owner to withdraw the balance of the pod when `hasRestaked` is set to false
     function withdrawBeforeRestaking() external {
-        uint256 diff = _withdrawBeforeRestaking();
-        emit Pending(diff);
+        _withdrawBeforeRestaking();
     }
 
     /**
@@ -213,8 +220,7 @@ contract Restaking is Initializable, AccessControlUpgradeable, ReentrancyGuardUp
     function claimDelayedWithdrawals(
         uint256 maxNumberOfWithdrawalsToClaim
     ) external nonReentrant {
-        uint256 diff = _claimDelayedWithdrawals(maxNumberOfWithdrawalsToClaim);
-        emit Claimed(diff);
+        _claimDelayedWithdrawals(maxNumberOfWithdrawalsToClaim);
     }
 
 
@@ -226,7 +232,7 @@ contract Restaking is Initializable, AccessControlUpgradeable, ReentrancyGuardUp
      * ======================================================================================
      */
 
-    function _withdrawBeforeRestaking() internal returns (uint256) {
+    function _withdrawBeforeRestaking() internal {
         uint256 totalDiff;
 
         for (uint256 i=0;i< podOwners.length;i++) {
@@ -242,10 +248,10 @@ contract Restaking is Initializable, AccessControlUpgradeable, ReentrancyGuardUp
         }
 
         pendingWithdrawal += totalDiff;
-        return totalDiff;
+        emit Pending(totalDiff);
     }
 
-    function _claimDelayedWithdrawals(uint256 maxNumberOfWithdrawalsToClaim) internal returns(uint256) {
+    function _claimDelayedWithdrawals(uint256 maxNumberOfWithdrawalsToClaim) internal {
         uint256 totalDiff;
 
         for (uint256 i=0;i< podOwners.length;i++) {
@@ -262,7 +268,7 @@ contract Restaking is Initializable, AccessControlUpgradeable, ReentrancyGuardUp
         }
 
         pendingWithdrawal -= totalDiff;
-        return totalDiff;
+        emit Claimed(totalDiff);
     }
 
     // @dev the magic to make restaking contract compatible to IPodOwner
