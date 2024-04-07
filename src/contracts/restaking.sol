@@ -136,6 +136,20 @@ contract Restaking is Initializable, AccessControlUpgradeable, ReentrancyGuardUp
     }
 
     /**
+     * @dev UPDATE(20240407): activateRestaking()
+     */ 
+    /*
+    function initializeV4(address stakingAddress_) reinitializer(4) public {
+        for (uint256 i=0;i< podOwners.length;i++) {
+            IPodOwner podOwner = podOwners[i];
+            address pod = address(IEigenPodManager(eigenPodManager).getPod(address(podOwner)));
+
+            podOwner.execute(pod, abi.encodeWithSelector(IEigenPod.activateRestaking.selector));
+        }
+    }
+   */
+
+    /**
      * @dev upgradeBeacon
      */
     function upgradeBeacon(address impl) onlyRole(DEFAULT_ADMIN_ROLE) external {
@@ -151,17 +165,35 @@ contract Restaking is Initializable, AccessControlUpgradeable, ReentrancyGuardUp
     }
 
     /**
-     * @dev get unrealized profits that either stays on eigenpods, or locked in router.
+     * @notice This function verifies that the withdrawal credentials of validator(s) owned by the podOwner are pointed to
+     * this contract. It also verifies the effective balance  of the validator.  It verifies the provided proof of the ETH validator against the beacon chain state
+     * root, marks the validator as 'active' in EigenLayer, and credits the restaked ETH in Eigenlayer.
+     * @param oracleTimestamp is the Beacon Chain timestamp whose state root the `proof` will be proven against.
+     * @param stateRootProof proves a `beaconStateRoot` against a block root fetched from the oracle
+     * @param validatorIndices is the list of indices of the validators being proven, refer to consensus specs
+     * @param validatorFieldsProofs proofs against the `beaconStateRoot` for each validator in `validatorFields`
+     * @param validatorFields are the fields of the "Validator Container", refer to consensus specs
+     * for details: https://github.com/ethereum/consensus-specs/blob/dev/specs/phase0/beacon-chain.md#validator
      */
-    function getPendingWithdrawalAmount() external view returns (uint256) {
-        uint256 sumBalance;
-        for (uint256 i=0;i< podOwners.length;i++) {
-            IPodOwner podOwner = podOwners[i];
-            address pod = address(IEigenPodManager(eigenPodManager).getPod(address(podOwner)));
-            sumBalance += pod.balance;
-        }
+    function verifyWithdrawalCredentials(
+        uint256 podId,
+        uint64 oracleTimestamp,
+        BeaconChainProofs.StateRootProof calldata stateRootProof,
+        uint40[] calldata validatorIndices,
+        bytes[] calldata validatorFieldsProofs,
+        bytes32[][] calldata validatorFields
+    ) external onlyRole(OPERATOR_ROLE) {
+        IPodOwner podOwner = podOwners[podId];
+        address pod = address(IEigenPodManager(eigenPodManager).getPod(address(podOwner)));
 
-        return pendingWithdrawal + sumBalance;
+        bytes memory data = abi.encodeWithSelector(IEigenPod.verifyWithdrawalCredentials.selector,
+                                                   oracleTimestamp, 
+                                                   stateRootProof, 
+                                                   validatorIndices, 
+                                                   validatorFieldsProofs, 
+                                                   validatorFields);
+
+        podOwner.execute(pod, data);
     }
 
     /**
@@ -175,6 +207,29 @@ contract Restaking is Initializable, AccessControlUpgradeable, ReentrancyGuardUp
         IPodOwner podOwner = IPodOwner(address(proxy));
         podOwners.push(podOwner);
     }
+
+    /**
+     * ======================================================================================
+     * 
+     *  EXTERNAL VIEW FUNCTIONS
+     *
+     * ======================================================================================
+     */
+
+    /**
+     * @dev get unrealized profits that either stays on eigenpods, or locked in router.
+     */
+    function getPendingWithdrawalAmount() external view returns (uint256) {
+        uint256 sumBalance;
+        for (uint256 i=0;i< podOwners.length;i++) {
+            IPodOwner podOwner = podOwners[i];
+            address pod = address(IEigenPodManager(eigenPodManager).getPod(address(podOwner)));
+            sumBalance += pod.balance;
+        }
+
+        return pendingWithdrawal + sumBalance;
+    }
+
 
     /**
      * @dev get total pods
@@ -201,7 +256,7 @@ contract Restaking is Initializable, AccessControlUpgradeable, ReentrancyGuardUp
      */
 
     /**
-     * @dev keeper job
+     * @dev update function to withdraw rewards from eigenpod to staking contract
      */
     function update() external {
         _withdrawBeforeRestaking();
@@ -237,6 +292,7 @@ contract Restaking is Initializable, AccessControlUpgradeable, ReentrancyGuardUp
 
         for (uint256 i=0;i< podOwners.length;i++) {
             IPodOwner podOwner = podOwners[i];
+            
             address pod = address(IEigenPodManager(eigenPodManager).getPod(address(podOwner)));
 
             uint256 balanceBefore = address(pod).balance;
