@@ -22,7 +22,6 @@ def main():
     # simulate staking upgrade
     staking_contract = Staking.deploy( {'from': deployer})
     transparent_staking = Contract.from_abi("RockXStaking",staking_proxy, Staking.abi)
-    transparent_staking.pushBeacon({'from':owner})
     proxy_admin_contract.upgrade(staking_proxy, staking_contract, {'from': gnosis_safe})
    
     # simulate syncBalance

@@ -186,7 +186,7 @@ contract Staking is Initializable, PausableUpgradeable, AccessControlUpgradeable
     uint256 stoppedValidators;                      // track stopped validators count
 
     // phase switch from 0 to 1
-    uint256 private phase;
+    uint256 private __DEPRECATED_phase;
 
     // gas refunds
     uint256 [] private refunds;
@@ -204,7 +204,7 @@ contract Staking is Initializable, PausableUpgradeable, AccessControlUpgradeable
     mapping(address=>bool) __DEPRECATED_whiteList;
 
     // auto-compounding
-    bool private autoCompoundEnabled;
+    bool private __DEPRECATED_autoCompoundEnabled;
 
     // DEPRECATED(20240130): eigenlayer's restaking withdrawal credential
     bytes32 private __DEPRECATED_restakingWithdrawalCredentials;
@@ -225,14 +225,6 @@ contract Staking is Initializable, PausableUpgradeable, AccessControlUpgradeable
      */
     receive() external payable { }
     constructor() { _disableInitializers(); }
-
-    /**
-     * @dev only phase
-     */
-    modifier onlyPhase(uint256 requiredPhase) {
-        _require(phase >= requiredPhase, "SYS001");
-        _;
-    }
 
     /**
      * @dev pause the contract
@@ -286,14 +278,6 @@ contract Staking is Initializable, PausableUpgradeable, AccessControlUpgradeable
         restakingContract = restakingContract_;
     }
     */
-
-    /**
-     * @dev phase switch
-     */
-    function switchPhase(uint256 newPhase) external onlyRole(DEFAULT_ADMIN_ROLE) {
-        require (newPhase >= phase, "SYS002");
-        phase = newPhase;
-    }
 
     /**
      * @dev replace validators in batch
@@ -390,15 +374,6 @@ contract Staking is Initializable, PausableUpgradeable, AccessControlUpgradeable
             validatorRegistry.push(ValidatorCredential({pubkey:pubkeys[i], signature:signatures[i], stopped:false, restaking: true, eigenpod: podIds[i]}));
             pubkeyIndices[pubkeyHash] = validatorRegistry.length;
         }
-    }
-
-    /**
-     * @dev toggle autocompound
-     */
-    function toggleAutoCompound() external onlyRole(DEFAULT_ADMIN_ROLE) {
-        autoCompoundEnabled = !autoCompoundEnabled;
-
-        emit AutoCompoundToggle(autoCompoundEnabled);
     }
 
     /**
@@ -884,7 +859,7 @@ contract Staking is Initializable, PausableUpgradeable, AccessControlUpgradeable
      * 
      * redeem keeps the ratio invariant
      */
-    function redeemFromValidators(uint256 ethersToRedeem, uint256 maxToBurn, uint256 deadline) external nonReentrant onlyPhase(1) returns(uint256 burned) {
+    function redeemFromValidators(uint256 ethersToRedeem, uint256 maxToBurn, uint256 deadline) external nonReentrant returns(uint256 burned) {
         _require(block.timestamp < deadline, "USR001");
         _require(ethersToRedeem % DEPOSIT_SIZE == 0, "USR005");
         _require(ethersToRedeem > 0, "USR005");
@@ -993,12 +968,14 @@ contract Staking is Initializable, PausableUpgradeable, AccessControlUpgradeable
      *      debts may be used to pay as the users' revenue(that may take serveral months to come back).
      */
     function _autocompound() internal {
-        if (autoCompoundEnabled) {
-            uint256 maxCompound = accountedUserRevenue - rewardDebts;
-            uint256 maxUsable = address(this).balance - totalPending;
-            uint256 effectiveEthers = maxCompound < maxUsable? maxCompound:maxUsable;
+        uint256 maxCompound = accountedUserRevenue - rewardDebts;
+        uint256 maxUsable = address(this).balance - totalPending;
+        uint256 effectiveEthers = maxCompound < maxUsable? maxCompound:maxUsable;
+
+        if (effectiveEthers > 0) {
             totalPending += effectiveEthers;
             rewardDebts += effectiveEthers;
+            emit UserRevenueCompounded(effectiveEthers);
         }
     }
 
@@ -1104,6 +1081,6 @@ contract Staking is Initializable, PausableUpgradeable, AccessControlUpgradeable
     event DepositContractSet(address addr);
     event BalanceSynced(uint256 diff);
     event WhiteListToggle(address account, bool enabled);
-    event AutoCompoundToggle(bool enabled);
     event ManagerRevenueCompounded(uint256 amount);
+    event UserRevenueCompounded(uint256 amount);
 }
