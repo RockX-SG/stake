@@ -17,6 +17,7 @@ def main():
     staking_proxy = '0x4beFa2aA9c305238AA3E0b5D17eB20C045269E9d'
 
     deployer = accounts.load('mainnet-deployer')
+    owner = accounts.load('mainnet-owner')
 
     # simulate staking upgrade
     staking_contract = Staking.deploy( {'from': deployer})
