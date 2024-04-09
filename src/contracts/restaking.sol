@@ -20,6 +20,7 @@ import "@openzeppelin/contracts-upgradeable/security/ReentrancyGuardUpgradeable.
 
 contract PodOwner is IPodOwner, Initializable, OwnableUpgradeable {
     using Address for address;
+    using Address for address payable;
     
     receive() external payable { }
     constructor() { _disableInitializers(); }
@@ -33,6 +34,11 @@ contract PodOwner is IPodOwner, Initializable, OwnableUpgradeable {
     function execute(address target, bytes memory data) override onlyOwner external returns(bytes memory) {
         return target.functionCall(data);
     }
+
+    function transfer(address target, uint256 amount) onlyOwner external {
+        payable(target).sendValue(amount);
+    }
+
 }
 
 /**
@@ -45,6 +51,7 @@ contract PodOwner is IPodOwner, Initializable, OwnableUpgradeable {
  */
 contract Restaking is Initializable, AccessControlUpgradeable, ReentrancyGuardUpgradeable {
     using Address for address;
+    using Address for address payable;
 
     bytes32 public constant OPERATOR_ROLE= keccak256("OPERATOR_ROLE");
 
@@ -316,8 +323,9 @@ contract Restaking is Initializable, AccessControlUpgradeable, ReentrancyGuardUp
             if (IDelayedWithdrawalRouter(delayedWithdrawalRouter).getClaimableUserDelayedWithdrawals(address(podOwner)).length > 0) {
                 // watch staking address balance change
                 uint256 balanceBefore = address(stakingAddress).balance;
-                podOwner.execute(delayedWithdrawalRouter, 
-                                 abi.encodeWithSignature("claimDelayedWithdrawals(address,uint256)", stakingAddress, maxNumberOfWithdrawalsToClaim)); // use podOwner to execute claimDelayedWithdrawals
+                IDelayedWithdrawalRouter(delayedWithdrawalRouter).claimDelayedWithdrawals(address(podOwner), maxNumberOfWithdrawalsToClaim);
+                // as anyone can initiate claimDelayedWithdrawals, we can only transfer all it's balance to staking address.
+                podOwner.transfer(stakingAddress, address(podOwner).balance);
                 uint256 diff = address(stakingAddress).balance - balanceBefore;
                 totalDiff += diff;
             }
@@ -332,6 +340,10 @@ contract Restaking is Initializable, AccessControlUpgradeable, ReentrancyGuardUp
     //  Access to this function must be limited to the contract itself.
     function execute(address target, bytes memory data) onlySelf external returns(bytes memory) {
         return target.functionCall(data);
+    }
+
+    function transfer(address target, uint256 amount) onlySelf external {
+        payable(target).sendValue(amount);
     }
 
     /**
