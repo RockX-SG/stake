@@ -20,6 +20,7 @@ import "@openzeppelin/contracts-upgradeable/security/ReentrancyGuardUpgradeable.
 
 contract PodOwner is IPodOwner, Initializable, OwnableUpgradeable {
     using Address for address;
+    using Address for address payable;
     
     receive() external payable { }
     constructor() { _disableInitializers(); }
@@ -33,6 +34,11 @@ contract PodOwner is IPodOwner, Initializable, OwnableUpgradeable {
     function execute(address target, bytes memory data) override onlyOwner external returns(bytes memory) {
         return target.functionCall(data);
     }
+
+    function transfer(address target, uint256 amount) onlyOwner external {
+        payable(target).sendValue(amount);
+    }
+
 }
 
 /**
@@ -45,6 +51,7 @@ contract PodOwner is IPodOwner, Initializable, OwnableUpgradeable {
  */
 contract Restaking is Initializable, AccessControlUpgradeable, ReentrancyGuardUpgradeable {
     using Address for address;
+    using Address for address payable;
 
     bytes32 public constant OPERATOR_ROLE= keccak256("OPERATOR_ROLE");
 
@@ -136,6 +143,20 @@ contract Restaking is Initializable, AccessControlUpgradeable, ReentrancyGuardUp
     }
 
     /**
+     * @dev UPDATE(20240407): activateRestaking()
+     */ 
+    /*
+    function initializeV4(address stakingAddress_) reinitializer(4) public {
+        for (uint256 i=0;i< podOwners.length;i++) {
+            IPodOwner podOwner = podOwners[i];
+            address pod = address(IEigenPodManager(eigenPodManager).getPod(address(podOwner)));
+
+            podOwner.execute(pod, abi.encodeWithSelector(IEigenPod.activateRestaking.selector));
+        }
+    }
+   */
+
+    /**
      * @dev upgradeBeacon
      */
     function upgradeBeacon(address impl) onlyRole(DEFAULT_ADMIN_ROLE) external {
@@ -151,11 +172,35 @@ contract Restaking is Initializable, AccessControlUpgradeable, ReentrancyGuardUp
     }
 
     /**
-     * @dev get amount withdrawed from eigenpod to IDelayedRouter
+     * @notice This function verifies that the withdrawal credentials of validator(s) owned by the podOwner are pointed to
+     * this contract. It also verifies the effective balance  of the validator.  It verifies the provided proof of the ETH validator against the beacon chain state
+     * root, marks the validator as 'active' in EigenLayer, and credits the restaked ETH in Eigenlayer.
+     * @param oracleTimestamp is the Beacon Chain timestamp whose state root the `proof` will be proven against.
+     * @param stateRootProof proves a `beaconStateRoot` against a block root fetched from the oracle
+     * @param validatorIndices is the list of indices of the validators being proven, refer to consensus specs
+     * @param validatorFieldsProofs proofs against the `beaconStateRoot` for each validator in `validatorFields`
+     * @param validatorFields are the fields of the "Validator Container", refer to consensus specs
+     * for details: https://github.com/ethereum/consensus-specs/blob/dev/specs/phase0/beacon-chain.md#validator
      */
-    function getPendingWithdrawalAmount(
-    ) external view returns (uint256) {
-        return pendingWithdrawal;
+    function verifyWithdrawalCredentials(
+        uint256 podId,
+        uint64 oracleTimestamp,
+        BeaconChainProofs.StateRootProof calldata stateRootProof,
+        uint40[] calldata validatorIndices,
+        bytes[] calldata validatorFieldsProofs,
+        bytes32[][] calldata validatorFields
+    ) external onlyRole(OPERATOR_ROLE) {
+        IPodOwner podOwner = podOwners[podId];
+        address pod = address(IEigenPodManager(eigenPodManager).getPod(address(podOwner)));
+
+        bytes memory data = abi.encodeWithSelector(IEigenPod.verifyWithdrawalCredentials.selector,
+                                                   oracleTimestamp, 
+                                                   stateRootProof, 
+                                                   validatorIndices, 
+                                                   validatorFieldsProofs, 
+                                                   validatorFields);
+
+        podOwner.execute(pod, data);
     }
 
     /**
@@ -169,6 +214,29 @@ contract Restaking is Initializable, AccessControlUpgradeable, ReentrancyGuardUp
         IPodOwner podOwner = IPodOwner(address(proxy));
         podOwners.push(podOwner);
     }
+
+    /**
+     * ======================================================================================
+     * 
+     *  EXTERNAL VIEW FUNCTIONS
+     *
+     * ======================================================================================
+     */
+
+    /**
+     * @dev get unrealized profits that either stays on eigenpods, or locked in router.
+     */
+    function getPendingWithdrawalAmount() external view returns (uint256) {
+        uint256 sumBalance;
+        for (uint256 i=0;i< podOwners.length;i++) {
+            IPodOwner podOwner = podOwners[i];
+            address pod = address(IEigenPodManager(eigenPodManager).getPod(address(podOwner)));
+            sumBalance += pod.balance;
+        }
+
+        return pendingWithdrawal + sumBalance;
+    }
+
 
     /**
      * @dev get total pods
@@ -194,10 +262,17 @@ contract Restaking is Initializable, AccessControlUpgradeable, ReentrancyGuardUp
      * ======================================================================================
      */
 
+    /**
+     * @dev update function to withdraw rewards from eigenpod to staking contract
+     */
+    function update() external {
+        _withdrawBeforeRestaking();
+        _claimDelayedWithdrawals(type(uint256).max);
+    }
+
     /// @notice Called by the pod owner to withdraw the balance of the pod when `hasRestaked` is set to false
     function withdrawBeforeRestaking() external {
-        uint256 diff = _withdrawBeforeRestaking();
-        emit Pending(diff);
+        _withdrawBeforeRestaking();
     }
 
     /**
@@ -207,8 +282,7 @@ contract Restaking is Initializable, AccessControlUpgradeable, ReentrancyGuardUp
     function claimDelayedWithdrawals(
         uint256 maxNumberOfWithdrawalsToClaim
     ) external nonReentrant {
-        uint256 diff = _claimDelayedWithdrawals(maxNumberOfWithdrawalsToClaim);
-        emit Claimed(diff);
+        _claimDelayedWithdrawals(maxNumberOfWithdrawalsToClaim);
     }
 
 
@@ -220,11 +294,12 @@ contract Restaking is Initializable, AccessControlUpgradeable, ReentrancyGuardUp
      * ======================================================================================
      */
 
-    function _withdrawBeforeRestaking() internal returns (uint256) {
+    function _withdrawBeforeRestaking() internal {
         uint256 totalDiff;
 
         for (uint256 i=0;i< podOwners.length;i++) {
             IPodOwner podOwner = podOwners[i];
+            
             address pod = address(IEigenPodManager(eigenPodManager).getPod(address(podOwner)));
 
             uint256 balanceBefore = address(pod).balance;
@@ -236,10 +311,10 @@ contract Restaking is Initializable, AccessControlUpgradeable, ReentrancyGuardUp
         }
 
         pendingWithdrawal += totalDiff;
-        return totalDiff;
+        emit Pending(totalDiff);
     }
 
-    function _claimDelayedWithdrawals(uint256 maxNumberOfWithdrawalsToClaim) internal returns(uint256) {
+    function _claimDelayedWithdrawals(uint256 maxNumberOfWithdrawalsToClaim) internal {
         uint256 totalDiff;
 
         for (uint256 i=0;i< podOwners.length;i++) {
@@ -248,15 +323,16 @@ contract Restaking is Initializable, AccessControlUpgradeable, ReentrancyGuardUp
             if (IDelayedWithdrawalRouter(delayedWithdrawalRouter).getClaimableUserDelayedWithdrawals(address(podOwner)).length > 0) {
                 // watch staking address balance change
                 uint256 balanceBefore = address(stakingAddress).balance;
-                podOwner.execute(delayedWithdrawalRouter, 
-                                 abi.encodeWithSignature("claimDelayedWithdrawals(address,uint256)", stakingAddress, maxNumberOfWithdrawalsToClaim)); // use podOwner to execute claimDelayedWithdrawals
+                IDelayedWithdrawalRouter(delayedWithdrawalRouter).claimDelayedWithdrawals(address(podOwner), maxNumberOfWithdrawalsToClaim);
+                // as anyone can initiate claimDelayedWithdrawals, we can only transfer all it's balance to staking address.
+                podOwner.transfer(stakingAddress, address(podOwner).balance);
                 uint256 diff = address(stakingAddress).balance - balanceBefore;
                 totalDiff += diff;
             }
         }
 
         pendingWithdrawal -= totalDiff;
-        return totalDiff;
+        emit Claimed(totalDiff);
     }
 
     // @dev the magic to make restaking contract compatible to IPodOwner
@@ -264,6 +340,10 @@ contract Restaking is Initializable, AccessControlUpgradeable, ReentrancyGuardUp
     //  Access to this function must be limited to the contract itself.
     function execute(address target, bytes memory data) onlySelf external returns(bytes memory) {
         return target.functionCall(data);
+    }
+
+    function transfer(address target, uint256 amount) onlySelf external {
+        payable(target).sendValue(amount);
     }
 
     /**

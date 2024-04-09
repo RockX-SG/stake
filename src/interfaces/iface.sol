@@ -48,13 +48,15 @@ interface IRockXRedeem {
     function pay(address account) external payable;
 }
 
-interface IRockXRestaking {
+interface IRestaking {
+    function update() external;
     function getPendingWithdrawalAmount() external view returns (uint256);
-    function withdrawBeforeRestaking() external;
-    function claimDelayedWithdrawals(uint256 maxNumberOfWithdrawalsToClaim) external;
     function eigenPod() external view returns (address);
+    function getPod(uint256 i) external view returns (address);
+    function getTotalPods() external view returns (uint256);
 }
 
 interface IPodOwner {
+    function transfer(address target, uint256 amount) external;
     function execute(address target, bytes memory data) external returns(bytes memory);
 }
