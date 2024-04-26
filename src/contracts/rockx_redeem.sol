@@ -9,7 +9,7 @@ import "@openzeppelin/contracts-upgradeable/security/PausableUpgradeable.sol";
 import "@openzeppelin/contracts-upgradeable/security/ReentrancyGuardUpgradeable.sol";
 
 
-contract RockXRedeem is IRockXRedeem, Initializable, PausableUpgradeable, ReentrancyGuardUpgradeable, OwnableUpgradeable {
+contract Redeem is IRockXRedeem, Initializable, PausableUpgradeable, ReentrancyGuardUpgradeable, OwnableUpgradeable {
     using Address for address payable;
 
     mapping(address=>uint256) private balances;
@@ -31,6 +31,10 @@ contract RockXRedeem is IRockXRedeem, Initializable, PausableUpgradeable, Reentr
     function decimals() external pure returns (uint8) { return 18; }
     function totalSupply() external view returns (uint256) { return totalBalance; }
     function balanceOf(address account) external view returns(uint256) { return balances[account]; }
+
+    function claim(uint256 amount) public returns (bool success) {
+        return claim(msg.sender, amount);
+    }
 
     function claim(address to, uint256 amount) public nonReentrant returns (bool success) {
         // check
