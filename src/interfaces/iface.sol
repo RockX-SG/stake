@@ -44,7 +44,7 @@ interface IDepositContract {
     function get_deposit_count() external view returns (bytes memory);
 }
 
-interface IRockXRedeem {
+interface IRedeem {
     function pay(address account) external payable;
 }
 

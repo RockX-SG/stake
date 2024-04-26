@@ -9,7 +9,7 @@ import "@openzeppelin/contracts-upgradeable/security/PausableUpgradeable.sol";
 import "@openzeppelin/contracts-upgradeable/security/ReentrancyGuardUpgradeable.sol";
 
 
-contract Redeem is IRockXRedeem, Initializable, PausableUpgradeable, ReentrancyGuardUpgradeable, OwnableUpgradeable {
+contract Redeem is IRedeem, Initializable, PausableUpgradeable, ReentrancyGuardUpgradeable, OwnableUpgradeable {
     using Address for address payable;
 
     mapping(address=>uint256) private balances;
@@ -26,7 +26,7 @@ contract Redeem is IRockXRedeem, Initializable, PausableUpgradeable, ReentrancyG
     }
 
     // some convenient method to help show their claimable in wallet
-    function name() external pure returns (string memory) { return "RockX Claimable ETH"; }
+    function name() external pure returns (string memory) { return "Bedrock Claimable ETH"; }
     function symbol() external pure returns (string memory) { return "redeemETH"; }
     function decimals() external pure returns (uint8) { return 18; }
     function totalSupply() external view returns (uint256) { return totalBalance; }
