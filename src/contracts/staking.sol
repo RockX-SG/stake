@@ -936,7 +936,7 @@ contract Staking is Initializable, PausableUpgradeable, AccessControlUpgradeable
             amountPaid += toPay;
 
             // transfer money to debt contract
-            IRockXRedeem(redeemContract).pay{value:toPay}(debt.account);
+            IRedeem(redeemContract).pay{value:toPay}(debt.account);
 
             // dequeue if cleared 
             if (debt.amount == 0) {
