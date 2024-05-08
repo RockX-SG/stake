@@ -145,7 +145,6 @@ contract Restaking is Initializable, AccessControlUpgradeable, ReentrancyGuardUp
     /**
      * @dev UPDATE(20240407): activateRestaking()
      */ 
-    /*
     function initializeV4(address stakingAddress_) reinitializer(4) public {
         for (uint256 i=0;i< podOwners.length;i++) {
             IPodOwner podOwner = podOwners[i];
@@ -154,7 +153,6 @@ contract Restaking is Initializable, AccessControlUpgradeable, ReentrancyGuardUp
             podOwner.execute(pod, abi.encodeWithSelector(IEigenPod.activateRestaking.selector));
         }
     }
-   */
 
     /**
      * @dev upgradeBeacon
@@ -266,8 +264,10 @@ contract Restaking is Initializable, AccessControlUpgradeable, ReentrancyGuardUp
      * @dev update function to withdraw rewards from eigenpod to staking contract
      */
     function update() external {
+        /*
         _withdrawBeforeRestaking();
         _claimDelayedWithdrawals(type(uint256).max);
+       */
     }
 
     /// @notice Called by the pod owner to withdraw the balance of the pod when `hasRestaked` is set to false
