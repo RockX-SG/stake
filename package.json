@@ -1,0 +1,16 @@
+{
+  "name": "hardhat-project",
+  "devDependencies": {
+    "@nomicfoundation/hardhat-toolbox": "^5.0.0",
+    "@nomicfoundation/hardhat-verify": "^2.0.6",
+    "@openzeppelin/hardhat-upgrades": "^3.1.0",
+    "hardhat": "^2.22.3"
+  },
+  "dependencies": {
+    "@openzeppelin/contracts": "^4.4.2",
+    "@openzeppelin/contracts-upgradeable": "^4.6.0",
+    "dotenv": "^16.4.5",
+    "hardhat-preprocessor": "^0.1.5",
+    "solidity-bytes-utils": "^0.8.0"
+  }
+}
