@@ -143,24 +143,19 @@ contract Restaking is Initializable, AccessControlUpgradeable, ReentrancyGuardUp
     }
 
     /**
-     * @dev UPDATE(20240407): activateRestaking()
-     */ 
-    /*
-    function initializeV4(address stakingAddress_) reinitializer(4) public {
-        for (uint256 i=0;i< podOwners.length;i++) {
-            IPodOwner podOwner = podOwners[i];
-            address pod = address(IEigenPodManager(eigenPodManager).getPod(address(podOwner)));
-
-            podOwner.execute(pod, abi.encodeWithSelector(IEigenPod.activateRestaking.selector));
-        }
-    }
-   */
-
-    /**
      * @dev upgradeBeacon
      */
     function upgradeBeacon(address impl) onlyRole(DEFAULT_ADMIN_ROLE) external {
         beacon.upgradeTo(impl);
+    }
+
+    /**
+     * @dev activate restaking
+     */
+    function activateRestaking(uint256 index) onlyRole(DEFAULT_ADMIN_ROLE) external {
+        IPodOwner podOwner = podOwners[index];
+        address pod = address(IEigenPodManager(eigenPodManager).getPod(address(podOwner)));
+        podOwner.execute(pod, abi.encodeWithSelector(IEigenPod.activateRestaking.selector));
     }
 
     /**
@@ -299,15 +294,14 @@ contract Restaking is Initializable, AccessControlUpgradeable, ReentrancyGuardUp
 
         for (uint256 i=0;i< podOwners.length;i++) {
             IPodOwner podOwner = podOwners[i];
-            
             address pod = address(IEigenPodManager(eigenPodManager).getPod(address(podOwner)));
 
-            uint256 balanceBefore = address(pod).balance;
-            podOwner.execute(pod, 
-                             abi.encodeWithSignature("withdrawBeforeRestaking()")); // use podOwner to execute withdrawBeforeRestaking
-            uint256 diff = balanceBefore - address(pod).balance;
-
-            totalDiff += diff;
+            if (!IEigenPod(pod).hasRestaked()) {
+                uint256 balanceBefore = address(pod).balance;
+                podOwner.execute(pod, abi.encodeWithSignature("withdrawBeforeRestaking()"));
+                uint256 diff = balanceBefore - address(pod).balance;
+                totalDiff += diff;
+            }
         }
 
         pendingWithdrawal += totalDiff;
@@ -319,15 +313,18 @@ contract Restaking is Initializable, AccessControlUpgradeable, ReentrancyGuardUp
 
         for (uint256 i=0;i< podOwners.length;i++) {
             IPodOwner podOwner = podOwners[i];
+            address pod = address(IEigenPodManager(eigenPodManager).getPod(address(podOwner)));
 
-            if (IDelayedWithdrawalRouter(delayedWithdrawalRouter).getClaimableUserDelayedWithdrawals(address(podOwner)).length > 0) {
-                // watch staking address balance change
-                uint256 balanceBefore = address(stakingAddress).balance;
-                IDelayedWithdrawalRouter(delayedWithdrawalRouter).claimDelayedWithdrawals(address(podOwner), maxNumberOfWithdrawalsToClaim);
-                // as anyone can initiate claimDelayedWithdrawals, we can only transfer all it's balance to staking address.
-                podOwner.transfer(stakingAddress, address(podOwner).balance);
-                uint256 diff = address(stakingAddress).balance - balanceBefore;
-                totalDiff += diff;
+            if (!IEigenPod(pod).hasRestaked()) {
+                if (IDelayedWithdrawalRouter(delayedWithdrawalRouter).getClaimableUserDelayedWithdrawals(address(podOwner)).length > 0) {
+                    // watch staking address balance change
+                    uint256 balanceBefore = address(stakingAddress).balance;
+                    IDelayedWithdrawalRouter(delayedWithdrawalRouter).claimDelayedWithdrawals(address(podOwner), maxNumberOfWithdrawalsToClaim);
+                    // as anyone can initiate claimDelayedWithdrawals, we can only transfer all it's balance to staking address.
+                    podOwner.transfer(stakingAddress, address(podOwner).balance);
+                    uint256 diff = address(stakingAddress).balance - balanceBefore;
+                    totalDiff += diff;
+                }
             }
         }
 
