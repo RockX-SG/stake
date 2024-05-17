@@ -303,24 +303,17 @@ contract Restaking is Initializable, AccessControlUpgradeable, ReentrancyGuardUp
             IPodOwner podOwner = podOwners[i];
 
             // For M1 pods
+            uint256 balanceBefore = address(podOwner).balance;
             if (IDelayedWithdrawalRouter(delayedWithdrawalRouter).getClaimableUserDelayedWithdrawals(address(podOwner)).length > 0) {
                 IDelayedWithdrawalRouter(delayedWithdrawalRouter).claimDelayedWithdrawals(address(podOwner), type(uint256).max);
             }
-
-            // move ethers on podOwner to staking contract
-            uint256 balanceBefore = address(stakingAddress).balance;
-            podOwner.transfer(stakingAddress, address(podOwner).balance);
-            uint256 diff = address(stakingAddress).balance - balanceBefore;
+            uint256 diff = address(podOwner).balance - balanceBefore;
             totalDiff += diff;
+            podOwner.transfer(stakingAddress, address(podOwner).balance);
         }
 
-        emit Claimed(totalDiff);
-
-        /// @dev limit the totalDiff to pendingWithdrawal
-        if (totalDiff > pendingWithdrawal) {
-            totalDiff = pendingWithdrawal;
-        }
         pendingWithdrawal -= totalDiff;
+        emit Claimed(totalDiff);
     }
 
     // @dev the magic to make restaking contract compatible to IPodOwner
