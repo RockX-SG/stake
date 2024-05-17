@@ -224,9 +224,10 @@ contract Restaking is Initializable, AccessControlUpgradeable, ReentrancyGuardUp
     function getPendingWithdrawalAmount() external view returns (uint256) {
         uint256 sumBalance;
         for (uint256 i=0;i< podOwners.length;i++) {
-            IPodOwner podOwner = podOwners[i];
-            address pod = address(IEigenPodManager(eigenPodManager).getPod(address(podOwner)));
+            address podOwner = address(podOwners[i]);
+            address pod = address(IEigenPodManager(eigenPodManager).getPod(podOwner));
             sumBalance += pod.balance;
+            sumBalance += podOwner.balance;
         }
 
         return pendingWithdrawal + sumBalance;
@@ -261,25 +262,12 @@ contract Restaking is Initializable, AccessControlUpgradeable, ReentrancyGuardUp
      * @dev update function to withdraw rewards from eigenpod to staking contract
      */
     function update() external {
+        // handling M1 pods
         _withdrawBeforeRestaking();
-        _claimDelayedWithdrawals(type(uint256).max);
-    }
 
-    /// @notice Called by the pod owner to withdraw the balance of the pod when `hasRestaked` is set to false
-    function withdrawBeforeRestaking() external {
-        _withdrawBeforeRestaking();
+        // withdraw ethers to staking contract
+        _withdrawEthers();
     }
-
-    /**
-     * @notice Called in order to withdraw delayed withdrawals made to the caller that have passed the `withdrawalDelayBlocks` period.
-     * @param maxNumberOfWithdrawalsToClaim Used to limit the maximum number of withdrawals to loop through claiming.
-     */
-    function claimDelayedWithdrawals(
-        uint256 maxNumberOfWithdrawalsToClaim
-    ) external nonReentrant {
-        _claimDelayedWithdrawals(maxNumberOfWithdrawalsToClaim);
-    }
-
 
     /**
      * ======================================================================================
@@ -308,28 +296,31 @@ contract Restaking is Initializable, AccessControlUpgradeable, ReentrancyGuardUp
         emit Pending(totalDiff);
     }
 
-    function _claimDelayedWithdrawals(uint256 maxNumberOfWithdrawalsToClaim) internal {
+    function _withdrawEthers() internal {
         uint256 totalDiff;
 
         for (uint256 i=0;i< podOwners.length;i++) {
             IPodOwner podOwner = podOwners[i];
-            address pod = address(IEigenPodManager(eigenPodManager).getPod(address(podOwner)));
 
-            if (!IEigenPod(pod).hasRestaked()) {
-                if (IDelayedWithdrawalRouter(delayedWithdrawalRouter).getClaimableUserDelayedWithdrawals(address(podOwner)).length > 0) {
-                    // watch staking address balance change
-                    uint256 balanceBefore = address(stakingAddress).balance;
-                    IDelayedWithdrawalRouter(delayedWithdrawalRouter).claimDelayedWithdrawals(address(podOwner), maxNumberOfWithdrawalsToClaim);
-                    // as anyone can initiate claimDelayedWithdrawals, we can only transfer all it's balance to staking address.
-                    podOwner.transfer(stakingAddress, address(podOwner).balance);
-                    uint256 diff = address(stakingAddress).balance - balanceBefore;
-                    totalDiff += diff;
-                }
+            // For M1 pods
+            if (IDelayedWithdrawalRouter(delayedWithdrawalRouter).getClaimableUserDelayedWithdrawals(address(podOwner)).length > 0) {
+                IDelayedWithdrawalRouter(delayedWithdrawalRouter).claimDelayedWithdrawals(address(podOwner), type(uint256).max);
             }
+
+            // move ethers on podOwner to staking contract
+            uint256 balanceBefore = address(stakingAddress).balance;
+            podOwner.transfer(stakingAddress, address(podOwner).balance);
+            uint256 diff = address(stakingAddress).balance - balanceBefore;
+            totalDiff += diff;
         }
 
-        pendingWithdrawal -= totalDiff;
         emit Claimed(totalDiff);
+
+        /// @dev limit the totalDiff to pendingWithdrawal
+        if (totalDiff > pendingWithdrawal) {
+            totalDiff = pendingWithdrawal;
+        }
+        pendingWithdrawal -= totalDiff;
     }
 
     // @dev the magic to make restaking contract compatible to IPodOwner

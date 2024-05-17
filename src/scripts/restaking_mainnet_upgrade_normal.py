@@ -18,7 +18,6 @@ def main():
     restaking_proxy.upgradeTo(restaking_contract, {'from': deployer})
 
     transparent_restaking = Contract.from_abi("Restaking",restaking_proxy, Restaking.abi)
-    impl = PodOwner.deploy({'from':deployer})
-    transparent_restaking.upgradeBeacon(impl, {'from':owner})
-
+    #impl = PodOwner.deploy({'from':deployer})
+    #transparent_restaking.upgradeBeacon(impl, {'from':owner})
     transparent_staking = Staking.at(staking_proxy)
