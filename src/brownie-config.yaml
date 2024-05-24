@@ -19,6 +19,7 @@ compiler:
           enabled: true
           runs: 200
         remappings:
+          - "interfaces=./interfaces"
           - "@eigenlayer/contracts=./lib/eigenlayer-contracts-0.2.3-mainnet-m2/src/contracts"
           - "@openzeppelin/contracts=OpenZeppelin/openzeppelin-contracts@4.4.2/contracts"
           - "@openzeppelin/contracts-upgradeable=OpenZeppelin/openzeppelin-contracts-upgradeable@4.6.0/contracts"

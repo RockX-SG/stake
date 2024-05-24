@@ -199,6 +199,39 @@ contract Restaking is Initializable, AccessControlUpgradeable, ReentrancyGuardUp
     }
 
     /**
+     * @notice This function records full and partial withdrawals on behalf of one or more of this EigenPod's validators
+     * @param oracleTimestamp is the timestamp of the oracle slot that the withdrawal is being proven against
+     * @param stateRootProof proves a `beaconStateRoot` against a block root fetched from the oracle
+     * @param withdrawalProofs proves several withdrawal-related values against the `beaconStateRoot`
+     * @param validatorFieldsProofs proves `validatorFields` against the `beaconStateRoot`
+     * @param withdrawalFields are the fields of the withdrawals being proven
+     * @param validatorFields are the fields of the validators being proven
+     */
+    function verifyAndProcessWithdrawals(
+        uint256 podId,
+        uint64 oracleTimestamp,
+        BeaconChainProofs.StateRootProof calldata stateRootProof,
+        BeaconChainProofs.WithdrawalProof[] calldata withdrawalProofs,
+        bytes[] calldata validatorFieldsProofs,
+        bytes32[][] calldata validatorFields,
+        bytes32[][] calldata withdrawalFields
+    ) external onlyRole(OPERATOR_ROLE) {
+        IPodOwner podOwner = podOwners[podId];
+        address pod = address(IEigenPodManager(eigenPodManager).getPod(address(podOwner)));
+
+        bytes memory data = abi.encodeWithSelector(IEigenPod.verifyAndProcessWithdrawals.selector,
+                                                   oracleTimestamp, 
+                                                   stateRootProof, 
+                                                   withdrawalProofs, 
+                                                   validatorFieldsProofs, 
+                                                   validatorFields,
+                                                   withdrawalFields);
+
+        podOwner.execute(pod, data);
+
+    }
+     
+    /**
      * @dev create pod
      */ 
     function createPod() external onlyRole(DEFAULT_ADMIN_ROLE) {
