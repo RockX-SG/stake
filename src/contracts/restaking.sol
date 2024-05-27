@@ -331,7 +331,6 @@ contract Restaking is Initializable, AccessControlUpgradeable, ReentrancyGuardUp
 
     function _withdrawEthers() internal {
         uint256 totalDiff;
-        uint256 totalRedeemed;
 
         for (uint256 i=0;i< podOwners.length;i++) {
             IPodOwner podOwner = podOwners[i];
@@ -343,14 +342,11 @@ contract Restaking is Initializable, AccessControlUpgradeable, ReentrancyGuardUp
             }
             uint256 diff = address(podOwner).balance - balanceBefore;
             totalDiff += diff;
-
-            // count total transfered
             podOwner.transfer(stakingAddress, address(podOwner).balance);
-            totalRedeemed += address(podOwner).balance;
         }
 
         pendingWithdrawal -= totalDiff;
-        emit Claimed(totalRedeemed);
+        emit Claimed(totalDiff);
     }
 
     // @dev the magic to make restaking contract compatible to IPodOwner
