@@ -1,4 +1,4 @@
-# RockX Liquid Staking
+# Bedrock Liquid Staking
 
 ## Usage
 

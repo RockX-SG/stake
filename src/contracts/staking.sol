@@ -462,6 +462,25 @@ contract Staking is Initializable, PausableUpgradeable, AccessControlUpgradeable
     }
 
     /**
+     * @dev clear debts
+     */
+    function _clearDebts() internal {
+        uint256 maxUsable = (address(this).balance - totalPending) / 32 ether * 32 ether;
+        uint256 effectiveEthers = totalDebts < maxUsable? totalDebts:maxUsable;
+
+        if (effectiveEthers > 0) {
+            uint256 ratio = _exchangeRatioInternal();           // RATIO GUARD BEGIN
+
+            uint256 paid = _payDebts(effectiveEthers);
+            totalStaked -= paid;
+            emit Cleared(effectiveEthers);
+
+            assert(ratio == _exchangeRatioInternal());          // RATIO GUARD END
+        }
+    }
+
+
+    /**
      * @dev balance sync, also moves the vector clock if it has different value
      */
     function syncBalance() external { _syncBalance(); }
@@ -500,13 +519,6 @@ contract Staking is Initializable, PausableUpgradeable, AccessControlUpgradeable
         // Collect new revenue if there is any.
         _syncBalance();
         
-        // Check recentStopped and recentReceived to see they match,
-        // recentStopped MUST be aligned to recentReceived, clear
-        // debts first if there are debts to pay.
-        if (totalDebts > 0) {
-            _require(recentReceived/DEPOSIT_SIZE == recentStopped, "SYS030");
-        }
-
         // Check if new validators increased
         // and adjust rewardBase to include the new validators' value
         uint256 rewardBase = reportedValidatorBalance + reportedUnrealizedProfits;
@@ -537,6 +549,7 @@ contract Staking is Initializable, PausableUpgradeable, AccessControlUpgradeable
         _require(rewards <= maxRewards, "SYS016");
 
         _distributeRewards(rewards);
+        _clearDebts();
         _compoundManagerRevenue();
         _autocompound();
 
@@ -557,7 +570,10 @@ contract Staking is Initializable, PausableUpgradeable, AccessControlUpgradeable
         uint256 amountUnstaked = _stoppedPubKeys.length * DEPOSIT_SIZE;
         _require(_stoppedPubKeys.length > 0, "SYS017");
         _require(_stoppedPubKeys.length + stoppedValidators <= nextValidatorId, "SYS018");
-        _require(address(this).balance >= amountUnstaked + totalPending, "SYS019");
+
+        // confirm the overall balance
+        uint256 _unrealizedProfits = IRestaking(restakingContract).getPendingWithdrawalAmount();
+        _require(address(this).balance + _unrealizedProfits >= amountUnstaked + totalPending, "SYS019");
 
         // track stopped validators
         for (uint i=0;i<_stoppedPubKeys.length;i++) {
@@ -569,22 +585,7 @@ contract Staking is Initializable, PausableUpgradeable, AccessControlUpgradeable
         }
         stoppedValidators += _stoppedPubKeys.length;
         recentStopped += _stoppedPubKeys.length;
-
-        // NOTE(x) The following procedure MUST keep currentReserve unchanged:
-        uint256 ratio = _exchangeRatioInternal();           // RATIO GUARD BEGIN
-        // pay debts
-        uint256 paid = _payDebts(amountUnstaked);
-        assert(paid % DEPOSIT_SIZE == 0);   // debts are in N * 32ETH
-
-        // track total staked ethers
-        totalStaked -= amountUnstaked;
-
-        // CAUTION: for unexpected exiting of validators, 
-        // we put back the extra ethers back to pending queue.
-        uint256 remain = amountUnstaked - paid;
-        totalPending += remain;
-        assert(ratio == _exchangeRatioInternal());          // RATIO GUARD END
-
+    
         // log
         emit ValidatorStopped(_stoppedPubKeys.length);
 
@@ -1083,4 +1084,5 @@ contract Staking is Initializable, PausableUpgradeable, AccessControlUpgradeable
     event WhiteListToggle(address account, bool enabled);
     event ManagerRevenueCompounded(uint256 amount);
     event UserRevenueCompounded(uint256 amount);
+    event Cleared(uint256 amount);
 }

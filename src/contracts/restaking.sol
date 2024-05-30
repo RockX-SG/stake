@@ -319,7 +319,7 @@ contract Restaking is Initializable, AccessControlUpgradeable, ReentrancyGuardUp
 
             if (!IEigenPod(pod).hasRestaked()) {
                 uint256 balanceBefore = address(pod).balance;
-                podOwner.execute(pod, abi.encodeWithSignature("withdrawBeforeRestaking()"));
+                podOwner.execute(pod, abi.encodeWithSelector(IEigenPod.withdrawBeforeRestaking.selector));
                 uint256 diff = balanceBefore - address(pod).balance;
                 totalDiff += diff;
             }
