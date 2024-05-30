@@ -177,7 +177,7 @@ contract Staking is Initializable, PausableUpgradeable, AccessControlUpgradeable
     int256 private accountedBalance;                // tracked balance change in functions,
                                                     // NOTE(x): balance might be negative for not accounting validators's redeeming
 
-    uint256 private __DEPRECATED_recentSlashed;     // track recently slashed value
+    uint256 private maxToStop;                      // set max validators to stop (20240530)
     uint256 private recentReceived;                 // track recently received (un-accounted) value into this contract
     bytes32 private vectorClock;                    // a vector clock for detecting receive() & pushBeacon() causality violations
     uint256 private vectorClockTicks;               // record current vector clock step;
@@ -570,6 +570,7 @@ contract Staking is Initializable, PausableUpgradeable, AccessControlUpgradeable
         uint256 amountUnstaked = _stoppedPubKeys.length * DEPOSIT_SIZE;
         _require(_stoppedPubKeys.length > 0, "SYS017");
         _require(_stoppedPubKeys.length + stoppedValidators <= nextValidatorId, "SYS018");
+        _require(maxToStop >= _stoppedPubKeys.length, "SYS019");
 
         // track stopped validators
         for (uint i=0;i<_stoppedPubKeys.length;i++) {
@@ -581,6 +582,7 @@ contract Staking is Initializable, PausableUpgradeable, AccessControlUpgradeable
         }
         stoppedValidators += _stoppedPubKeys.length;
         recentStopped += _stoppedPubKeys.length;
+        maxToStop -= _stoppedPubKeys.length;
     
         // log
         emit ValidatorStopped(_stoppedPubKeys.length);
@@ -654,6 +656,11 @@ contract Staking is Initializable, PausableUpgradeable, AccessControlUpgradeable
      */
     function getReportedValidatorBalance() external view returns (uint256) { return reportedValidatorBalance; }
 
+    /*
+     * @dev returns maxToStop
+     */
+    function getMaxToStop() external view returns (uint256) { return maxToStop; }
+    
     /*
      * @dev returns recent received value
      */
@@ -871,6 +878,7 @@ contract Staking is Initializable, PausableUpgradeable, AccessControlUpgradeable
         IMintableContract(xETHAddress).burnFrom(msg.sender, xETHToBurn);
         _enqueueDebt(msg.sender, ethersToRedeem);           // queue ether debts
         // assert(ratio == _exchangeRatioInternal());          // RATIO GUARD END
+        maxToStop += ethersToRedeem / DEPOSIT_SIZE;
 
         // return burned 
         return xETHToBurn;
