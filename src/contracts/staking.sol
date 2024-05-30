@@ -571,10 +571,6 @@ contract Staking is Initializable, PausableUpgradeable, AccessControlUpgradeable
         _require(_stoppedPubKeys.length > 0, "SYS017");
         _require(_stoppedPubKeys.length + stoppedValidators <= nextValidatorId, "SYS018");
 
-        // confirm the overall balance
-        uint256 _unrealizedProfits = IRestaking(restakingContract).getPendingWithdrawalAmount();
-        _require(address(this).balance + _unrealizedProfits >= amountUnstaked + totalPending, "SYS019");
-
         // track stopped validators
         for (uint i=0;i<_stoppedPubKeys.length;i++) {
             bytes32 pubkeyHash = keccak256(_stoppedPubKeys[i]);
