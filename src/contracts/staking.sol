@@ -549,6 +549,11 @@ contract Staking is Initializable, PausableUpgradeable, AccessControlUpgradeable
         _require(rewards <= maxRewards, "SYS016");
 
         _distributeRewards(rewards);
+
+        // PRIORITY IN ETHER USAGE:
+        // 1. to clear off debts
+        // 2. to compound manager's revenue
+        // 3. to auto-compound
         _clearDebts();
         _compoundManagerRevenue();
         _autocompound();
