@@ -183,7 +183,7 @@ contract Staking is Initializable, PausableUpgradeable, AccessControlUpgradeable
     uint256 private vectorClockTicks;               // record current vector clock step;
 
     // track stopped validators
-    uint256 stoppedValidators;                      // track stopped validators count
+    uint256 private stoppedValidators;              // track stopped validators count
 
     // phase switch from 0 to 1
     uint256 private __DEPRECATED_phase;
