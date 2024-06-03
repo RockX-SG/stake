@@ -473,7 +473,6 @@ contract Staking is Initializable, PausableUpgradeable, AccessControlUpgradeable
 
             uint256 paid = _payDebts(effectiveEthers);
             totalStaked -= paid;
-            emit Cleared(effectiveEthers);
 
             assert(ratio == _exchangeRatioInternal());          // RATIO GUARD END
         }
@@ -1093,5 +1092,4 @@ contract Staking is Initializable, PausableUpgradeable, AccessControlUpgradeable
     event WhiteListToggle(address account, bool enabled);
     event ManagerRevenueCompounded(uint256 amount);
     event UserRevenueCompounded(uint256 amount);
-    event Cleared(uint256 amount);
 }
