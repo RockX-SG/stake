@@ -227,8 +227,11 @@ contract Restaking is Initializable, AccessControlUpgradeable, ReentrancyGuardUp
                                                    validatorFields,
                                                    withdrawalFields);
 
+        uint256 balanceBefore = address(pod).balance;
         podOwner.execute(pod, data);
-
+        uint256 diff = balanceBefore - address(pod).balance;
+        pendingWithdrawal += diff;
+        emit Pending(diff);
     }
      
     /**
