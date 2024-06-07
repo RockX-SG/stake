@@ -306,8 +306,8 @@ contract Restaking is Initializable, AccessControlUpgradeable, ReentrancyGuardUp
      * @dev update function to withdraw rewards from eigenpod to staking contract
      */
     function update() external {
-        // handling M1 pods
-        _withdrawBeforeRestaking();
+        // create delayed withdrawals
+        createDelayedWithdrawal();
 
         // withdraw ethers to staking contract
         _withdrawEthers();
@@ -321,7 +321,37 @@ contract Restaking is Initializable, AccessControlUpgradeable, ReentrancyGuardUp
      * ======================================================================================
      */
 
-    function _withdrawBeforeRestaking() internal {
+    function createDelayedWithdrawal() internal {
+        // handling M1 pods
+        uint256 diff1 = _withdrawBeforeRestaking();
+
+        // withdraw the nonBeaconChainETHBalanceWei
+        uint256 diff2 = _withdrawNonBeaconChainBalance();
+
+        uint256 totalDiff = diff1 + diff2;
+        pendingWithdrawal += totalDiff;
+
+        emit Pending(totalDiff);
+    }
+
+    function _withdrawNonBeaconChainBalance() internal returns (uint256) {
+        uint256 totalDiff;
+
+        for (uint256 i=0;i< podOwners.length;i++) {
+            IPodOwner podOwner = podOwners[i];
+            address pod = address(IEigenPodManager(eigenPodManager).getPod(address(podOwner)));
+
+            uint256 diff = IEigenPod(pod).nonBeaconChainETHBalanceWei();
+            if (diff > 0) {
+                podOwner.execute(pod, abi.encodeWithSelector(IEigenPod.withdrawNonBeaconChainETHBalanceWei.selector, podOwner, diff));
+                totalDiff += diff;
+            }
+        }
+
+        return totalDiff;
+    }
+
+    function _withdrawBeforeRestaking() internal returns (uint256) {
         uint256 totalDiff;
 
         for (uint256 i=0;i< podOwners.length;i++) {
@@ -336,8 +366,7 @@ contract Restaking is Initializable, AccessControlUpgradeable, ReentrancyGuardUp
             }
         }
 
-        pendingWithdrawal += totalDiff;
-        emit Pending(totalDiff);
+        return totalDiff;
     }
 
     function _withdrawEthers() internal {
