@@ -155,7 +155,15 @@ contract Restaking is Initializable, AccessControlUpgradeable, ReentrancyGuardUp
     function activateRestaking(uint256 index) onlyRole(DEFAULT_ADMIN_ROLE) external {
         IPodOwner podOwner = podOwners[index];
         address pod = address(IEigenPodManager(eigenPodManager).getPod(address(podOwner)));
+
+        uint256 balanceBefore = address(pod).balance;
         podOwner.execute(pod, abi.encodeWithSelector(IEigenPod.activateRestaking.selector));
+        uint256 diff = balanceBefore -  address(pod).balance;
+
+        if (diff > 0) {
+            pendingWithdrawal += diff;
+            emit Pending(diff);
+        }
     }
 
     /**
