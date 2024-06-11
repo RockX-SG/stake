@@ -255,6 +255,27 @@ contract Restaking is Initializable, AccessControlUpgradeable, ReentrancyGuardUp
     }
 
     /**
+     * @dev withdraw non-beacon chain ETH balance
+     */
+    function withdrawNonBeaconChainBalance() external onlyRole(DEFAULT_ADMIN_ROLE) {
+        uint256 totalDiff;
+
+        for (uint256 i=0;i< podOwners.length;i++) {
+            IPodOwner podOwner = podOwners[i];
+            address pod = address(IEigenPodManager(eigenPodManager).getPod(address(podOwner)));
+
+            uint256 diff = IEigenPod(pod).nonBeaconChainETHBalanceWei();
+            if (diff > 0) {
+                podOwner.execute(pod, abi.encodeWithSelector(IEigenPod.withdrawNonBeaconChainETHBalanceWei.selector, podOwner, diff));
+                totalDiff += diff;
+            }
+        }
+
+        pendingWithdrawal += totalDiff;
+        emit Pending(totalDiff);
+    }
+
+    /**
      * ======================================================================================
      * 
      *  EXTERNAL VIEW FUNCTIONS
