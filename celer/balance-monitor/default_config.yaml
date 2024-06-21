@@ -1,0 +1,26 @@
+slack: ""
+check_time: 300s
+summary_time: [ 01, 09 ] # summary notify time in UTC
+chain_list:
+  - { chain_id: 1, name: "Ethereum", symbol: "ETH", native: true, endpoint: "https://ethereum-rpc.publicnode.com", explorer: "https://etherscan.io/" }
+  - { chain_id: 196, name: "X Layer", symbol: "OKB", native: false, endpoint: "https://rpc.xlayer.tech", explorer: "https://www.oklink.com/zh-hans/xlayer/" }
+  - { chain_id: 42161, name: "Arbitrum", symbol: "ETH", native: true, endpoint: "https://arbitrum-one-rpc.publicnode.com", explorer: "https://arbiscan.io/" }
+  - { chain_id: 59144, name: "Linea", symbol: "ETH", native: true, endpoint: "https://rpc.linea.build", explorer: "https://lineascan.build/" }
+  - { chain_id: 534352, name: "Scroll", symbol: "ETH", native: true, endpoint: "https://rpc.scroll.io", explorer: "https://scrollscan.com/" }
+
+watch_list: #the same name will group by name for summary
+  - { name: "Executor" , address: "0xa9f4e8e837e7f8ab56bc4c627971a3864fdeca44" , op: "lt", balance: 0.1 , notify_type: "warning" , chain: "Ethereum" }
+  - { name: "Executor" , address: "0xa9f4e8e837e7f8ab56bc4c627971a3864fdeca44" , op: "lt", balance: 0.1 , notify_type: "warning" , chain: "X Layer" }
+  - { name: "Executor" ,  address: "0xa9f4e8e837e7f8ab56bc4c627971a3864fdeca44" , op: "lt", balance: 0.01 , notify_type: "warning" , chain: "Scroll", }
+  - { name: "Executor" , address: "0xa9f4e8e837e7f8ab56bc4c627971a3864fdeca44" , op: "lt", balance: 0.01 , notify_type: "warning" , chain: "Arbitrum" }
+  - { name: "Executor" , address: "0xa9f4e8e837e7f8ab56bc4c627971a3864fdeca44" , op: "lt", balance: 0.01 , notify_type: "warning" , chain: "Linea" }
+  - { name: "Sender" ,  address: "0x4c94cfa2F41e50638A2bEd0dDe672fa8B5d070c8" , op: "gt", balance: 0 , notify_type: "notice" , chain: "X Layer", token_contract: "0x5a77f1443d16ee5761d310e38b62f77f726bc71c" }
+  - { name: "Sender" , address: "0x4c94cfa2F41e50638A2bEd0dDe672fa8B5d070c8" , op: "gt", balance: 0 , notify_type: "notice" , chain: "Linea" }
+  - { name: "Sender" , address: "0x6b9a24F96A71F9a3008B4beACf729180369C245D" , op: "gt", balance: 0 , notify_type: "notice" , chain: "Scroll" }
+  - { name: "Sender" , address: "0x9203cE1BcdEd1a20f697E1780Bc47d5B6D718031" , op: "gt", balance: 0 , notify_type: "notice" , chain: "Arbitrum" }
+  - { name: "Receiver" , address: "0x7C3F1fe22959b4f6aC2Bf2474B3bDf9969465C95" , chain: "Ethereum" }
+  - { name: "uniETH (totalSupply)" ,  chain: "Arbitrum",  token_contract: "0x3d15fD46CE9e551498328B1C83071D9509E2C3a0" }
+  - { name: "uniETH (totalSupply)" ,  chain: "Linea",  token_contract: "0x15EEfE5B297136b8712291B632404B66A8eF4D25" }
+  - { name: "uniETH (totalSupply)" ,  chain: "Scroll",  token_contract: "0x15EEfE5B297136b8712291B632404B66A8eF4D25" }
+  - { name: "uniETH (totalSupply)" ,  chain: "X Layer",  token_contract: "0x15EEfE5B297136b8712291B632404B66A8eF4D25" }
+  - { name: "uniETH (totalSupply)" ,  chain: "Ethereum",  token_contract: "0xF1376bceF0f78459C0Ed0ba5ddce976F1ddF51F4" }
