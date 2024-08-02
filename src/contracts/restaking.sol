@@ -188,8 +188,11 @@ contract Restaking is Initializable, AccessControlUpgradeable, ReentrancyGuardUp
         podOwner.execute(pod, data);
     }
 
-
-
+    /**
+     * @dev start checkpoint
+     * @param podId the pod id
+     * @param revertIfNoBalance revert if no balance
+     */
     function startCheckPoint(uint256 podId, bool revertIfNoBalance) external onlyRole(OPERATOR_ROLE) {
         IPodOwner podOwner = podOwners[podId];
         address pod = address(IEigenPodManager(eigenPodManager).getPod(address(podOwner)));
