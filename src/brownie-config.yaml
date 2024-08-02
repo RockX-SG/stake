@@ -20,7 +20,7 @@ compiler:
           runs: 200
         remappings:
           - "interfaces=./interfaces"
-          - "@eigenlayer/contracts=./lib/eigenlayer-contracts-0.2.3-mainnet-m2/src/contracts"
+          - "@eigenlayer/contracts=./lib/eigenlayer-contracts-0.4.0-rc4-holesky-preprod-pepe/src/contracts"
           - "@openzeppelin/contracts=OpenZeppelin/openzeppelin-contracts@4.4.2/contracts"
           - "@openzeppelin/contracts-upgradeable=OpenZeppelin/openzeppelin-contracts-upgradeable@4.6.0/contracts"
           - "solidity-bytes-utils/contracts=GNSPS/solidity-bytes-utils@0.8.0/contracts"

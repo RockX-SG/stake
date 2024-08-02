@@ -3,7 +3,6 @@ pragma solidity ^0.8.4;
 
 import "interfaces/iface.sol";
 import "@eigenlayer/contracts/interfaces/IEigenPodManager.sol";
-import "@eigenlayer/contracts/interfaces/IDelayedWithdrawalRouter.sol";
 import "@eigenlayer/contracts/interfaces/IEigenPod.sol";
 import "@eigenlayer/contracts/libraries/BeaconChainProofs.sol";
 
@@ -150,23 +149,6 @@ contract Restaking is Initializable, AccessControlUpgradeable, ReentrancyGuardUp
     }
 
     /**
-     * @dev activate restaking
-     */
-    function activateRestaking(uint256 index) onlyRole(DEFAULT_ADMIN_ROLE) external {
-        IPodOwner podOwner = podOwners[index];
-        address pod = address(IEigenPodManager(eigenPodManager).getPod(address(podOwner)));
-
-        uint256 balanceBefore = address(pod).balance;
-        podOwner.execute(pod, abi.encodeWithSelector(IEigenPod.activateRestaking.selector));
-        uint256 diff = balanceBefore -  address(pod).balance;
-
-        if (diff > 0) {
-            pendingWithdrawal += diff;
-            emit Pending(diff);
-        }
-    }
-
-    /**
      * @dev call delegation operations
      */
     function callDelegationManager(uint256 podId, bytes memory data) external onlyRole(OPERATOR_ROLE) returns(bytes memory) {
@@ -206,42 +188,15 @@ contract Restaking is Initializable, AccessControlUpgradeable, ReentrancyGuardUp
         podOwner.execute(pod, data);
     }
 
-    /**
-     * @notice This function records full and partial withdrawals on behalf of one or more of this EigenPod's validators
-     * @param oracleTimestamp is the timestamp of the oracle slot that the withdrawal is being proven against
-     * @param stateRootProof proves a `beaconStateRoot` against a block root fetched from the oracle
-     * @param withdrawalProofs proves several withdrawal-related values against the `beaconStateRoot`
-     * @param validatorFieldsProofs proves `validatorFields` against the `beaconStateRoot`
-     * @param withdrawalFields are the fields of the withdrawals being proven
-     * @param validatorFields are the fields of the validators being proven
-     */
-    function verifyAndProcessWithdrawals(
-        uint256 podId,
-        uint64 oracleTimestamp,
-        BeaconChainProofs.StateRootProof calldata stateRootProof,
-        BeaconChainProofs.WithdrawalProof[] calldata withdrawalProofs,
-        bytes[] calldata validatorFieldsProofs,
-        bytes32[][] calldata validatorFields,
-        bytes32[][] calldata withdrawalFields
-    ) external onlyRole(OPERATOR_ROLE) {
+
+
+    function startCheckPoint(uint256 podId, bool revertIfNoBalance) external onlyRole(OPERATOR_ROLE) {
         IPodOwner podOwner = podOwners[podId];
         address pod = address(IEigenPodManager(eigenPodManager).getPod(address(podOwner)));
 
-        bytes memory data = abi.encodeWithSelector(IEigenPod.verifyAndProcessWithdrawals.selector,
-                                                   oracleTimestamp, 
-                                                   stateRootProof, 
-                                                   withdrawalProofs, 
-                                                   validatorFieldsProofs, 
-                                                   validatorFields,
-                                                   withdrawalFields);
-
-        uint256 balanceBefore = address(pod).balance;
-        podOwner.execute(pod, data);
-        uint256 diff = balanceBefore - address(pod).balance;
-        pendingWithdrawal += diff;
-        emit Pending(diff);
+        podOwner.execute(pod, abi.encodeWithSelector(IEigenPod.startCheckpoint.selector, revertIfNoBalance));
     }
-     
+
     /**
      * @dev create pod
      */ 
@@ -254,26 +209,6 @@ contract Restaking is Initializable, AccessControlUpgradeable, ReentrancyGuardUp
         podOwners.push(podOwner);
     }
 
-    /**
-     * @dev withdraw non-beacon chain ETH balance
-     */
-    function withdrawNonBeaconChainBalance() external onlyRole(DEFAULT_ADMIN_ROLE) {
-        uint256 totalDiff;
-
-        for (uint256 i=0;i< podOwners.length;i++) {
-            IPodOwner podOwner = podOwners[i];
-            address pod = address(IEigenPodManager(eigenPodManager).getPod(address(podOwner)));
-
-            uint256 diff = IEigenPod(pod).nonBeaconChainETHBalanceWei();
-            if (diff > 0) {
-                podOwner.execute(pod, abi.encodeWithSelector(IEigenPod.withdrawNonBeaconChainETHBalanceWei.selector, podOwner, diff));
-                totalDiff += diff;
-            }
-        }
-
-        pendingWithdrawal += totalDiff;
-        emit Pending(totalDiff);
-    }
 
     /**
      * ======================================================================================
@@ -327,9 +262,6 @@ contract Restaking is Initializable, AccessControlUpgradeable, ReentrancyGuardUp
      * @dev update function to withdraw rewards from eigenpod to staking contract
      */
     function update() external {
-        // handling M1 pods
-        _withdrawBeforeRestaking();
-
         // withdraw ethers to staking contract
         _withdrawEthers();
     }
@@ -342,39 +274,16 @@ contract Restaking is Initializable, AccessControlUpgradeable, ReentrancyGuardUp
      * ======================================================================================
      */
 
-    function _withdrawBeforeRestaking() internal {
-        uint256 totalDiff;
-
-        for (uint256 i=0;i< podOwners.length;i++) {
-            IPodOwner podOwner = podOwners[i];
-            address pod = address(IEigenPodManager(eigenPodManager).getPod(address(podOwner)));
-
-            if (!IEigenPod(pod).hasRestaked()) {
-                uint256 balanceBefore = address(pod).balance;
-                podOwner.execute(pod, abi.encodeWithSelector(IEigenPod.withdrawBeforeRestaking.selector));
-                uint256 diff = balanceBefore - address(pod).balance;
-                totalDiff += diff;
-            }
-        }
-
-        pendingWithdrawal += totalDiff;
-        emit Pending(totalDiff);
-    }
-
     function _withdrawEthers() internal {
         uint256 totalDiff;
 
         for (uint256 i=0;i< podOwners.length;i++) {
             IPodOwner podOwner = podOwners[i];
 
-            // For M1 pods
             uint256 balanceBefore = address(podOwner).balance;
-            if (IDelayedWithdrawalRouter(delayedWithdrawalRouter).getClaimableUserDelayedWithdrawals(address(podOwner)).length > 0) {
-                IDelayedWithdrawalRouter(delayedWithdrawalRouter).claimDelayedWithdrawals(address(podOwner), type(uint256).max);
-            }
+            podOwner.transfer(stakingAddress, address(podOwner).balance);
             uint256 diff = address(podOwner).balance - balanceBefore;
             totalDiff += diff;
-            podOwner.transfer(stakingAddress, address(podOwner).balance);
         }
 
         pendingWithdrawal -= totalDiff;
