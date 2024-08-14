@@ -63,9 +63,9 @@ contract Restaking is Initializable, AccessControlUpgradeable, ReentrancyGuardUp
     /// @dev the StrategyManager contract
     address public strategyManager;
     /// @dev the DelayedWithdrawalRouter contract
-    address public delayedWithdrawalRouter;
+    address public _DEPRECATED_delayedWithdrawalRouter;
     /// @dev record pending withdrawal amount from EigenPod to DelayedWithdrawalRouter 
-    uint256 private pendingWithdrawal;
+    uint256 private _DEPRECATED_pendingWithdrawal;
     // @dev staking contract address
     address public stakingAddress;
 
@@ -222,7 +222,7 @@ contract Restaking is Initializable, AccessControlUpgradeable, ReentrancyGuardUp
      */
 
     /**
-     * @dev get unrealized profits that either stays on eigenpods, or locked in router.
+     * @dev get unrealized profits that stays on eigenpods.
      */
     function getPendingWithdrawalAmount() external view returns (uint256) {
         uint256 sumBalance;
