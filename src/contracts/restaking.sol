@@ -283,13 +283,10 @@ contract Restaking is Initializable, AccessControlUpgradeable, ReentrancyGuardUp
         for (uint256 i=0;i< podOwners.length;i++) {
             IPodOwner podOwner = podOwners[i];
 
-            uint256 balanceBefore = address(podOwner).balance;
+            totalDiff += address(podOwner).balance;
             podOwner.transfer(stakingAddress, address(podOwner).balance);
-            uint256 diff = address(podOwner).balance - balanceBefore;
-            totalDiff += diff;
         }
 
-        pendingWithdrawal -= totalDiff;
         emit Claimed(totalDiff);
     }
 
