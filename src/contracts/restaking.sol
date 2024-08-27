@@ -328,7 +328,7 @@ contract Restaking is Initializable, AccessControlUpgradeable, ReentrancyGuardUp
      */
     function update() external {
         // handling M1 pods
-        _withdrawBeforeRestaking();
+        //_withdrawBeforeRestaking();
 
         // withdraw ethers to staking contract
         _withdrawEthers();
