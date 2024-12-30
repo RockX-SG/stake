@@ -142,19 +142,9 @@ contract Restaking is Initializable, AccessControlUpgradeable, ReentrancyGuardUp
     /**
      * @dev UPDATE(20240330): to init upgradable beacon/beaconproxy
      */
-    /* 
     function initializeV3(address impl) reinitializer(3) public {
         beacon = new UpgradeableBeacon(impl);
         podOwners.push(IPodOwner(address(this)));
-    }
-    */
-
-    /**
-     * @dev UPDATE(20241230): to init rewardsCoordinator
-     */
-    function initializeV4(address _rewardsCoordinator) reinitializer(4) public {
-        require(_rewardsCoordinator != address(0x0), "SYS032");
-        rewardsCoordinator = _rewardsCoordinator;
     }
 
     /**
@@ -260,6 +250,15 @@ contract Restaking is Initializable, AccessControlUpgradeable, ReentrancyGuardUp
         require(recipient != address(0x0), "USR009");
         IERC20(token).safeTransfer(recipient, amount);
         emit RewardWithdrawn(token, recipient, amount);
+    }
+
+    /**
+     * @dev Set the rewards coordinator contract address.
+     * @param rewardsCdr The address of the rewards coordinator contract.
+     */
+    function setRewardsCoordinator(address rewardsCdr) external onlyRole(DEFAULT_ADMIN_ROLE) {
+        require(rewardsCdr != address(0x0), "SYS032");
+        rewardsCoordinator = rewardsCdr;
     }
 
     /**

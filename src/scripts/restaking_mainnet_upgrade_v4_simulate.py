@@ -40,9 +40,8 @@ def main():
 
     # simulate restaking contract upgrade
     restaking_contract = Restaking.deploy({"from": deployer})
-    calldata = Restaking[-1].initializeV4.encode_input(eigen_rewarded_proxy)
-    proxy_admin_contract.upgradeAndCall(
-        restaking_proxy, restaking_contract, calldata, {"from": gnosis_safe}
+    proxy_admin_contract.upgrade(
+        restaking_proxy, restaking_contract, {"from": gnosis_safe}
     )
 
     eigen_balance = erc20_eigen.balanceOf(restaking_proxy_address)
@@ -50,6 +49,11 @@ def main():
     transparent_restaking = Contract.from_abi(
         "Restaking", restaking_proxy, Restaking.abi
     )
+
+    transparent_restaking.setRewardsCoordinator(
+        eigen_rewarded_proxy, {"from": gnosis_safe}
+    )
+
     """
     claim_data = {
         "rootIndex": 21,
@@ -118,6 +122,6 @@ def main():
     tx = transparent_restaking.withdrawReward(
         eigen_token_address, accounts[0], eigen_balance, {"from": gnosis_safe}
     )
-    
+
     eigen_balance = erc20_eigen.balanceOf(restaking_proxy_address)
     print("eigen_balance after withdraw amount", eigen_balance)
