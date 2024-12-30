@@ -4,9 +4,11 @@ pragma solidity ^0.8.4;
 import "interfaces/iface.sol";
 import "@eigenlayer/contracts/interfaces/IEigenPodManager.sol";
 import "@eigenlayer/contracts/interfaces/IEigenPod.sol";
+import "@eigenlayer/contracts/interfaces/IRewardsCoordinator.sol";
 import "@eigenlayer/contracts/libraries/BeaconChainProofs.sol";
 
 import "@openzeppelin/contracts/utils/Address.sol";
+import "@openzeppelin/contracts/token/ERC20/ERC20.sol";
 import "@openzeppelin/contracts/token/ERC20/utils/SafeERC20.sol";
 import "@openzeppelin/contracts/proxy/beacon/BeaconProxy.sol";
 import "@openzeppelin/contracts/proxy/beacon/UpgradeableBeacon.sol";
@@ -51,6 +53,7 @@ contract PodOwner is IPodOwner, Initializable, OwnableUpgradeable {
 contract Restaking is Initializable, AccessControlUpgradeable, ReentrancyGuardUpgradeable {
     using Address for address;
     using Address for address payable;
+    using SafeERC20 for IERC20;
 
     bytes32 public constant OPERATOR_ROLE= keccak256("OPERATOR_ROLE");
 
@@ -74,6 +77,9 @@ contract Restaking is Initializable, AccessControlUpgradeable, ReentrancyGuardUp
 
     // @dev pods owners
     IPodOwner [] public podOwners;
+
+    /// @dev This is the contract for rewards in EigenLayer.
+    address public rewardsCoordinator;
 
     // @dev onlySelf requirement
     modifier onlySelf() {
@@ -212,6 +218,48 @@ contract Restaking is Initializable, AccessControlUpgradeable, ReentrancyGuardUp
         podOwners.push(podOwner);
     }
 
+    /**
+     * @notice Claim rewards against a given root (read from _distributionRoots[claim.rootIndex]).
+     * Earnings are cumulative so earners don't have to claim against all distribution roots they have earnings for,
+     * they can simply claim against the latest root and the contract will calculate the difference between
+     * their cumulativeEarnings and cumulativeClaimed.
+     * @param podId The pod id index to be processed.
+     * @param claim The RewardsMerkleClaim to be processed.
+     * Contains the root index, earner, token leaves, and required proofs.
+     */
+    function processClaim(uint256 podId, IRewardsCoordinator.RewardsMerkleClaim calldata claim) external onlyRole(OPERATOR_ROLE) {
+        IPodOwner podOwner = podOwners[podId];
+        bytes memory data = abi.encodeWithSelector(IRewardsCoordinator.processClaim.selector,
+                                                   claim,
+                                                   address(this));
+        podOwner.execute(rewardsCoordinator, data);
+    }
+
+    /**
+     * @dev Withdraws the eigenlayer restaking reward.
+     * @param token Token to withdraw.
+     * @param recipient Recipient address for the reward withdrawal.
+     * @param amount Amount to withdraw.
+     */
+    function withdrawReward(
+        address token,
+        address recipient,
+        uint256 amount
+    ) external onlyRole(DEFAULT_ADMIN_ROLE) {
+        require(token != address(0x0), "USR008");
+        require(recipient != address(0x0), "USR009");
+        IERC20(token).safeTransfer(recipient, amount);
+        emit RewardWithdrawn(token, recipient, amount);
+    }
+
+    /**
+     * @dev Set the rewards coordinator contract address.
+     * @param rewardsCdr The address of the rewards coordinator contract.
+     */
+    function setRewardsCoordinator(address rewardsCdr) external onlyRole(DEFAULT_ADMIN_ROLE) {
+        require(rewardsCdr != address(0x0), "SYS032");
+        rewardsCoordinator = rewardsCdr;
+    }
 
     /**
      * ======================================================================================
@@ -310,4 +358,5 @@ contract Restaking is Initializable, AccessControlUpgradeable, ReentrancyGuardUp
      */
     event Claimed(uint256 amount);
     event Pending(uint256 amount);
+    event RewardWithdrawn(address token, address recipient, uint256 amount);
 }
