@@ -233,11 +233,11 @@ contract Restaking is Initializable, AccessControlUpgradeable, ReentrancyGuardUp
      * Earnings are cumulative so earners don't have to claim against all distribution roots they have earnings for,
      * they can simply claim against the latest root and the contract will calculate the difference between
      * their cumulativeEarnings and cumulativeClaimed.
+     * @param podId The pod id index to be processed.
      * @param claim The RewardsMerkleClaim to be processed.
      * Contains the root index, earner, token leaves, and required proofs.
-     * @param podId The pod id index to be processed.
      */
-    function processClaim(IRewardsCoordinator.RewardsMerkleClaim calldata claim, uint256 podId) external onlyRole(OPERATOR_ROLE) {
+    function processClaim(uint256 podId, IRewardsCoordinator.RewardsMerkleClaim calldata claim) external onlyRole(OPERATOR_ROLE) {
         IPodOwner podOwner = podOwners[podId];
         bytes memory data = abi.encodeWithSelector(IRewardsCoordinator.processClaim.selector,
                                                    claim,

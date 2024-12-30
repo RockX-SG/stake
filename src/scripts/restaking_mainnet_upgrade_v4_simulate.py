@@ -111,7 +111,7 @@ def main():
         ],
     )
 
-    transparent_restaking.processClaim(claim_data, 0, {"from": operator})
+    transparent_restaking.processClaim(0, claim_data, {"from": operator})
     eigen_balance = erc20_eigen.balanceOf(restaking_proxy_address)
     print("eigen_balance after claimed amount", eigen_balance)
 
