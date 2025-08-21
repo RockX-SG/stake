@@ -8,8 +8,15 @@ import "@openzeppelin/contracts-upgradeable/access/OwnableUpgradeable.sol";
 import "@openzeppelin/contracts-upgradeable/proxy/utils/Initializable.sol";
 import "@openzeppelin/contracts-upgradeable/security/PausableUpgradeable.sol";
 
-contract RockXETH is Initializable, ERC20Upgradeable, ERC20BurnableUpgradeable, ERC20SnapshotUpgradeable, OwnableUpgradeable, PausableUpgradeable {    
-   /**
+contract RockXETH is
+    Initializable,
+    ERC20Upgradeable,
+    ERC20BurnableUpgradeable,
+    ERC20SnapshotUpgradeable,
+    OwnableUpgradeable,
+    PausableUpgradeable
+{
+    /**
      * @dev Emitted when an account is set mintable
      */
     event Mintable(address account);
@@ -17,17 +24,20 @@ contract RockXETH is Initializable, ERC20Upgradeable, ERC20BurnableUpgradeable, 
      * @dev Emitted when an account is set unmintable
      */
     event Unmintable(address account);
-    
+
     // @dev mintable group
     mapping(address => bool) public mintableGroup;
-    
+
     modifier onlyMintableGroup() {
         require(mintableGroup[msg.sender], "uniETH: not in mintable group");
         _;
     }
 
-    constructor() { _disableInitializers(); }
-    function initialize() initializer public {
+    constructor() {
+        _disableInitializers();
+    }
+
+    function initialize() public initializer {
         __ERC20_init("Universal ETH", "uniETH");
         __ERC20Burnable_init();
         __ERC20Snapshot_init();
@@ -46,7 +56,7 @@ contract RockXETH is Initializable, ERC20Upgradeable, ERC20BurnableUpgradeable, 
 
         if (allow) {
             emit Mintable(account);
-        }  else {
+        } else {
             emit Unmintable(account);
         }
     }
@@ -94,8 +104,8 @@ contract RockXETH is Initializable, ERC20Upgradeable, ERC20BurnableUpgradeable, 
 
     function _beforeTokenTransfer(address from, address to, uint256 amount)
         internal
-        whenNotPaused
         override(ERC20Upgradeable, ERC20SnapshotUpgradeable)
+        whenNotPaused
     {
         super._beforeTokenTransfer(from, to, amount);
     }
@@ -106,11 +116,13 @@ contract RockXETH is Initializable, ERC20Upgradeable, ERC20BurnableUpgradeable, 
      */
     function batchTransfer(address[] memory recipients, uint256[] memory amounts) public {
         require(recipients.length > 0, "uniETH: least one recipient address");
-        require(recipients.length == amounts.length, "uniETH: number of recipient addresses does not match the number of tokens");
+        require(
+            recipients.length == amounts.length,
+            "uniETH: number of recipient addresses does not match the number of tokens"
+        );
 
-        for(uint256 i = 0; i < recipients.length; ++i) {
+        for (uint256 i = 0; i < recipients.length; ++i) {
             _transfer(_msgSender(), recipients[i], amounts[i]);
         }
     }
 }
-

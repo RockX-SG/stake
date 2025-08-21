@@ -22,24 +22,26 @@ import "@openzeppelin/contracts-upgradeable/security/ReentrancyGuardUpgradeable.
 contract PodOwner is IPodOwner, Initializable, OwnableUpgradeable {
     using Address for address;
     using Address for address payable;
-    
-    receive() external payable { }
-    constructor() { _disableInitializers(); }
 
-    function initialize(address _eigenPodManager) initializer public {
+    receive() external payable {}
+
+    constructor() {
+        _disableInitializers();
+    }
+
+    function initialize(address _eigenPodManager) public initializer {
         __Ownable_init();
 
         IEigenPodManager(_eigenPodManager).createPod();
     }
 
-    function execute(address target, bytes memory data) override onlyOwner external returns(bytes memory) {
+    function execute(address target, bytes memory data) external override onlyOwner returns (bytes memory) {
         return target.functionCall(data);
     }
 
-    function transfer(address target, uint256 amount) onlyOwner external {
+    function transfer(address target, uint256 amount) external onlyOwner {
         payable(target).sendValue(amount);
     }
-
 }
 
 /**
@@ -55,7 +57,7 @@ contract Restaking is Initializable, AccessControlUpgradeable, ReentrancyGuardUp
     using Address for address payable;
     using SafeERC20 for IERC20;
 
-    bytes32 public constant OPERATOR_ROLE= keccak256("OPERATOR_ROLE");
+    bytes32 public constant OPERATOR_ROLE = keccak256("OPERATOR_ROLE");
 
     /// @dev the EigenLayer EigenPodManager contract
     address public eigenPodManager;
@@ -67,7 +69,7 @@ contract Restaking is Initializable, AccessControlUpgradeable, ReentrancyGuardUp
     address public strategyManager;
     /// @dev the DelayedWithdrawalRouter contract
     address public delayedWithdrawalRouter;
-    /// @dev record pending withdrawal amount from EigenPod to DelayedWithdrawalRouter 
+    /// @dev record pending withdrawal amount from EigenPod to DelayedWithdrawalRouter
     uint256 private pendingWithdrawal;
     // @dev staking contract address
     address public stakingAddress;
@@ -76,26 +78,30 @@ contract Restaking is Initializable, AccessControlUpgradeable, ReentrancyGuardUp
     UpgradeableBeacon public beacon;
 
     // @dev pods owners
-    IPodOwner [] public podOwners;
+    IPodOwner[] public podOwners;
 
     /// @dev This is the contract for rewards in EigenLayer.
     address public rewardsCoordinator;
 
     // @dev onlySelf requirement
     modifier onlySelf() {
-       if (msg.sender != address(this))
+        if (msg.sender != address(this)) {
             revert();
+        }
         _;
     }
 
     /**
      * @dev forward to staking contract
      */
-    receive() external payable { }
-    constructor() { _disableInitializers(); }
+    receive() external payable {}
+
+    constructor() {
+        _disableInitializers();
+    }
 
     /**
-     * @dev initialization 
+     * @dev initialization
      */
     /*
     function initialize(
@@ -127,22 +133,22 @@ contract Restaking is Initializable, AccessControlUpgradeable, ReentrancyGuardUp
         // Save off the EigenPod address
         eigenPod = address(IEigenPodManager(eigenPodManager).getPod(address(this)));
     }
-   */
+    */
 
     /**
      * @dev UPDATE(20240130): to set a variable after upgrades
      * use upgradeAndCall to initializeV2
-     */ 
-     /*
+     */
+    /*
     function initializeV2(address stakingAddress_) reinitializer(2) public {
         stakingAddress = stakingAddress_;
     }
-   */
+    */
 
     /**
      * @dev UPDATE(20240330): to init upgradable beacon/beaconproxy
      */
-    function initializeV3(address impl) reinitializer(3) public {
+    function initializeV3(address impl) public reinitializer(3) {
         beacon = new UpgradeableBeacon(impl);
         podOwners.push(IPodOwner(address(this)));
     }
@@ -150,14 +156,18 @@ contract Restaking is Initializable, AccessControlUpgradeable, ReentrancyGuardUp
     /**
      * @dev upgradeBeacon
      */
-    function upgradeBeacon(address impl) onlyRole(DEFAULT_ADMIN_ROLE) external {
+    function upgradeBeacon(address impl) external onlyRole(DEFAULT_ADMIN_ROLE) {
         beacon.upgradeTo(impl);
     }
 
     /**
      * @dev call delegation operations
      */
-    function callDelegationManager(uint256 podId, bytes memory data) external onlyRole(OPERATOR_ROLE) returns(bytes memory) {
+    function callDelegationManager(uint256 podId, bytes memory data)
+        external
+        onlyRole(OPERATOR_ROLE)
+        returns (bytes memory)
+    {
         IPodOwner podOwner = podOwners[podId];
         return podOwner.execute(delegationManager, data); // execute delegation operations
     }
@@ -184,12 +194,14 @@ contract Restaking is Initializable, AccessControlUpgradeable, ReentrancyGuardUp
         IPodOwner podOwner = podOwners[podId];
         address pod = address(IEigenPodManager(eigenPodManager).getPod(address(podOwner)));
 
-        bytes memory data = abi.encodeWithSelector(IEigenPod.verifyWithdrawalCredentials.selector,
-                                                   oracleTimestamp, 
-                                                   stateRootProof, 
-                                                   validatorIndices, 
-                                                   validatorFieldsProofs, 
-                                                   validatorFields);
+        bytes memory data = abi.encodeWithSelector(
+            IEigenPod.verifyWithdrawalCredentials.selector,
+            oracleTimestamp,
+            stateRootProof,
+            validatorIndices,
+            validatorFieldsProofs,
+            validatorFields
+        );
 
         podOwner.execute(pod, data);
     }
@@ -208,11 +220,10 @@ contract Restaking is Initializable, AccessControlUpgradeable, ReentrancyGuardUp
 
     /**
      * @dev create pod
-     */ 
+     */
     function createPod() external onlyRole(DEFAULT_ADMIN_ROLE) {
-        BeaconProxy proxy = new BeaconProxy(address(beacon),
-                                            abi.encodeWithSignature("initialize(address)", eigenPodManager)
-                                           );
+        BeaconProxy proxy =
+            new BeaconProxy(address(beacon), abi.encodeWithSignature("initialize(address)", eigenPodManager));
 
         IPodOwner podOwner = IPodOwner(address(proxy));
         podOwners.push(podOwner);
@@ -227,11 +238,12 @@ contract Restaking is Initializable, AccessControlUpgradeable, ReentrancyGuardUp
      * @param claim The RewardsMerkleClaim to be processed.
      * Contains the root index, earner, token leaves, and required proofs.
      */
-    function processClaim(uint256 podId, IRewardsCoordinator.RewardsMerkleClaim calldata claim) external onlyRole(OPERATOR_ROLE) {
+    function processClaim(uint256 podId, IRewardsCoordinator.RewardsMerkleClaim calldata claim)
+        external
+        onlyRole(OPERATOR_ROLE)
+    {
         IPodOwner podOwner = podOwners[podId];
-        bytes memory data = abi.encodeWithSelector(IRewardsCoordinator.processClaim.selector,
-                                                   claim,
-                                                   address(this));
+        bytes memory data = abi.encodeWithSelector(IRewardsCoordinator.processClaim.selector, claim, address(this));
         podOwner.execute(rewardsCoordinator, data);
     }
 
@@ -241,11 +253,7 @@ contract Restaking is Initializable, AccessControlUpgradeable, ReentrancyGuardUp
      * @param recipient Recipient address for the reward withdrawal.
      * @param amount Amount to withdraw.
      */
-    function withdrawReward(
-        address token,
-        address recipient,
-        uint256 amount
-    ) external onlyRole(DEFAULT_ADMIN_ROLE) {
+    function withdrawReward(address token, address recipient, uint256 amount) external onlyRole(DEFAULT_ADMIN_ROLE) {
         require(token != address(0x0), "USR008");
         require(recipient != address(0x0), "USR009");
         IERC20(token).safeTransfer(recipient, amount);
@@ -263,7 +271,7 @@ contract Restaking is Initializable, AccessControlUpgradeable, ReentrancyGuardUp
 
     /**
      * ======================================================================================
-     * 
+     *
      *  EXTERNAL VIEW FUNCTIONS
      *
      * ======================================================================================
@@ -274,7 +282,7 @@ contract Restaking is Initializable, AccessControlUpgradeable, ReentrancyGuardUp
      */
     function getPendingWithdrawalAmount() external view returns (uint256) {
         uint256 sumBalance;
-        for (uint256 i=0;i< podOwners.length;i++) {
+        for (uint256 i = 0; i < podOwners.length; i++) {
             address podOwner = address(podOwners[i]);
             address pod = address(IEigenPodManager(eigenPodManager).getPod(podOwner));
             sumBalance += pod.balance;
@@ -283,7 +291,6 @@ contract Restaking is Initializable, AccessControlUpgradeable, ReentrancyGuardUp
 
         return pendingWithdrawal + sumBalance;
     }
-
 
     /**
      * @dev get total pods
@@ -300,10 +307,9 @@ contract Restaking is Initializable, AccessControlUpgradeable, ReentrancyGuardUp
         return address(IEigenPodManager(eigenPodManager).getPod(address(podOwner)));
     }
 
-
     /**
      * ======================================================================================
-     * 
+     *
      *  PRIMARY POD FUNCTIONS
      *
      * ======================================================================================
@@ -319,16 +325,15 @@ contract Restaking is Initializable, AccessControlUpgradeable, ReentrancyGuardUp
 
     /**
      * ======================================================================================
-     * 
+     *
      *  INTERNAL PODS FUNCTIONS
      *
      * ======================================================================================
      */
-
     function _withdrawEthers() internal {
         uint256 totalDiff;
 
-        for (uint256 i=0;i< podOwners.length;i++) {
+        for (uint256 i = 0; i < podOwners.length; i++) {
             IPodOwner podOwner = podOwners[i];
 
             totalDiff += address(podOwner).balance;
@@ -339,19 +344,19 @@ contract Restaking is Initializable, AccessControlUpgradeable, ReentrancyGuardUp
     }
 
     // @dev the magic to make restaking contract compatible to IPodOwner
-    //  so we can unify the the method to handle eigenpods. 
+    //  so we can unify the the method to handle eigenpods.
     //  Access to this function must be limited to the contract itself.
-    function execute(address target, bytes memory data) onlySelf external returns(bytes memory) {
+    function execute(address target, bytes memory data) external onlySelf returns (bytes memory) {
         return target.functionCall(data);
     }
 
-    function transfer(address target, uint256 amount) onlySelf external {
+    function transfer(address target, uint256 amount) external onlySelf {
         payable(target).sendValue(amount);
     }
 
     /**
      * ======================================================================================
-     * 
+     *
      * EVENTS
      *
      * ======================================================================================

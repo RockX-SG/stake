@@ -6,6 +6,9 @@
 
 ```
 $ git clone https://github.com/RockX-SG/stake
+$ git clone --recurse-submodules --recurse-submodules
+or
+$ git submodule update --init --recursive
 ```
 
 ### 1. Create API KEY 

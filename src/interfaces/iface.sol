@@ -14,13 +14,7 @@ interface IMintableContract is IERC20 {
 /// For more information see the Phase 0 specification under https://github.com/ethereum/eth2.0-specs
 interface IDepositContract {
     /// @notice A processed deposit event.
-    event DepositEvent(
-        bytes pubkey,
-        bytes withdrawal_credentials,
-        bytes amount,
-        bytes signature,
-        bytes index
-    );
+    event DepositEvent(bytes pubkey, bytes withdrawal_credentials, bytes amount, bytes signature, bytes index);
 
     /// @notice Submit a Phase 0 DepositData object.
     /// @param pubkey A BLS12-381 public key.
@@ -58,5 +52,5 @@ interface IRestaking {
 
 interface IPodOwner {
     function transfer(address target, uint256 amount) external;
-    function execute(address target, bytes memory data) external returns(bytes memory);
+    function execute(address target, bytes memory data) external returns (bytes memory);
 }

@@ -10,15 +10,18 @@ import "@openzeppelin/contracts-upgradeable/security/ReentrancyGuardUpgradeable.
 
 /**
  * @title Bedrock Revenue Splitter
- * @dev this contract receives manager's uniETH from Staking contract, and 
+ * @dev this contract receives manager's uniETH from Staking contract, and
  *  split with node operator and bedrock.
  */
 contract RevenueSplitter is Initializable, AccessControlUpgradeable, ReentrancyGuardUpgradeable {
     // @dev staking contract address
     address public stakingAddress;
 
-    constructor() { _disableInitializers(); }
-    function initialize(address stakingAddress_) initializer public {
+    constructor() {
+        _disableInitializers();
+    }
+
+    function initialize(address stakingAddress_) public initializer {
         stakingAddress = stakingAddress_;
     }
-} 
+}
