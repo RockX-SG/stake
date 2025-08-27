@@ -2,6 +2,7 @@
 pragma solidity ^0.8.4;
 
 import "@openzeppelin/contracts/token/ERC20/IERC20.sol";
+import "@eigenlayer/contracts/interfaces/IEigenPod.sol";
 
 interface IMintableContract is IERC20 {
     function mint(address account, uint256 amount) external;
@@ -48,9 +49,11 @@ interface IRestaking {
     function eigenPod() external view returns (address);
     function getPod(uint256 i) external view returns (address);
     function getTotalPods() external view returns (uint256);
+    function requestWithdrawal(uint256 podId, IEigenPodTypes.WithdrawalRequest[] calldata requests) external payable;
 }
 
 interface IPodOwner {
     function transfer(address target, uint256 amount) external;
     function execute(address target, bytes memory data) external returns (bytes memory);
+    function executeWithValue(address target, bytes memory data, uint256 value) external returns (bytes memory);
 }

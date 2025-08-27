@@ -14,5 +14,5 @@ remappings = [
   "@openzeppelin-upgrades=lib/OpenZeppelin/openzeppelin-contracts-upgradeable@4.9.0",
   "solidity-bytes-utils/contracts=lib/GNSPS/solidity-bytes-utils@0.8.0/contracts",
   "@eigenlayer/contracts=lib/eigenlayer-contracts/eigenlayer-contracts@1.6.0/src/contracts",
-  "interfaces=./interfaces",
+  "interfaces=./contracts/interfaces",
 ]

@@ -54,14 +54,14 @@ contract PodOwner is IPodOwner, Initializable, OwnableUpgradeable {
 }
 
 /**
- * @title Bedrock EigenLayer Restaking Contract
+ * @title Bedrock EigenLayer Restaking Pectra Contract
  *
  * Description:
  *  This contract manages restaking on eigenlayer, including:
  *      1. createPod for native staking
  *      2. withdraws rewards from eigenpod to staking contract.
  */
-contract Restaking is Initializable, AccessControlUpgradeable, ReentrancyGuardUpgradeable {
+contract RestakingPectra is Initializable, AccessControlUpgradeable, ReentrancyGuardUpgradeable {
     using Address for address;
     using Address for address payable;
     using SafeERC20 for IERC20;
@@ -70,27 +70,16 @@ contract Restaking is Initializable, AccessControlUpgradeable, ReentrancyGuardUp
 
     /// @dev the EigenLayer EigenPodManager contract
     address public eigenPodManager;
-    /// @dev The EigenPod owned by this contract
-    address public eigenPod;
     /// @dev the DelegationManager contract
     address public delegationManager;
-    /// @dev the StrategyManager contract
-    address public strategyManager;
-    /// @dev the DelayedWithdrawalRouter contract
-    address public delayedWithdrawalRouter;
-    /// @dev record pending withdrawal amount from EigenPod to DelayedWithdrawalRouter
-    uint256 private pendingWithdrawal;
-    // @dev staking contract address
-    address public stakingAddress;
-
-    // @dev PodOwner upgradable beacon
-    UpgradeableBeacon public beacon;
-
-    // @dev pods owners
-    IPodOwner[] public podOwners;
-
+    // @dev staking pectra contract address
+    address public stakingPectraAddress;
     /// @dev This is the contract for rewards in EigenLayer.
     address public rewardsCoordinator;
+    // @dev PodOwner upgradable beacon
+    UpgradeableBeacon public beacon;
+    // @dev pods owners
+    IPodOwner[] public podOwners;
 
     // @dev onlySelf requirement
     modifier onlySelf() {
@@ -112,17 +101,16 @@ contract Restaking is Initializable, AccessControlUpgradeable, ReentrancyGuardUp
     /**
      * @dev initialization
      */
-    /*
     function initialize(
         address _eigenPodManager,
         address _delegationManager,
-        address _strategyManager,
-        address _delayedWithdrawalRouter
-    ) initializer public {
+        address _stakingPectra,
+        address _rewardsCoordinator
+    ) public initializer {
         require(_eigenPodManager != address(0x0), "SYS026");
-        require(_delegationManager!= address(0x0), "SYS027");
-        require(_strategyManager!= address(0x0), "SYS028");
-        require(_delayedWithdrawalRouter!= address(0x0), "SYS029");
+        require(_delegationManager != address(0x0), "SYS027");
+        require(_stakingPectra != address(0x0), "SYS025");
+        require(_rewardsCoordinator != address(0x0), "SYS029");
 
         __AccessControl_init();
         __ReentrancyGuard_init();
@@ -133,33 +121,16 @@ contract Restaking is Initializable, AccessControlUpgradeable, ReentrancyGuardUp
         // Assign to local variable
         eigenPodManager = _eigenPodManager;
         delegationManager = _delegationManager;
-        strategyManager = _strategyManager;
-        delayedWithdrawalRouter = _delayedWithdrawalRouter;
+        stakingPectraAddress = _stakingPectra;
+        rewardsCoordinator = _rewardsCoordinator;
 
-        // Deploy new EigenPod
-        IEigenPodManager(eigenPodManager).createPod();
+        PodOwner defaultBeaconImpl = new PodOwner();
+        beacon = new UpgradeableBeacon(address(defaultBeaconImpl));
 
-        // Save off the EigenPod address
-        eigenPod = address(IEigenPodManager(eigenPodManager).getPod(address(this)));
-    }
-    */
-
-    /**
-     * @dev UPDATE(20240130): to set a variable after upgrades
-     * use upgradeAndCall to initializeV2
-     */
-    /*
-    function initializeV2(address stakingAddress_) reinitializer(2) public {
-        stakingAddress = stakingAddress_;
-    }
-    */
-
-    /**
-     * @dev UPDATE(20240330): to init upgradable beacon/beaconproxy
-     */
-    function initializeV3(address impl) public reinitializer(3) {
-        beacon = new UpgradeableBeacon(impl);
-        podOwners.push(IPodOwner(address(this)));
+        BeaconProxy proxy =
+            new BeaconProxy(address(beacon), abi.encodeWithSignature("initialize(address)", eigenPodManager));
+        IPodOwner podOwner = IPodOwner(address(proxy));
+        podOwners.push(podOwner);
     }
 
     /**
@@ -225,6 +196,24 @@ contract Restaking is Initializable, AccessControlUpgradeable, ReentrancyGuardUp
         address pod = address(IEigenPodManager(eigenPodManager).getPod(address(podOwner)));
 
         podOwner.execute(pod, abi.encodeWithSelector(IEigenPod.startCheckpoint.selector, revertIfNoBalance));
+    }
+
+    /**
+     * @dev requestWithdrawal
+     * @param podId the pod id
+     * @param requests validatorpubkey and amount
+     */
+    function requestWithdrawal(uint256 podId, IEigenPodTypes.WithdrawalRequest[] calldata requests)
+        external
+        payable
+        onlyRole(OPERATOR_ROLE)
+    {
+        IPodOwner podOwner = podOwners[podId];
+        address pod = address(IEigenPodManager(eigenPodManager).getPod(address(podOwner)));
+
+        podOwner.executeWithValue(
+            pod, abi.encodeWithSelector(IEigenPod.requestWithdrawal.selector, requests), msg.value
+        );
     }
 
     /**
@@ -298,7 +287,7 @@ contract Restaking is Initializable, AccessControlUpgradeable, ReentrancyGuardUp
             sumBalance += podOwner.balance;
         }
 
-        return pendingWithdrawal + sumBalance;
+        return sumBalance;
     }
 
     /**
@@ -346,7 +335,7 @@ contract Restaking is Initializable, AccessControlUpgradeable, ReentrancyGuardUp
             IPodOwner podOwner = podOwners[i];
 
             totalDiff += address(podOwner).balance;
-            podOwner.transfer(stakingAddress, address(podOwner).balance);
+            podOwner.transfer(stakingPectraAddress, address(podOwner).balance);
         }
 
         emit Claimed(totalDiff);
