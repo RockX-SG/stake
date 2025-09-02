@@ -61,7 +61,7 @@ contract PodOwner is IPodOwner, Initializable, OwnableUpgradeable {
  *      1. createPod for native staking
  *      2. withdraws rewards from eigenpod to staking contract.
  */
-contract RestakingPectra is Initializable, AccessControlUpgradeable, ReentrancyGuardUpgradeable {
+contract Restaking is Initializable, AccessControlUpgradeable, ReentrancyGuardUpgradeable {
     using Address for address;
     using Address for address payable;
     using SafeERC20 for IERC20;
@@ -256,15 +256,6 @@ contract RestakingPectra is Initializable, AccessControlUpgradeable, ReentrancyG
         require(recipient != address(0x0), "USR009");
         IERC20(token).safeTransfer(recipient, amount);
         emit RewardWithdrawn(token, recipient, amount);
-    }
-
-    /**
-     * @dev Set the rewards coordinator contract address.
-     * @param rewardsCdr The address of the rewards coordinator contract.
-     */
-    function setRewardsCoordinator(address rewardsCdr) external onlyRole(DEFAULT_ADMIN_ROLE) {
-        require(rewardsCdr != address(0x0), "SYS032");
-        rewardsCoordinator = rewardsCdr;
     }
 
     /**

@@ -12,7 +12,7 @@ import "@openzeppelin/contracts-upgradeable/security/ReentrancyGuardUpgradeable.
 import "@openzeppelin/contracts/utils/math/SafeCast.sol";
 import "@eigenlayer/contracts/interfaces/IEigenPod.sol";
 /**
- * @title Bedrock Ethereum 2.0 Staking Contract
+ * @title Bedrock Ethereum 2.0 Staking Contract V2 Pectra feature
  *
  * Description:
  *
@@ -95,15 +95,28 @@ contract Staking is Initializable, PausableUpgradeable, AccessControlUpgradeable
         bool stopped;
         bool restaking;
         uint8 eigenpod;
-        uint256 stakedAmount;
-        uint256 debt;
+        uint256 totalStaked;
+        uint256 totalDebt;
+        // total protocol reward
+        uint256 totalReward;
     }
 
     // track ether debts to return to async caller
     struct Debt {
         address account;
         uint256 amount;
-        uint256 validatorIndex;
+    }
+
+    struct ValidatorDebt {
+        bytes pubkey;
+        // delta amount, 0 means need stop validator
+        uint256 amount;
+    }
+
+    struct ValidatorReward {
+        bytes pubkey;
+        // total reward amount
+        uint256 amount;
     }
     /**
      * Incorrect storage preservation:
@@ -134,8 +147,6 @@ contract Staking is Initializable, PausableUpgradeable, AccessControlUpgradeable
     bytes32 public constant PAUSER_ROLE = keccak256("PAUSER_ROLE");
     uint256 public constant DEPOSIT_SIZE = 32 ether;
     uint256 public constant DEPOSIT_PER_VALIDATOR_SIZE = DEPOSIT_SIZE * 52; //1664 ether
-    uint256 public constant DEPOSIT_PER_VALIDATOR_MAX = 32 ether * 64; //2048 ether
-    uint256 public constant DEPOSIT_PER_VALIDATOR_MIN = 32 ether;
     uint256 public constant SAFE_PUSH_REWARDS = 30 ether;
     uint256 private constant MULTIPLIER = 1e18;
     uint256 private constant DEPOSIT_AMOUNT_UNIT = 1000000000 wei;
@@ -148,11 +159,11 @@ contract Staking is Initializable, PausableUpgradeable, AccessControlUpgradeable
     address public redeemContract; // redeeming contract for user to pull ethers
     uint256 public managerFeeShare; // manager's fee in 1/1000
     bytes32 public withdrawalCredentials; // WithdrawCredential for all validator
+    address public restakingContract;
+    address public stakingContractV1;
     // credentials, pushed by owner
     ValidatorCredential[] public validatorRegistry;
     mapping(bytes32 => uint256) private pubkeyIndices; // indices of validatorRegistry by pubkey hash, starts from 1
-    // next validator id
-    uint256 private nextValidatorId;
     // exchange ratio related variables
     // track user deposits & redeem (xETH mint & burn)
     uint256 private totalPending; // track pending ethers awaiting to be staked to validators
@@ -178,10 +189,7 @@ contract Staking is Initializable, PausableUpgradeable, AccessControlUpgradeable
     uint256 private recentReceived; // track recently received (un-accounted) value into this contract
     bytes32 private vectorClock; // a vector clock for detecting receive() & pushBeacon() causality violations
     uint256 private vectorClockTicks; // record current vector clock step;
-    // track stopped validators
-    uint256 private stoppedValidators; // track stopped validators count
-    address public restakingContract;
-    address public stakingContract;
+
     uint256 private reportedUnrealizedProfits;
     /**
      * @dev empty reserved space for future adding of variables
@@ -218,7 +226,7 @@ contract Staking is Initializable, PausableUpgradeable, AccessControlUpgradeable
     /**
      * @dev initialization address
      */
-    function initialize(address _restakingContract, address _stakingContract) public initializer {
+    function initialize(address _stakingContractV1, address _xETHAddress, address _redeemContract) public initializer {
         __Pausable_init();
         __AccessControl_init();
         __ReentrancyGuard_init();
@@ -229,6 +237,8 @@ contract Staking is Initializable, PausableUpgradeable, AccessControlUpgradeable
         _grantRole(PAUSER_ROLE, msg.sender);
         _grantRole(MANAGER_ROLE, msg.sender);
 
+        xETHAddress = _xETHAddress;
+        redeemContract = _redeemContract;
         // init default values
         managerFeeShare = 5;
         firstDebt = 1;
@@ -240,8 +250,7 @@ contract Staking is Initializable, PausableUpgradeable, AccessControlUpgradeable
         bytes memory cred = abi.encodePacked(bytes1(0x01), new bytes(11), address(this));
         withdrawalCredentials = BytesLib.toBytes32(cred, 0);
 
-        restakingContract = _restakingContract;
-        stakingContract = _stakingContract;
+        stakingContractV1 = _stakingContractV1;
     }
 
     /**
@@ -308,8 +317,9 @@ contract Staking is Initializable, PausableUpgradeable, AccessControlUpgradeable
                     stopped: false,
                     restaking: true,
                     eigenpod: podIds[i],
-                    stakedAmount: 0,
-                    debt: 0
+                    totalStaked: 0,
+                    totalDebt: 0,
+                    totalReward: 0
                 })
             );
             pubkeyIndices[pubkeyHash] = validatorRegistry.length;
@@ -336,8 +346,9 @@ contract Staking is Initializable, PausableUpgradeable, AccessControlUpgradeable
                     stopped: false,
                     restaking: false,
                     eigenpod: 0,
-                    stakedAmount: 0,
-                    debt: 0
+                    totalStaked: 0,
+                    totalDebt: 0,
+                    totalReward: 0
                 })
             );
             pubkeyIndices[pubkeyHash] = validatorRegistry.length;
@@ -364,6 +375,15 @@ contract Staking is Initializable, PausableUpgradeable, AccessControlUpgradeable
     }
 
     /**
+     * @dev set restaking contract address
+     */
+    function setRestakingContract(address _restakingContract) external onlyRole(DEFAULT_ADMIN_ROLE) {
+        restakingContract = _restakingContract;
+
+        emit RestakingAddressSet(_restakingContract);
+    }
+
+    /**
      * @dev set withdraw credential to receive revenue, usually this should be the contract itself.
      */
     function setWithdrawCredential(bytes32 withdrawalCredentials_) external onlyRole(DEFAULT_ADMIN_ROLE) {
@@ -385,14 +405,13 @@ contract Staking is Initializable, PausableUpgradeable, AccessControlUpgradeable
         if (totalPending / DEPOSIT_SIZE == 0) {
             return;
         }
-        for (uint256 i = stoppedValidators; i < validatorRegistry.length; i++) {
+        for (uint256 i = 0; i < validatorRegistry.length; i++) {
             ValidatorCredential storage cred = validatorRegistry[i];
-            // just in case.
             if (cred.stopped) {
                 continue;
             }
             // check if we can stake on this validator
-            uint256 staked = cred.stakedAmount - cred.debt;
+            uint256 staked = cred.totalStaked + cred.totalReward - cred.totalDebt;
             while (staked < DEPOSIT_PER_VALIDATOR_SIZE && totalPending / DEPOSIT_SIZE > 0) {
                 if (!cred.restaking) {
                     _stake(cred.pubkey, cred.signature, withdrawalCredentials);
@@ -408,7 +427,7 @@ contract Staking is Initializable, PausableUpgradeable, AccessControlUpgradeable
                 totalStaked += DEPOSIT_SIZE;
                 reportedAddedStake += DEPOSIT_SIZE;
                 totalPending -= DEPOSIT_SIZE;
-                cred.stakedAmount += DEPOSIT_SIZE;
+                cred.totalStaked += DEPOSIT_SIZE;
             }
             // todo emit event
         }
@@ -450,7 +469,7 @@ contract Staking is Initializable, PausableUpgradeable, AccessControlUpgradeable
      * @dev clear debts
      */
     function _clearDebts() internal {
-        uint256 maxUsable = (address(this).balance - totalPending) / 32 ether * 32 ether;
+        uint256 maxUsable = (address(this).balance - totalPending) / DEPOSIT_SIZE * DEPOSIT_SIZE;
         uint256 effectiveEthers = totalDebts < maxUsable ? totalDebts : maxUsable;
 
         if (effectiveEthers > 0) {
@@ -560,13 +579,95 @@ contract Staking is Initializable, PausableUpgradeable, AccessControlUpgradeable
         recentReceived = 0;
     }
 
-    function pushValidatorBalance(uint256 _totalAliveBalance, bool _callPushBeacon, bytes32 clock)
+    function retryWithdrawal(ValidatorDebt[] calldata _validatorDebts, bytes32 clock)
         external
         payable
         nonReentrant
         onlyRole(ORACLE_ROLE)
     {
+        _require(vectorClock == clock, "SYS012");
+        uint256 oneRequestFee = _getFee(WITHDRAWAL_REQUEST_ADDRESS);
+        uint256 totalFee = oneRequestFee * _validatorDebts.length;
+        uint256 remainder = msg.value - totalFee;
+        _require(msg.value >= totalFee, "USE007");
+        for (uint256 i = 0; i < _validatorDebts.length; i++) {
+            uint256 index = pubkeyIndices[keccak256(_validatorDebts[i].pubkey)] - 1;
+            ValidatorCredential memory validator = validatorRegistry[index];
+            //do withdraw
+            if (validator.restaking) {
+                _requestWithdrawal(
+                    validator.eigenpod,
+                    validator.pubkey,
+                    uint64(_validatorDebts[i].amount / DEPOSIT_AMOUNT_UNIT),
+                    oneRequestFee
+                );
+            } else {
+                _requestWithdrawal(
+                    validator.pubkey, uint64(_validatorDebts[i].amount / DEPOSIT_AMOUNT_UNIT), oneRequestFee
+                );
+            }
+        }
+        // Refund remainder of msg.value
+        if (remainder > 0) {
+            Address.sendValue(payable(msg.sender), remainder);
+        }
+        // vector clock moves
+        _vectorClockTick();
+    }
+
+    function pushValidatorDebts(ValidatorDebt[] calldata _validatorDebts, bytes32 clock)
+        external
+        payable
+        nonReentrant
+        onlyRole(ORACLE_ROLE)
+    {
+        _require(vectorClock == clock, "SYS012");
+        uint256 oneRequestFee = _getFee(WITHDRAWAL_REQUEST_ADDRESS);
+        uint256 totalFee = oneRequestFee * _validatorDebts.length;
+        uint256 remainder = msg.value - totalFee;
+        _require(msg.value >= totalFee, "USE007");
+        for (uint256 i = 0; i < _validatorDebts.length; i++) {
+            uint256 index = pubkeyIndices[keccak256(_validatorDebts[i].pubkey)] - 1;
+            ValidatorCredential storage validator = validatorRegistry[index];
+            validator.totalDebt += _validatorDebts[i].amount;
+            //do withdraw
+            if (_validatorDebts[i].amount == 0) {
+                validator.stopped = true;
+            }
+            if (validator.restaking) {
+                _requestWithdrawal(
+                    validator.eigenpod,
+                    validator.pubkey,
+                    uint64(_validatorDebts[i].amount / DEPOSIT_AMOUNT_UNIT),
+                    oneRequestFee
+                );
+            } else {
+                _requestWithdrawal(
+                    validator.pubkey, uint64(_validatorDebts[i].amount / DEPOSIT_AMOUNT_UNIT), oneRequestFee
+                );
+            }
+        }
+        // Refund remainder of msg.value
+        if (remainder > 0) {
+            Address.sendValue(payable(msg.sender), remainder);
+        }
+        // vector clock moves
+        _vectorClockTick();
+    }
+
+    function pushValidators(
+        uint256 _totalAliveBalance,
+        bool _callPushBeacon,
+        bytes32 clock,
+        ValidatorReward[] calldata _validatorRewards
+    ) external nonReentrant onlyRole(ORACLE_ROLE) {
         aliveValidatorBalance = _totalAliveBalance;
+
+        for (uint256 i = 0; i < _validatorRewards.length; i++) {
+            uint256 index = pubkeyIndices[keccak256(_validatorRewards[i].pubkey)] - 1;
+            ValidatorCredential storage validator = validatorRegistry[index];
+            validator.totalReward = _validatorRewards[i].amount;
+        }
 
         if (_callPushBeacon) {
             // vector clock moves in _pushBeacon
@@ -577,48 +678,6 @@ contract Staking is Initializable, PausableUpgradeable, AccessControlUpgradeable
         // vector clock moves
         _vectorClockTick();
     }
-
-    /**
-     * @dev notify some validators stopped, stop the validator in sequence.
-     */
-    // function validatorStopped(bytes[] calldata _stoppedPubKeys, bytes32 clock)
-    //     external
-    //     payable
-    //     nonReentrant
-    //     onlyRole(ORACLE_ROLE)
-    // {
-    //     _require(vectorClock == clock, "SYS012");
-    //     _require(_stoppedPubKeys.length > 0, "SYS017");
-    //     _require(_stoppedPubKeys.length + stoppedValidators <= nextValidatorId, "SYS018");
-    //     uint256 oneRequestFee = _getFee(WITHDRAWAL_REQUEST_ADDRESS);
-    //     _require(msg.value >= oneRequestFee * _stoppedPubKeys.length, "SYS019");
-    //     uint256 remainder = msg.value - oneRequestFee * _stoppedPubKeys.length;
-
-    //     for (uint256 i = 0; i < _stoppedPubKeys.length; i++) {
-    //         bytes32 pubkeyHash = keccak256(_stoppedPubKeys[i]);
-    //         _require(pubkeyIndices[pubkeyHash] > 0, "SYS006");
-    //         uint256 index = pubkeyIndices[pubkeyHash] - 1;
-    //         _require(!validatorRegistry[index].stopped, "SYS020");
-    //         validatorRegistry[index].stopped = true;
-    //         validatorRegistry[index].stakedAmount = 0;
-    //         stoppedValidators++;
-    //         if (validatorRegistry[index].restaking) {
-    //             _requestWithdrawal(validatorRegistry[index].eigenpod, validatorRegistry[index].pubkey, 0, oneRequestFee);
-    //         } else {
-    //             _requestWithdrawal(validatorRegistry[index].pubkey, 0, oneRequestFee);
-    //         }
-    //     }
-
-    //     // log
-    //     emit ValidatorStopped(_stoppedPubKeys.length);
-
-    //     // Refund remainder of msg.value
-    //     if (remainder > 0) {
-    //         Address.sendValue(payable(msg.sender), remainder);
-    //     }
-    //     // vector clock moves
-    //     _vectorClockTick();
-    // }
 
     /**
      * ======================================================================================
@@ -632,56 +691,11 @@ contract Staking is Initializable, PausableUpgradeable, AccessControlUpgradeable
      * @dev returns current reserve of ethers
      */
     function currentReserve() public view returns (uint256) {
-        return currentReservePectra() + IStaking(stakingContract).currentReserveLegacy();
+        return currentReserveV2() + IStaking(stakingContractV1).currentReserveV1();
     }
 
-    function currentReservePectra() public view returns (uint256) {
+    function currentReserveV2() public view returns (uint256) {
         return totalPending + totalStaked + accountedUserRevenue - totalDebts - rewardDebts;
-    }
-
-    function redeemFromValidatorsFee(uint256 ethersToRedeem, uint256 maxToBurn, uint256 deadline)
-        public
-        view
-        returns (uint256, uint256, uint256)
-    {
-        _require(block.timestamp < deadline, "USR001");
-        _require(ethersToRedeem % DEPOSIT_SIZE == 0, "USR005");
-        _require(ethersToRedeem > 0, "USR005");
-
-        uint256 totalXETH = IERC20(xETHAddress).totalSupply();
-        uint256 xETHToBurn = totalXETH * ethersToRedeem / currentReserve();
-        _require(xETHToBurn <= maxToBurn, "USR004");
-        uint256 oneRequestFee = _getFee(WITHDRAWAL_REQUEST_ADDRESS);
-        uint256 numRequest = 0;
-        for (uint256 i = stoppedValidators; i < validatorRegistry.length; i++) {
-            ValidatorCredential memory cred = validatorRegistry[i];
-            if (ethersToRedeem == 0) {
-                break;
-            }
-            // just in case
-            if (cred.stopped) {
-                continue;
-            }
-            int256 availableAmount = SafeCast.toInt256(cred.stakedAmount - cred.debt - DEPOSIT_PER_VALIDATOR_MIN);
-            //check if we can withdrawal from this validator
-            if (availableAmount >= SafeCast.toInt256(ethersToRedeem)) {
-                numRequest++;
-                break;
-            } else if (availableAmount > 0) {
-                // if the available amount is not enough, we can only withdraw the available amount
-                numRequest++;
-                ethersToRedeem -= SafeCast.toUint256(availableAmount);
-            }
-        }
-        uint256 numValidator = ethersToRedeem / DEPOSIT_PER_VALIDATOR_MIN;
-        _require(numValidator <= nextValidatorId - stoppedValidators, "SYS0032");
-        if (numValidator > 0) {
-            numRequest += numValidator;
-        }
-        if (ethersToRedeem % DEPOSIT_PER_VALIDATOR_MIN > 0) {
-            numRequest++;
-        }
-        return (numRequest * oneRequestFee, oneRequestFee, xETHToBurn);
     }
 
     function _getFee(address predeploy) internal view returns (uint256) {
@@ -795,35 +809,34 @@ contract Staking is Initializable, PausableUpgradeable, AccessControlUpgradeable
         external
         view
         returns (
-            bytes[] memory pubkeys,
-            bytes[] memory signatures,
-            bool[] memory stopped,
-            bool[] memory restaking,
-            uint256[] memory stakeAmount
+            bytes[] memory _pubkeys,
+            bytes[] memory _signatures,
+            bool[] memory _stopped,
+            bool[] memory _restaking,
+            uint256[] memory _totalStaked,
+            uint256[] memory _totalDebt,
+            uint256[] memory _totalReward
         )
     {
-        pubkeys = new bytes[](idx_to - idx_from);
-        signatures = new bytes[](idx_to - idx_from);
-        stopped = new bool[](idx_to - idx_from);
-        restaking = new bool[](idx_to - idx_from);
-        stakeAmount = new uint256[](idx_to - idx_from);
+        _pubkeys = new bytes[](idx_to - idx_from);
+        _signatures = new bytes[](idx_to - idx_from);
+        _stopped = new bool[](idx_to - idx_from);
+        _restaking = new bool[](idx_to - idx_from);
+        _totalStaked = new uint256[](idx_to - idx_from);
+        _totalDebt = new uint256[](idx_to - idx_from);
+        _totalReward = new uint256[](idx_to - idx_from);
 
         uint256 counter = 0;
         for (uint256 i = idx_from; i < idx_to; i++) {
-            pubkeys[counter] = validatorRegistry[i].pubkey;
-            signatures[counter] = validatorRegistry[i].signature;
-            stopped[counter] = validatorRegistry[i].stopped;
-            restaking[counter] = validatorRegistry[i].restaking;
-            stakeAmount[counter] = validatorRegistry[i].stakedAmount;
+            _pubkeys[counter] = validatorRegistry[i].pubkey;
+            _signatures[counter] = validatorRegistry[i].signature;
+            _stopped[counter] = validatorRegistry[i].stopped;
+            _restaking[counter] = validatorRegistry[i].restaking;
+            _totalStaked[counter] = validatorRegistry[i].totalStaked;
+            _totalDebt[counter] = validatorRegistry[i].totalDebt;
+            _totalReward[counter] = validatorRegistry[i].totalReward;
             counter++;
         }
-    }
-
-    /**
-     * @dev return next validator id
-     */
-    function getNextValidatorId() external view returns (uint256) {
-        return nextValidatorId;
     }
 
     /**
@@ -856,13 +869,6 @@ contract Staking is Initializable, PausableUpgradeable, AccessControlUpgradeable
 
     function getDebtQueue() external view returns (uint256 first, uint256 last) {
         return (firstDebt, lastDebt);
-    }
-
-    /**
-     * @dev get stopped validators count
-     */
-    function getStoppedValidatorsCount() external view returns (uint256) {
-        return stoppedValidators;
     }
 
     /**
@@ -912,37 +918,6 @@ contract Staking is Initializable, PausableUpgradeable, AccessControlUpgradeable
         return toMint;
     }
 
-    /**
-     * @dev preview instant payment at CURRENT exchangeRatio
-     */
-    function previewInstantSwap(uint256 tokenAmount)
-        external
-        view
-        returns (uint256 maxEthersToSwap, uint256 maxTokensToBurn)
-    {
-        return _instantSwapRate(tokenAmount);
-    }
-
-    /**
-     * @dev instant payment as much as possbile from pending ethers at CURRENT exchangeRatio
-     */
-    function instantSwap(uint256 tokenAmount) external nonReentrant whenNotPaused {
-        (uint256 maxEthersToSwap, uint256 maxTokensToBurn) = _instantSwapRate(tokenAmount);
-        // _require(maxTokensToBurn > 0 && maxEthersToSwap > 0, "USR007");
-
-        // uint256 ratio = _exchangeRatioInternal();               // RATIO GUARD BEGIN
-        // transfer token from user and burn, substract ethers from pending ethers
-        IMintableContract(xETHAddress).burnFrom(msg.sender, maxTokensToBurn);
-        totalPending -= maxEthersToSwap;
-        // assert(ratio == _exchangeRatioInternal());              // RATIO GUARD END
-
-        // track balance change
-        _balanceDecrease(maxEthersToSwap);
-
-        // transfer ethers to users
-        payable(msg.sender).sendValue(maxEthersToSwap);
-    }
-
     function _requestWithdrawal(uint8 eigenPod, bytes memory pubkey, uint64 amountGwei, uint256 fee) internal {
         IEigenPodTypes.WithdrawalRequest memory req =
             IEigenPodTypes.WithdrawalRequest({pubkey: pubkey, amountGwei: amountGwei});
@@ -959,23 +934,6 @@ contract Staking is Initializable, PausableUpgradeable, AccessControlUpgradeable
     }
 
     /**
-     * @dev internal function for the calculation of max allowed instant swap rate
-     */
-    function _instantSwapRate(uint256 tokenAmount)
-        internal
-        view
-        returns (uint256 maxEthersToSwap, uint256 maxTokensToBurn)
-    {
-        // find max instant swappable ethers
-        uint256 totalSupply = IERC20(xETHAddress).totalSupply();
-        uint256 r = currentReserve();
-        uint256 expectedEthersToSwap = tokenAmount * r / totalSupply;
-        maxEthersToSwap = expectedEthersToSwap > totalPending ? totalPending : expectedEthersToSwap;
-        // reverse calculation for how much token to burn.
-        maxTokensToBurn = totalSupply * maxEthersToSwap / r;
-    }
-
-    /**
      * @dev redeem N * 32Ethers, which will turn off validadators,
      * note this function is asynchronous, the caller will only receive his ethers
      * after the validator has turned off.
@@ -986,100 +944,24 @@ contract Staking is Initializable, PausableUpgradeable, AccessControlUpgradeable
      */
     function redeemFromValidators(uint256 ethersToRedeem, uint256 maxToBurn, uint256 deadline)
         external
-        payable
         nonReentrant
         returns (uint256 burned)
     {
-        (uint256 totalFee, uint256 oneRequestFee, uint256 xETHToBurn) =
-            redeemFromValidatorsFee(ethersToRedeem, maxToBurn, deadline);
-        _require(msg.value >= totalFee, "USE007");
-        uint256 remainder = msg.value - totalFee;
+        _require(block.timestamp < deadline, "USR001");
+        _require(ethersToRedeem % DEPOSIT_SIZE == 0, "USR005");
+        _require(ethersToRedeem > 0, "USR005");
+
+        uint256 totalXETH = IERC20(xETHAddress).totalSupply();
+        uint256 xETHToBurn = totalXETH * ethersToRedeem / currentReserve();
+        _require(xETHToBurn <= maxToBurn, "USR004");
 
         // NOTE: the following procdure must keep exchangeRatio invariant:
         // transfer xETH from sender & burn
         // uint256 ratio = _exchangeRatioInternal();           // RATIO GUARD BEGIN
         IMintableContract(xETHAddress).burnFrom(msg.sender, xETHToBurn);
+        _enqueueDebt(msg.sender, ethersToRedeem); // queue ether debts
         // assert(ratio == _exchangeRatioInternal());          // RATIO GUARD END
-        for (uint256 i = stoppedValidators; i < validatorRegistry.length; i++) {
-            ValidatorCredential storage cred = validatorRegistry[i];
-            if (ethersToRedeem == 0) {
-                break;
-            }
-            // just in case
-            if (cred.stopped) {
-                continue;
-            }
-            int256 availableAmount = SafeCast.toInt256(cred.stakedAmount - cred.debt - DEPOSIT_PER_VALIDATOR_MIN);
-            //check if we can withdrawal from this validator
-            if (availableAmount >= SafeCast.toInt256(ethersToRedeem)) {
-                if (cred.restaking) {
-                    _requestWithdrawal(
-                        cred.eigenpod, cred.pubkey, uint64(ethersToRedeem / DEPOSIT_AMOUNT_UNIT), oneRequestFee
-                    );
-                } else {
-                    _requestWithdrawal(cred.pubkey, uint64(ethersToRedeem / DEPOSIT_AMOUNT_UNIT), oneRequestFee);
-                }
-                cred.debt += ethersToRedeem;
-                _enqueueDebt(msg.sender, ethersToRedeem, i); // queue ether debts
-                break;
-            } else if (availableAmount > 0) {
-                if (cred.restaking) {
-                    _requestWithdrawal(
-                        cred.eigenpod,
-                        cred.pubkey,
-                        uint64(SafeCast.toUint256(availableAmount) / DEPOSIT_AMOUNT_UNIT),
-                        oneRequestFee
-                    );
-                } else {
-                    _requestWithdrawal(
-                        cred.pubkey, uint64(SafeCast.toUint256(availableAmount) / DEPOSIT_AMOUNT_UNIT), oneRequestFee
-                    );
-                }
-                ethersToRedeem -= SafeCast.toUint256(availableAmount);
-                cred.debt += SafeCast.toUint256(availableAmount);
-                _enqueueDebt(msg.sender, SafeCast.toUint256(availableAmount), i); // queue ether debts
-            }
-        }
 
-        uint256 numValidator = ethersToRedeem / DEPOSIT_PER_VALIDATOR_MIN;
-        _require(numValidator <= nextValidatorId - stoppedValidators, "SYS0032");
-        if (numValidator > 0) {
-            //stop validators
-            for (uint256 i = 0; i < numValidator; i++) {
-                ValidatorCredential storage cred = validatorRegistry[stoppedValidators + i];
-                // just in case
-                if (cred.stopped) {
-                    continue;
-                }
-                cred.stopped = true;
-                if (cred.restaking) {
-                    _requestWithdrawal(cred.eigenpod, cred.pubkey, 0, oneRequestFee);
-                } else {
-                    _requestWithdrawal(cred.pubkey, 0, oneRequestFee);
-                }
-                cred.debt += DEPOSIT_PER_VALIDATOR_MIN;
-                _enqueueDebt(msg.sender, DEPOSIT_PER_VALIDATOR_MIN, stoppedValidators + i); // queue ether debts
-            }
-            stoppedValidators += numValidator;
-        }
-        if (ethersToRedeem % DEPOSIT_PER_VALIDATOR_MIN > 0) {
-            //stop one validator
-            ValidatorCredential storage cred = validatorRegistry[stoppedValidators];
-            _require(cred.stopped != true, "SYS0033");
-            cred.stopped = true;
-            if (cred.restaking) {
-                _requestWithdrawal(cred.eigenpod, cred.pubkey, 0, oneRequestFee);
-            } else {
-                _requestWithdrawal(cred.pubkey, 0, oneRequestFee);
-            }
-            cred.debt += ethersToRedeem % DEPOSIT_PER_VALIDATOR_MIN;
-            _enqueueDebt(msg.sender, ethersToRedeem % DEPOSIT_PER_VALIDATOR_MIN, stoppedValidators); // queue ether debts
-            stoppedValidators++;
-        }
-        // Refund remainder of msg.value
-        if (remainder > 0) {
-            Address.sendValue(payable(msg.sender), remainder);
-        }
         // return burned
         return xETHToBurn;
     }
@@ -1104,10 +986,10 @@ contract Staking is Initializable, PausableUpgradeable, AccessControlUpgradeable
         vectorClock = keccak256(abi.encodePacked(vectorClock, block.timestamp, vectorClockTicks));
     }
 
-    function _enqueueDebt(address account, uint256 amount, uint256 validatorIndex) internal {
+    function _enqueueDebt(address account, uint256 amount) internal {
         // debt is paid in FIFO queue
         lastDebt += 1;
-        etherDebts[lastDebt] = Debt({account: account, amount: amount, validatorIndex: validatorIndex});
+        etherDebts[lastDebt] = Debt({account: account, amount: amount});
 
         // track user debts
         userDebts[account] += amount;
@@ -1149,9 +1031,6 @@ contract Staking is Initializable, PausableUpgradeable, AccessControlUpgradeable
 
             // dequeue if cleared
             if (debt.amount == 0) {
-                ValidatorCredential storage cred = validatorRegistry[debt.validatorIndex];
-                cred.debt -= toPay;
-                cred.stakedAmount -= toPay;
                 _dequeueDebt();
             }
         }

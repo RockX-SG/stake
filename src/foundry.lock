@@ -5,10 +5,10 @@
       "rev": "51e11611c40ec1ad772e2a075cdc8487bbadf8ad"
     }
   },
-  "lib/OpenZeppelin/openzeppelin-contracts@4.9.0": {
+  "lib/OpenZeppelin/openzeppelin-contracts-upgradeable@4.9.0": {
     "tag": {
       "name": "v4.9.0",
-      "rev": "54b3f14346da01ba0d159114b399197fea8b7cda"
+      "rev": "f6febd79e2a3a17e26969dd0d450c6ebd64bf459"
     }
   },
   "lib/GNSPS/solidity-bytes-utils@0.8.0": {
@@ -17,10 +17,13 @@
       "rev": "6458fb2780a3092bc756e737f246be1de6d3d362"
     }
   },
-  "lib/OpenZeppelin/openzeppelin-contracts-upgradeable@4.9.0": {
+  "lib/openzeppelin-contracts": {
+    "rev": "09502570ce0209019dc57b422f7067c2b7509407"
+  },
+  "lib/OpenZeppelin/openzeppelin-contracts@4.9.0": {
     "tag": {
       "name": "v4.9.0",
-      "rev": "f6febd79e2a3a17e26969dd0d450c6ebd64bf459"
+      "rev": "54b3f14346da01ba0d159114b399197fea8b7cda"
     }
   },
   "lib/eigenlayer-contracts/eigenlayer-contracts@1.6.0": {
@@ -35,7 +38,10 @@
       "rev": "b53c43242fc9c0e435b66178c3847c4a1b417cc1"
     }
   },
-  "lib/openzeppelin-contracts": {
-    "rev": "09502570ce0209019dc57b422f7067c2b7509407"
+  "lib/forge-std": {
+    "tag": {
+      "name": "v1.10.0",
+      "rev": "8bbcf6e3f8f62f419e5429a0bd89331c85c37824"
+    }
   }
 }

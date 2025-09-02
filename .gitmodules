@@ -10,3 +10,6 @@
 [submodule "src/lib/eigenlayer-contracts/eigenlayer-contracts@1.6.0"]
 	path = src/lib/eigenlayer-contracts/eigenlayer-contracts@1.6.0
 	url = https://github.com/Layr-Labs/eigenlayer-contracts.git
+[submodule "src/lib/forge-std"]
+	path = src/lib/forge-std
+	url = https://github.com/foundry-rs/forge-std

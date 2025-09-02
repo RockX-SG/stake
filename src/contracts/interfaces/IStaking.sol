@@ -4,7 +4,7 @@ pragma solidity ^0.8.12;
 interface IStaking {
     function checkDebt(uint256 index) external view returns (address account, uint256 amount);
     function currentReserve() external view returns (uint256);
-    function currentReserveLegacy() external view returns (uint256);
+    function currentReserveV1() external view returns (uint256);
     function debtOf(address account) external view returns (uint256);
     function ethDepositContract() external view returns (address);
     function exchangeRatio() external view returns (uint256);

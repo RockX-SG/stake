@@ -245,8 +245,7 @@ contract Staking is Initializable, PausableUpgradeable, AccessControlUpgradeable
     /**
      * @dev initialization address
      */
-    /*
-    function initialize() initializer public {
+    function initialize() public initializer {
         __Pausable_init();
         __AccessControl_init();
         __ReentrancyGuard_init();
@@ -261,7 +260,6 @@ contract Staking is Initializable, PausableUpgradeable, AccessControlUpgradeable
         managerFeeShare = 5;
         firstDebt = 1;
         lastDebt = 0;
-        phase = 0;
         _vectorClockTick();
 
         // initiate default withdrawal credential to the contract itself
@@ -269,21 +267,23 @@ contract Staking is Initializable, PausableUpgradeable, AccessControlUpgradeable
         bytes memory cred = abi.encodePacked(bytes1(0x01), new bytes(11), address(this));
         withdrawalCredentials = BytesLib.toBytes32(cred, 0);
     }
-    */
 
     /**
      * UPDATE(20240130): to set a variable after upgrades
      * use upgradeAndCall to initializeV2
      */
-    /*
-    function initializeV2(address restakingContract_) reinitializer(2) public {
+    function initializeV2(address restakingContract_, address xETHAddress_) public reinitializer(2) {
         restakingContract = restakingContract_;
+        xETHAddress = xETHAddress_;
     }
-    */
 
+    function initializeV3(address redeemContract_) public reinitializer(3) {
+        redeemContract = redeemContract_;
+    }
     /**
      * @dev replace validators in batch
      */
+
     function replaceValidators(
         bytes[] calldata oldpubkeys,
         bytes[] calldata pubkeys,

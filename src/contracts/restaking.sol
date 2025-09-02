@@ -112,17 +112,14 @@ contract Restaking is Initializable, AccessControlUpgradeable, ReentrancyGuardUp
     /**
      * @dev initialization
      */
-    /*
-    function initialize(
-        address _eigenPodManager,
-        address _delegationManager,
-        address _strategyManager,
-        address _delayedWithdrawalRouter
-    ) initializer public {
+    function initialize(address _eigenPodManager, address _delegationManager, address _strategyManager)
+        public
+        initializer
+    {
         require(_eigenPodManager != address(0x0), "SYS026");
-        require(_delegationManager!= address(0x0), "SYS027");
-        require(_strategyManager!= address(0x0), "SYS028");
-        require(_delayedWithdrawalRouter!= address(0x0), "SYS029");
+        require(_delegationManager != address(0x0), "SYS027");
+        require(_strategyManager != address(0x0), "SYS028");
+        // require(_delayedWithdrawalRouter != address(0x0), "SYS029");
 
         __AccessControl_init();
         __ReentrancyGuard_init();
@@ -134,7 +131,7 @@ contract Restaking is Initializable, AccessControlUpgradeable, ReentrancyGuardUp
         eigenPodManager = _eigenPodManager;
         delegationManager = _delegationManager;
         strategyManager = _strategyManager;
-        delayedWithdrawalRouter = _delayedWithdrawalRouter;
+        // delayedWithdrawalRouter = _delayedWithdrawalRouter;
 
         // Deploy new EigenPod
         IEigenPodManager(eigenPodManager).createPod();
@@ -142,7 +139,6 @@ contract Restaking is Initializable, AccessControlUpgradeable, ReentrancyGuardUp
         // Save off the EigenPod address
         eigenPod = address(IEigenPodManager(eigenPodManager).getPod(address(this)));
     }
-    */
 
     /**
      * @dev UPDATE(20240130): to set a variable after upgrades
@@ -157,7 +153,8 @@ contract Restaking is Initializable, AccessControlUpgradeable, ReentrancyGuardUp
     /**
      * @dev UPDATE(20240330): to init upgradable beacon/beaconproxy
      */
-    function initializeV3(address impl) public reinitializer(3) {
+    function initializeV3(address impl, address _stakingAddress) public reinitializer(3) {
+        stakingAddress = _stakingAddress;
         beacon = new UpgradeableBeacon(impl);
         podOwners.push(IPodOwner(address(this)));
     }
