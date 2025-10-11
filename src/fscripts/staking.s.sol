@@ -53,4 +53,19 @@ contract StakingDeploy is Script {
         );
         vm.stopBroadcast();
     }
+
+    //forge script fscripts/staking.s.sol --sig 'upgradeV4(address,address,address)' $PROXY_ADMIN_ADDRESS $STAKING_PROXY_ADDRESS \
+    //$STAKING_PECTRA --rpc-url $RPC_ETH_HOODI --sender $DEPLOYER_ADDRESS \
+    //--account $DEPLOYER --broadcast \
+    //--verify --verifier-url $RPC_ETH_HOODI_SCAN --etherscan-api-key $KEY_ETH_HOODI_SCAN --delay 30
+    function upgradeV4(address proxyAdmin, address stakingProxy, address stakingPectra) external {
+        vm.startBroadcast();
+        Staking implementation = new Staking();
+        ProxyAdmin(proxyAdmin).upgradeAndCall(
+            ITransparentUpgradeableProxy(address(stakingProxy)),
+            address(implementation),
+            abi.encodeCall(Staking.initializeV4, (stakingPectra))
+        );
+        vm.stopBroadcast();
+    }
 }

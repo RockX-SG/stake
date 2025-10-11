@@ -2,6 +2,7 @@
 pragma solidity ^0.8.4;
 
 import "interfaces/iface.sol";
+import "interfaces/IStaking.sol";
 import "solidity-bytes-utils/contracts/BytesLib.sol";
 import "@openzeppelin/contracts/token/ERC20/utils/SafeERC20.sol";
 import "@openzeppelin/contracts-upgradeable/proxy/utils/Initializable.sol";
@@ -215,6 +216,8 @@ contract Staking is Initializable, PausableUpgradeable, AccessControlUpgradeable
     // UPDATE(20240405): record latest unrealized profits
     uint256 private reportedUnrealizedProfits;
 
+    address public stakingPectra;
+
     /**
      * ======================================================================================
      *
@@ -280,10 +283,14 @@ contract Staking is Initializable, PausableUpgradeable, AccessControlUpgradeable
     function initializeV3(address redeemContract_) public reinitializer(3) {
         redeemContract = redeemContract_;
     }
+
+    function initializeV4(address stakingPectra_) public reinitializer(4) {
+        stakingPectra = stakingPectra_;
+    }
+
     /**
      * @dev replace validators in batch
      */
-
     function replaceValidators(
         bytes[] calldata oldpubkeys,
         bytes[] calldata pubkeys,
@@ -648,8 +655,12 @@ contract Staking is Initializable, PausableUpgradeable, AccessControlUpgradeable
     /**
      * @dev returns current reserve of ethers
      */
-    function currentReserve() public view returns (uint256) {
+    function currentReserveV1() public view returns (uint256) {
         return totalPending + totalStaked + accountedUserRevenue - totalDebts - rewardDebts;
+    }
+
+    function currentReserve() public view returns (uint256) {
+        return currentReserveV1() + IStaking(stakingPectra).currentReserveV2();
     }
 
     /*

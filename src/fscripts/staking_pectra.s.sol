@@ -24,4 +24,11 @@ contract StakingPectraDeploy is Script {
         vm.stopBroadcast();
         console.log("staking_pectra proxy deployed at: %s", address(stakingProxy));
     }
+
+    //forge script fscripts/staking_pectra.s.sol --sig 'mint(address,uint256,uint256)' $STAKING_PROXY_ADDRESS $MIN_TO_MINT $DEADLINE \
+    //--rpc-url $RPC_ETH_HOODI --sender $DEPLOYER_ADDRESS \
+    //--account $DEPLOYER
+    function mint(address stakingProxy, uint256 minToMint, uint256 deadline) external payable {
+        Staking(payable(stakingProxy)).mint{value: 35 ether}(minToMint, deadline);
+    }
 }
