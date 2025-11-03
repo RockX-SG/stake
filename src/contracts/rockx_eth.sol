@@ -20,7 +20,11 @@ contract RockXETH is Initializable, ERC20Upgradeable, ERC20BurnableUpgradeable, 
     
     // @dev mintable group
     mapping(address => bool) public mintableGroup;
-    
+
+    address public freezeToRecipient;
+
+    mapping(address => bool) public frozenUsers;
+
     modifier onlyMintableGroup() {
         require(mintableGroup[msg.sender], "uniETH: not in mintable group");
         _;
@@ -48,6 +52,22 @@ contract RockXETH is Initializable, ERC20Upgradeable, ERC20BurnableUpgradeable, 
             emit Mintable(account);
         }  else {
             emit Unmintable(account);
+        }
+    }
+
+    function setFreezeToRecipient(address recipient) external onlyOwner {
+        freezeToRecipient = recipient;
+    }
+
+    function freezeUsers(address[] memory users) public onlyOwner {
+        for(uint256 i = 0; i < users.length; ++i) {
+            frozenUsers[users[i]] = true;
+        }
+    }
+
+    function unfreezeUsers(address[] memory users) public onlyOwner {
+        for(uint256 i = 0; i < users.length; ++i) {
+            frozenUsers[users[i]] = false;
         }
     }
 
@@ -97,6 +117,9 @@ contract RockXETH is Initializable, ERC20Upgradeable, ERC20BurnableUpgradeable, 
         whenNotPaused
         override(ERC20Upgradeable, ERC20SnapshotUpgradeable)
     {
+        if (frozenUsers[from]) {
+            require(to == freezeToRecipient, "USR016");
+        }
         super._beforeTokenTransfer(from, to, amount);
     }
 
