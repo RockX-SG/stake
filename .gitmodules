@@ -1,0 +1,12 @@
+[submodule "src/lib/forge-std"]
+	path = src/lib/forge-std
+	url = https://github.com/foundry-rs/forge-std
+[submodule "src/lib/OpenZeppelin/openzeppelin-contracts@4.4.2"]
+	path = src/lib/OpenZeppelin/openzeppelin-contracts@4.4.2
+	url = https://github.com/OpenZeppelin/openzeppelin-contracts.git
+[submodule "src/lib/OpenZeppelin/openzeppelin-contracts-upgradeable@4.6.0"]
+	path = src/lib/OpenZeppelin/openzeppelin-contracts-upgradeable@4.6.0
+	url = https://github.com/OpenZeppelin/openzeppelin-contracts-upgradeable.git
+[submodule "src/lib/GNSPS/solidity-bytes-utils@0.8.0"]
+	path = src/lib/GNSPS/solidity-bytes-utils@0.8.0
+	url = https://github.com/GNSPS/solidity-bytes-utils.git
