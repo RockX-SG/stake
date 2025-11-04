@@ -55,5 +55,5 @@ interface IRestaking {
 interface IPodOwner {
     function transfer(address target, uint256 amount) external;
     function execute(address target, bytes memory data) external returns (bytes memory);
-    function executeWithValue(address target, bytes memory data, uint256 value) external returns (bytes memory);
+    function executeWithValue(address target, bytes memory data, uint256 value) external payable returns (bytes memory);
 }

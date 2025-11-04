@@ -294,10 +294,11 @@ contract Staking is Initializable, PausableUpgradeable, AccessControlUpgradeable
     /**
      * @dev register a batch of LRT validators
      */
-    function registerRestakingValidators(bytes[] calldata pubkeys, bytes[] calldata signatures, uint8[] calldata podIds)
-        external
-        onlyRole(REGISTRY_ROLE)
-    {
+    function registerRestakingValidators(
+        bytes[] calldata pubkeys,
+        bytes[] calldata signatures,
+        uint8[] calldata podIds
+    ) external onlyRole(REGISTRY_ROLE) {
         _require(pubkeys.length == signatures.length, "SYS007");
         _require(pubkeys.length == podIds.length, "SYS007");
         uint256 n = pubkeys.length;
@@ -428,6 +429,7 @@ contract Staking is Initializable, PausableUpgradeable, AccessControlUpgradeable
                 reportedAddedStake += DEPOSIT_SIZE;
                 totalPending -= DEPOSIT_SIZE;
                 cred.totalStaked += DEPOSIT_SIZE;
+                staked = cred.totalStaked + cred.totalReward - cred.totalDebt;
             }
             // todo emit event
         }
@@ -624,12 +626,13 @@ contract Staking is Initializable, PausableUpgradeable, AccessControlUpgradeable
         _require(vectorClock == clock, "SYS012");
         uint256 oneRequestFee = _getFee(WITHDRAWAL_REQUEST_ADDRESS);
         uint256 totalFee = oneRequestFee * _validatorDebts.length;
-        uint256 remainder = msg.value - totalFee;
         _require(msg.value >= totalFee, "USE007");
+        uint256 remainder = msg.value - totalFee;
         for (uint256 i = 0; i < _validatorDebts.length; i++) {
             uint256 index = pubkeyIndices[keccak256(_validatorDebts[i].pubkey)] - 1;
             ValidatorCredential storage validator = validatorRegistry[index];
             validator.totalDebt += _validatorDebts[i].amount;
+            _require(!validator.stopped, "SYS013");
             //do withdraw
             if (_validatorDebts[i].amount == 0) {
                 validator.stopped = true;

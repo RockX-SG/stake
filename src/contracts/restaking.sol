@@ -41,6 +41,7 @@ contract PodOwner is IPodOwner, Initializable, OwnableUpgradeable {
 
     function executeWithValue(address target, bytes memory data, uint256 value)
         external
+        payable
         override
         onlyOwner
         returns (bytes memory)

@@ -41,6 +41,7 @@ contract PodOwner is IPodOwner, Initializable, OwnableUpgradeable {
 
     function executeWithValue(address target, bytes memory data, uint256 value)
         external
+        payable
         override
         onlyOwner
         returns (bytes memory)
@@ -211,7 +212,7 @@ contract Restaking is Initializable, AccessControlUpgradeable, ReentrancyGuardUp
         IPodOwner podOwner = podOwners[podId];
         address pod = address(IEigenPodManager(eigenPodManager).getPod(address(podOwner)));
 
-        podOwner.executeWithValue(
+        podOwner.executeWithValue{value: msg.value}(
             pod, abi.encodeWithSelector(IEigenPod.requestWithdrawal.selector, requests), msg.value
         );
     }
