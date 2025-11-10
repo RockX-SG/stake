@@ -294,11 +294,10 @@ contract Staking is Initializable, PausableUpgradeable, AccessControlUpgradeable
     /**
      * @dev register a batch of LRT validators
      */
-    function registerRestakingValidators(
-        bytes[] calldata pubkeys,
-        bytes[] calldata signatures,
-        uint8[] calldata podIds
-    ) external onlyRole(REGISTRY_ROLE) {
+    function registerRestakingValidators(bytes[] calldata pubkeys, bytes[] calldata signatures, uint8[] calldata podIds)
+        external
+        onlyRole(REGISTRY_ROLE)
+    {
         _require(pubkeys.length == signatures.length, "SYS007");
         _require(pubkeys.length == podIds.length, "SYS007");
         uint256 n = pubkeys.length;
@@ -431,7 +430,7 @@ contract Staking is Initializable, PausableUpgradeable, AccessControlUpgradeable
                 cred.totalStaked += DEPOSIT_SIZE;
                 staked = cred.totalStaked + cred.totalReward - cred.totalDebt;
             }
-            // todo emit event
+            emit ValidatorStaked(i, cred.totalStaked);
         }
     }
 
@@ -1142,7 +1141,6 @@ contract Staking is Initializable, PausableUpgradeable, AccessControlUpgradeable
      *
      * ======================================================================================
      */
-    event ValidatorActivated(uint256 nextValidatorId);
     event ValidatorStopped(uint256 stoppedCount);
     event RevenueAccounted(uint256 amount);
     event ValidatorSlashedStopped(uint256 stoppedCount);
@@ -1154,8 +1152,8 @@ contract Staking is Initializable, PausableUpgradeable, AccessControlUpgradeable
     event DebtQueued(address creditor, uint256 amountEther);
     event DepositContractSet(address addr);
     event BalanceSynced(uint256 diff);
-    event WhiteListToggle(address account, bool enabled);
     event ManagerRevenueCompounded(uint256 amount);
     event UserRevenueCompounded(uint256 amount);
     event Cleared(uint256 amount);
+    event ValidatorStaked(uint256 validatorId, uint256 amount);
 }
