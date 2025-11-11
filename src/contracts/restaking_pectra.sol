@@ -82,14 +82,6 @@ contract Restaking is Initializable, AccessControlUpgradeable, ReentrancyGuardUp
     // @dev pods owners
     IPodOwner[] public podOwners;
 
-    // @dev onlySelf requirement
-    modifier onlySelf() {
-        if (msg.sender != address(this)) {
-            revert();
-        }
-        _;
-    }
-
     /**
      * @dev forward to staking contract
      */
