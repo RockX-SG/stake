@@ -247,7 +247,7 @@ contract Staking is Initializable, PausableUpgradeable, AccessControlUpgradeable
 
         // initiate default withdrawal credential to the contract itself
         // uint8('0x1') + 11 bytes(0) + this.address
-        bytes memory cred = abi.encodePacked(bytes1(0x01), new bytes(11), address(this));
+        bytes memory cred = abi.encodePacked(bytes1(0x02), new bytes(11), address(this));
         withdrawalCredentials = BytesLib.toBytes32(cred, 0);
 
         stakingContractV1 = _stakingContractV1;
@@ -430,7 +430,7 @@ contract Staking is Initializable, PausableUpgradeable, AccessControlUpgradeable
                 cred.totalStaked += DEPOSIT_SIZE;
                 staked = cred.totalStaked + cred.totalReward - cred.totalDebt;
             }
-            emit ValidatorStaked(i, cred.totalStaked);
+            emit ValidatorStaked(i, staked);
         }
     }
 
@@ -648,6 +648,7 @@ contract Staking is Initializable, PausableUpgradeable, AccessControlUpgradeable
                     validator.pubkey, uint64(_validatorDebts[i].amount / DEPOSIT_AMOUNT_UNIT), oneRequestFee
                 );
             }
+            emit ValidatorWithdraw(index, _validatorDebts[i].amount / DEPOSIT_AMOUNT_UNIT);
         }
         // Refund remainder of msg.value
         if (remainder > 0) {
@@ -768,6 +769,13 @@ contract Staking is Initializable, PausableUpgradeable, AccessControlUpgradeable
         return accountedManagerRevenue;
     }
 
+    /**
+     * @dev returns the reported unrealized profits
+     */
+    function getReportedUnrealizedProfits() external view returns (uint256) {
+        return reportedUnrealizedProfits;
+    }
+
     /*
      * @dev returns accumulated beacon validators
      */
@@ -780,6 +788,13 @@ contract Staking is Initializable, PausableUpgradeable, AccessControlUpgradeable
      */
     function getReportedValidatorBalance() external view returns (uint256) {
         return reportedValidatorBalance;
+    }
+
+    /**
+     * @dev returns the alive validator balance
+     */
+    function getAliveValidatorBalance() external view returns (uint256) {
+        return aliveValidatorBalance;
     }
 
     /*
@@ -1141,12 +1156,8 @@ contract Staking is Initializable, PausableUpgradeable, AccessControlUpgradeable
      *
      * ======================================================================================
      */
-    event ValidatorStopped(uint256 stoppedCount);
     event RevenueAccounted(uint256 amount);
-    event ValidatorSlashedStopped(uint256 stoppedCount);
-    event ManagerAccountSet(address account);
     event ManagerFeeSet(uint256 milli);
-    event ManagerFeeWithdrawed(uint256 amount, address);
     event WithdrawCredentialSet(bytes32 withdrawCredential);
     event RestakingAddressSet(address addr);
     event DebtQueued(address creditor, uint256 amountEther);
@@ -1156,4 +1167,5 @@ contract Staking is Initializable, PausableUpgradeable, AccessControlUpgradeable
     event UserRevenueCompounded(uint256 amount);
     event Cleared(uint256 amount);
     event ValidatorStaked(uint256 validatorId, uint256 amount);
+    event ValidatorWithdraw(uint256 validatorId, uint256 amount);
 }

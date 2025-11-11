@@ -55,7 +55,7 @@ contract PodOwner is IPodOwner, Initializable, OwnableUpgradeable {
 }
 
 /**
- * @title Bedrock EigenLayer Restaking Pectra Contract
+ * @title Bedrock EigenLayer Restaking Contract Pectra feature
  *
  * Description:
  *  This contract manages restaking on eigenlayer, including:
@@ -74,7 +74,7 @@ contract Restaking is Initializable, AccessControlUpgradeable, ReentrancyGuardUp
     /// @dev the DelegationManager contract
     address public delegationManager;
     // @dev staking pectra contract address
-    address public stakingPectraAddress;
+    address public stakingAddress;
     /// @dev This is the contract for rewards in EigenLayer.
     address public rewardsCoordinator;
     // @dev PodOwner upgradable beacon
@@ -105,12 +105,12 @@ contract Restaking is Initializable, AccessControlUpgradeable, ReentrancyGuardUp
     function initialize(
         address _eigenPodManager,
         address _delegationManager,
-        address _stakingPectra,
+        address _staking,
         address _rewardsCoordinator
     ) public initializer {
         require(_eigenPodManager != address(0x0), "SYS026");
         require(_delegationManager != address(0x0), "SYS027");
-        require(_stakingPectra != address(0x0), "SYS025");
+        require(_staking != address(0x0), "SYS025");
         require(_rewardsCoordinator != address(0x0), "SYS029");
 
         __AccessControl_init();
@@ -122,7 +122,7 @@ contract Restaking is Initializable, AccessControlUpgradeable, ReentrancyGuardUp
         // Assign to local variable
         eigenPodManager = _eigenPodManager;
         delegationManager = _delegationManager;
-        stakingPectraAddress = _stakingPectra;
+        stakingAddress = _staking;
         rewardsCoordinator = _rewardsCoordinator;
 
         PodOwner defaultBeaconImpl = new PodOwner();
@@ -327,7 +327,7 @@ contract Restaking is Initializable, AccessControlUpgradeable, ReentrancyGuardUp
             IPodOwner podOwner = podOwners[i];
 
             totalDiff += address(podOwner).balance;
-            podOwner.transfer(stakingPectraAddress, address(podOwner).balance);
+            podOwner.transfer(stakingAddress, address(podOwner).balance);
         }
 
         emit Claimed(totalDiff);
