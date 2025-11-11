@@ -333,17 +333,6 @@ contract Restaking is Initializable, AccessControlUpgradeable, ReentrancyGuardUp
         emit Claimed(totalDiff);
     }
 
-    // @dev the magic to make restaking contract compatible to IPodOwner
-    //  so we can unify the the method to handle eigenpods.
-    //  Access to this function must be limited to the contract itself.
-    function execute(address target, bytes memory data) external onlySelf returns (bytes memory) {
-        return target.functionCall(data);
-    }
-
-    function transfer(address target, uint256 amount) external onlySelf {
-        payable(target).sendValue(amount);
-    }
-
     /**
      * ======================================================================================
      *
