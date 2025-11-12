@@ -8,29 +8,45 @@ import "@openzeppelin/contracts-upgradeable/access/OwnableUpgradeable.sol";
 import "@openzeppelin/contracts-upgradeable/security/PausableUpgradeable.sol";
 import "@openzeppelin/contracts-upgradeable/security/ReentrancyGuardUpgradeable.sol";
 
-
 contract Redeem is IRedeem, Initializable, PausableUpgradeable, ReentrancyGuardUpgradeable, OwnableUpgradeable {
     using Address for address payable;
 
-    mapping(address=>uint256) private balances;
+    mapping(address => uint256) private balances;
     uint256 private totalBalance;
 
-    constructor() { _disableInitializers(); }
+    constructor() {
+        _disableInitializers();
+    }
     /**
      * @dev initialization
      */
-    function initialize() initializer public {
+
+    function initialize() public initializer {
         __Ownable_init();
         __Pausable_init();
         __ReentrancyGuard_init();
     }
 
     // some convenient method to help show their claimable in wallet
-    function name() external pure returns (string memory) { return "Bedrock Claimable ETH"; }
-    function symbol() external pure returns (string memory) { return "redeemETH"; }
-    function decimals() external pure returns (uint8) { return 18; }
-    function totalSupply() external view returns (uint256) { return totalBalance; }
-    function balanceOf(address account) external view returns(uint256) { return balances[account]; }
+    function name() external pure returns (string memory) {
+        return "Bedrock Claimable ETH";
+    }
+
+    function symbol() external pure returns (string memory) {
+        return "redeemETH";
+    }
+
+    function decimals() external pure returns (uint8) {
+        return 18;
+    }
+
+    function totalSupply() external view returns (uint256) {
+        return totalBalance;
+    }
+
+    function balanceOf(address account) external view returns (uint256) {
+        return balances[account];
+    }
 
     function claim(uint256 amount) public returns (bool success) {
         return claim(msg.sender, amount);
@@ -53,7 +69,7 @@ contract Redeem is IRedeem, Initializable, PausableUpgradeable, ReentrancyGuardU
     /**
      * @dev pay debts from rockx staking contract
      */
-    function pay(address account) external override payable {
+    function pay(address account) external payable override {
         balances[account] += msg.value;
         totalBalance += msg.value;
 

@@ -1,0 +1,15 @@
+[submodule "src/lib/GNSPS/solidity-bytes-utils@0.8.0"]
+	path = src/lib/GNSPS/solidity-bytes-utils@0.8.0
+	url = https://github.com/GNSPS/solidity-bytes-utils
+[submodule "src/lib/OpenZeppelin/openzeppelin-contracts@4.9.0"]
+	path = src/lib/OpenZeppelin/openzeppelin-contracts@4.9.0
+	url = https://github.com/OpenZeppelin/openzeppelin-contracts
+[submodule "src/lib/OpenZeppelin/openzeppelin-contracts-upgradeable@4.9.0"]
+	path = src/lib/OpenZeppelin/openzeppelin-contracts-upgradeable@4.9.0
+	url = https://github.com/OpenZeppelin/openzeppelin-contracts-upgradeable
+[submodule "src/lib/eigenlayer-contracts/eigenlayer-contracts@1.6.0"]
+	path = src/lib/eigenlayer-contracts/eigenlayer-contracts@1.6.0
+	url = https://github.com/Layr-Labs/eigenlayer-contracts.git
+[submodule "src/lib/forge-std"]
+	path = src/lib/forge-std
+	url = https://github.com/foundry-rs/forge-std

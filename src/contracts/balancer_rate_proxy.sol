@@ -7,6 +7,12 @@ interface IRockXStaking {
 
 contract BalancerRateProxy {
     address public staking;
-    constructor(address _staking) {staking = _staking; }
-    function getRate() external view returns (uint256) { return IRockXStaking(staking).exchangeRatio(); }
+
+    constructor(address _staking) {
+        staking = _staking;
+    }
+
+    function getRate() external view returns (uint256) {
+        return IRockXStaking(staking).exchangeRatio();
+    }
 }
