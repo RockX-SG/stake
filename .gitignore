@@ -7,4 +7,9 @@ reports/
 
 src/cache
 src/out
+src/broadcast
+
+pectra/cache
+pectra/out
+pectra/broadcast
 

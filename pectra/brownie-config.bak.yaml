@@ -1,0 +1,34 @@
+# Brownie configuration file
+# https://eth-brownie.readthedocs.io/en/stable/config.html
+# required external contracts
+dependencies:
+  - OpenZeppelin/openzeppelin-contracts@4.4.2
+  - OpenZeppelin/openzeppelin-contracts-upgradeable@4.6.0
+  - GNSPS/solidity-bytes-utils@0.8.0
+
+pytest:
+    # these settings replace the defaults when running pytest
+    default_contract_owner: true
+    revert_traceback: true
+
+compiler:
+  #evm_version: "shanghai"
+    solc:
+        version: 0.8.12
+        optimizer:
+          enabled: true
+          runs: 200
+        remappings:
+          - "interfaces=./interfaces"
+          - "@eigenlayer/contracts=./lib/eigenlayer-contracts-0.4.3-mainnet-rewards-foundation-incentives/src/contracts"
+          - "@openzeppelin/contracts=OpenZeppelin/openzeppelin-contracts@4.4.2/contracts"
+          - "@openzeppelin/contracts-upgradeable=OpenZeppelin/openzeppelin-contracts-upgradeable@4.6.0/contracts"
+          - "solidity-bytes-utils/contracts=GNSPS/solidity-bytes-utils@0.8.0/contracts"
+
+# automatically fetch contract sources from Etherscan
+autofetch_sources: True
+networks:
+  default: mainnet-fork
+  mainnet-fork:
+    cmd_settings:
+      #    evm_version: "shanghai"
