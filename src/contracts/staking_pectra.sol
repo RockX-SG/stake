@@ -240,7 +240,7 @@ contract Staking is Initializable, PausableUpgradeable, AccessControlUpgradeable
         xETHAddress = _xETHAddress;
         redeemContract = _redeemContract;
         // init default values
-        managerFeeShare = 5;
+        managerFeeShare = 100;
         firstDebt = 1;
         lastDebt = 0;
         _vectorClockTick();
