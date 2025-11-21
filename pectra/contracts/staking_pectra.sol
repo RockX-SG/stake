@@ -428,7 +428,7 @@ contract Staking is Initializable, PausableUpgradeable, AccessControlUpgradeable
                 reportedAddedStake += DEPOSIT_SIZE;
                 totalPending -= DEPOSIT_SIZE;
                 cred.totalStaked += DEPOSIT_SIZE;
-                staked = cred.totalStaked + cred.totalReward - cred.totalDebt;
+                staked += DEPOSIT_SIZE;
             }
             emit ValidatorStaked(i, staked);
         }
