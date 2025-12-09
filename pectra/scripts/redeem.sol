@@ -4,7 +4,7 @@ pragma solidity ^0.8.4;
 
 import {Script, console} from "forge-std/Script.sol";
 import {TransparentUpgradeableProxy} from "@openzeppelin/contracts/proxy/transparent/TransparentUpgradeableProxy.sol";
-import {Redeem} from "../contracts/mocks/Redeem.sol";
+import {Redeem} from "../contracts/mocks/redeem.sol";
 
 contract RedeemDeploy is Script {
     //forge script fscripts/redeem.s.sol --sig 'deploy(address)' $PROXY_ADMIN_ADDRESS --rpc-url $RPC_ETH_HOODI --sender $DEPLOYER_ADDRESS \

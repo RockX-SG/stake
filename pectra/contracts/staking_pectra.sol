@@ -196,6 +196,9 @@ contract Staking is Initializable, PausableUpgradeable, AccessControlUpgradeable
      */
     uint256[31] private __gap;
 
+    // 2025/12/08
+    bool public redeemEnabled = false;
+
     /**
      * ======================================================================================
      *
@@ -221,6 +224,19 @@ contract Staking is Initializable, PausableUpgradeable, AccessControlUpgradeable
      */
     function unpause() public onlyRole(PAUSER_ROLE) {
         _unpause();
+    }
+
+    function redeemEnable() public onlyRole(PAUSER_ROLE) {
+        redeemEnabled = true;
+    }
+
+    function redeemDisable() public onlyRole(PAUSER_ROLE) {
+        redeemEnabled = false;
+    }
+
+    modifier whenRedeemEnabled() {
+        _require(redeemEnabled, "SYS015");
+        _;
     }
 
     /**
@@ -402,35 +418,37 @@ contract Staking is Initializable, PausableUpgradeable, AccessControlUpgradeable
      * @dev internal entry of stake() external
      */
     function _stakeInternal() internal {
-        if (totalPending / DEPOSIT_SIZE == 0) {
-            return;
-        }
         for (uint256 i = 0; i < validatorRegistry.length; i++) {
+            if (totalPending / DEPOSIT_SIZE == 0) {
+                return;
+            }
             ValidatorCredential storage cred = validatorRegistry[i];
             if (cred.stopped) {
                 continue;
             }
             // check if we can stake on this validator
             uint256 staked = cred.totalStaked + cred.totalReward - cred.totalDebt;
-            while (staked < DEPOSIT_PER_VALIDATOR_SIZE && totalPending / DEPOSIT_SIZE > 0) {
-                if (!cred.restaking) {
-                    _stake(cred.pubkey, cred.signature, withdrawalCredentials);
-                } else {
-                    address eigenPod = IRestaking(restakingContract).getPod(cred.eigenpod);
-                    bytes memory eigenPodCred = abi.encodePacked(bytes1(0x02), new bytes(11), eigenPod);
-                    bytes32 restakingWithdrawalCredentials = BytesLib.toBytes32(eigenPodCred, 0);
+            if (staked < DEPOSIT_PER_VALIDATOR_SIZE) {
+                while (staked < DEPOSIT_PER_VALIDATOR_SIZE && totalPending / DEPOSIT_SIZE > 0) {
+                    if (!cred.restaking) {
+                        _stake(cred.pubkey, cred.signature, withdrawalCredentials);
+                    } else {
+                        address eigenPod = IRestaking(restakingContract).getPod(cred.eigenpod);
+                        bytes memory eigenPodCred = abi.encodePacked(bytes1(0x02), new bytes(11), eigenPod);
+                        bytes32 restakingWithdrawalCredentials = BytesLib.toBytes32(eigenPodCred, 0);
 
-                    _stake(cred.pubkey, cred.signature, restakingWithdrawalCredentials);
+                        _stake(cred.pubkey, cred.signature, restakingWithdrawalCredentials);
+                    }
+
+                    // track total staked & total pending ethers
+                    totalStaked += DEPOSIT_SIZE;
+                    reportedAddedStake += DEPOSIT_SIZE;
+                    totalPending -= DEPOSIT_SIZE;
+                    cred.totalStaked += DEPOSIT_SIZE;
+                    staked += DEPOSIT_SIZE;
                 }
-
-                // track total staked & total pending ethers
-                totalStaked += DEPOSIT_SIZE;
-                reportedAddedStake += DEPOSIT_SIZE;
-                totalPending -= DEPOSIT_SIZE;
-                cred.totalStaked += DEPOSIT_SIZE;
-                staked += DEPOSIT_SIZE;
+                emit ValidatorStaked(i, staked);
             }
-            emit ValidatorStaked(i, staked);
         }
     }
 
@@ -962,6 +980,7 @@ contract Staking is Initializable, PausableUpgradeable, AccessControlUpgradeable
     function redeemFromValidators(uint256 ethersToRedeem, uint256 maxToBurn, uint256 deadline)
         external
         nonReentrant
+        whenRedeemEnabled
         returns (uint256 burned)
     {
         _require(block.timestamp < deadline, "USR001");
