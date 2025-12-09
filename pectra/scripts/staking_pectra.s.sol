@@ -46,6 +46,19 @@ contract StakingPectraDeploy is Script {
         vm.stopBroadcast();
     }
 
+    //forge script scripts/staking_pectra.s.sol --sig 'newStaking()' \
+    //--rpc-url $RPC_ETH_HOODI --sender $DEPLOYER_ADDRESS \
+    //--account $DEPLOYER --broadcast \
+    //--verify --verifier-url $RPC_ETH_HOODI_SCAN --etherscan-api-key $KEY_ETH_HOODI_SCAN --delay 30
+    function newStaking() external {
+        vm.startBroadcast();
+        // Deploy new staking contract
+        Staking implementation = new Staking();
+        // Add any initialization logic here
+        console.log("New staking contract deployed at: %s", address(implementation));
+        vm.stopBroadcast();
+    }
+
     //forge script fscripts/staking_pectra.s.sol --sig 'mint(address,uint256,uint256)' $STAKING_PROXY_ADDRESS $MIN_TO_MINT $DEADLINE \
     //--rpc-url $RPC_ETH_HOODI --sender $DEPLOYER_ADDRESS \
     //--account $DEPLOYER
